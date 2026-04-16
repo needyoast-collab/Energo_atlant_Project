@@ -194,8 +194,9 @@ async function getWarehouse(req, res, next) {
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
     const result = await pool.query(
-      `SELECT id, material_name, unit, qty_planned, qty_received, qty_used
-       FROM warehouse_items
+      `SELECT id, material_name, unit, qty_total, qty_used,
+              (qty_total - qty_used) AS qty_balance
+       FROM warehouse_project
        WHERE project_id = $1
        ORDER BY material_name`,
       [id]

@@ -40,4 +40,17 @@ async function markRead(req, res, next) {
   }
 }
 
-module.exports = { getNotifications, markRead };
+// POST /api/notifications/read-all
+async function markAllAsRead(req, res, next) {
+  try {
+    await pool.query(
+      `UPDATE notifications SET is_read = TRUE WHERE user_id = $1`,
+      [req.session.userId]
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = { getNotifications, markRead, markAllAsRead };

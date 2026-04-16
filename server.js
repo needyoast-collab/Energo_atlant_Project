@@ -19,6 +19,14 @@ if (process.env.NODE_ENV === 'development') {
   app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 }
 
+// Таймаут запроса — 30 сек (защита от зависших AI-запросов и т.п.)
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    res.status(503).json({ success: false, error: 'Request timeout' });
+  });
+  next();
+});
+
 // Парсинг тела запроса
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

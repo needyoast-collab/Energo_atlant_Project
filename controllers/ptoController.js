@@ -181,7 +181,7 @@ async function getDocuments(req, res, next) {
 
     const result = await pool.query(
       `SELECT pd.id, pd.doc_type, pd.file_key, pd.file_name, pd.description, pd.uploaded_at,
-              u.name as uploaded_by_name
+              pd.uploaded_by as uploaded_by_id, u.name as uploaded_by_name
        FROM project_documents pd
        JOIN users u ON u.id = pd.uploaded_by
        WHERE pd.project_id = $1

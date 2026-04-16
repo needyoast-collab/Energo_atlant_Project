@@ -87,7 +87,7 @@ async function findUser(req, res, next) {
     );
 
     if (!result.rows[0]) {
-      return res.status(404).json({ success: false, data: null, error: 'Пользователь не найден' });
+      return res.status(404).json({ success: false, error: 'Пользователь не найден' });
     }
 
     return res.json({ success: true, data: result.rows[0] });

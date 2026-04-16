@@ -255,21 +255,19 @@ async function loadWarehouse(id) {
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Материал</th><th>Ед.</th><th>План</th><th>Получено</th><th>Использовано</th><th>Остаток</th></tr>
+          <tr><th>Материал</th><th>Ед.</th><th>Получено</th><th>Использовано</th><th>Остаток</th></tr>
         </thead>
         <tbody>
-          ${data.data.map(r => {
-            const остаток = Number(r.qty_received) - Number(r.qty_used);
-            return `
-              <tr>
-                <td>${escHtml(r.material_name)}</td>
-                <td>${escHtml(r.unit || '—')}</td>
-                <td>${r.qty_planned}</td>
-                <td>${r.qty_received}</td>
-                <td>${r.qty_used}</td>
-                <td style="font-weight:600;color:${остаток > 0 ? 'var(--success)' : остаток < 0 ? 'var(--danger)' : 'var(--muted)'}">${остаток}</td>
-              </tr>`;
-          }).join('')}
+          ${data.data.map(r => `
+            <tr>
+              <td>${escHtml(r.material_name)}</td>
+              <td>${escHtml(r.unit || '—')}</td>
+              <td>${r.qty_total}</td>
+              <td>${r.qty_used}</td>
+              <td style="font-weight:600;color:${Number(r.qty_balance) > 0 ? 'var(--success)' : Number(r.qty_balance) < 0 ? 'var(--danger)' : 'var(--muted)'}">
+                ${r.qty_balance}
+              </td>
+            </tr>`).join('')}
         </tbody>
       </table>
     </div>`;
@@ -398,7 +396,7 @@ document.getElementById('new-message-form').addEventListener('submit', async (e)
   const fd = new FormData(e.target);
   const email = fd.get('receiver_email');
   const { ok: uok, data: udata } = await apiRequest('GET', `/api/messages/find-user?email=${encodeURIComponent(email)}`);
-  if (!uok || !udata.data) return showToast('Пользователь не найден', 'error');
+  if (!uok) return showToast(udata?.error || 'Пользователь не найден', 'error');
 
   const { ok, data } = await apiRequest('POST', '/api/messages', {
     receiver_id: udata.data.id,
