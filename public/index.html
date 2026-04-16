@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ЭнергоАтлант — Электромонтажные работы 0.4–110 кВ</title>
+  <meta property="og:title" content="ЭнергоАтлант — электромонтажные работы 0.4–110 кВ">
+  <meta property="og:description" content="Строим кабельные линии и подстанции под ключ в Москве и области">
+  <meta property="og:url" content="https://energoatlant.ru">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="/img/logo.png">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/aos.css">
+  <style>
+    /* ── Герой: сплит-лейаут ─────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+      position: relative;
+    }
+    .hero-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 8rem 3rem 4rem 4rem;
+      position: relative;
+      z-index: 1;
+    }
+    .hero-subtitle {
+      color: var(--accent);
+      font-size: .78rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+    .hero-title {
+      font-size: clamp(2.8rem, 5vw, 5rem);
+      line-height: 1.0;
+      margin-bottom: 1.5rem;
+    }
+    .hero-title span { color: var(--accent); }
+    .hero-desc {
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.75;
+      max-width: 440px;
+      margin-bottom: 2.5rem;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      margin-bottom: 3rem;
+    }
+    .hero-stats {
+      display: flex;
+      gap: 2.5rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+    .hero-stat-val {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 2rem;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .hero-stat-lbl {
+      color: var(--muted);
+      font-size: .78rem;
+      margin-top: .2rem;
+    }
+    .hero-right {
+      position: relative;
+      overflow: hidden;
+      min-height: 100vh;
+      background: var(--bg);
+    }
+    .hero-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: .55;
+      z-index: 1;
+    }
+    .hero-right-bg { display: none; }
+    /* Градиент слева — плавный переход к тексту */
+    .hero-video-fade {
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      width: 45%;
+      background: linear-gradient(to right, var(--bg), transparent);
+      z-index: 2;
+      pointer-events: none;
+    }
+    .hero-right-decor {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .hero-right-kv {
+      font-family: 'Stolzl', sans-serif;
+      font-size: clamp(5rem, 12vw, 11rem);
+      color: rgba(245,166,35,.08);
+      line-height: 1;
+      letter-spacing: -.02em;
+      user-select: none;
+    }
+    .hero-right-line {
+      width: 2px;
+      height: 120px;
+      background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+      position: absolute;
+      right: 25%;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 3;
+      opacity: .3;
+    }
+
+    /* ── Бегущая строка ──────────────────────────── */
+    .marquee-band {
+      background: var(--accent);
+      overflow: hidden;
+      padding: .85rem 0;
+    }
+    .marquee-track {
+      display: flex;
+      animation: marqueeScroll 18s linear infinite;
+      white-space: nowrap;
+    }
+    .marquee-track span {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1rem;
+      letter-spacing: .18em;
+      color: #000;
+      padding-right: 3rem;
+    }
+    @keyframes marqueeScroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* ── Карточки услуг (кликабельные) ──────────── */
+    .service-card-clickable {
+      background: var(--bg2);
+      padding: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      cursor: pointer;
+      transition: background .2s, border-left .15s;
+      border-left: 3px solid transparent;
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+    }
+    .service-card-clickable:hover { background: var(--bg3); }
+    .service-card-clickable.active {
+      border-left-color: var(--accent);
+      background: var(--bg3);
+    }
+    .service-card-clickable .service-num { font-family: 'Stolzl', sans-serif; font-size: 3rem; color: var(--accent); line-height: 1; }
+    .service-card-clickable .service-name { font-size: 1rem; font-weight: 700; }
+    .service-card-clickable .service-desc { color: var(--muted); font-size: .88rem; flex: 1; }
+    .service-card-clickable .service-arrow { color: var(--accent); font-size: 1.4rem; align-self: flex-end; transition: transform .2s; }
+    .service-card-clickable:hover .service-arrow,
+    .service-card-clickable.active .service-arrow { transform: translateX(4px); }
+    .service-img-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: .12;
+      pointer-events: none;
+    }
+    .service-card-clickable .service-num,
+    .service-card-clickable .service-name,
+    .service-card-clickable .service-desc,
+    .service-card-clickable .service-arrow { position: relative; z-index: 1; }
+
+    /* ── Детальный блок услуги ───────────────────── */
+    #service-details {
+      display: none;
+      opacity: 0;
+      transition: opacity .25s ease;
+      border-top: 1px solid var(--border);
+      margin-top: 32px;
+    }
+    #service-details.visible { display: block; }
+    #service-details.shown   { opacity: 1; }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      min-height: 400px;
+    }
+    .detail-text-side {
+      padding: 3.5rem;
+      border-right: 1px solid var(--border);
+    }
+    .detail-badge {
+      display: inline-block;
+      background: rgba(245,166,35,.12);
+      color: var(--accent);
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: .25rem .75rem;
+      margin-bottom: 1.25rem;
+    }
+    .detail-title {
+      font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+      margin-bottom: 1rem;
+    }
+    .detail-desc {
+      color: var(--muted);
+      font-size: .95rem;
+      line-height: 1.8;
+      margin-bottom: 1.5rem;
+    }
+    .detail-checklist {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: .65rem;
+      margin-bottom: 2rem;
+    }
+    .detail-checklist li {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      font-size: .9rem;
+    }
+    .detail-checklist li::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .detail-gallery-side {
+      background: var(--bg3);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    .gallery-frame {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      min-height: 300px;
+    }
+    .gallery-slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity .35s ease;
+      background: var(--bg3);
+    }
+    .gallery-slide.active { opacity: 1; }
+    .gallery-slide-label {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 6rem;
+      color: rgba(245,166,35,.1);
+      user-select: none;
+    }
+    .gallery-slide-sub {
+      position: absolute;
+      bottom: 1.25rem;
+      left: 1.25rem;
+      font-size: .78rem;
+      color: var(--muted);
+      background: rgba(6,10,16,.7);
+      padding: .25rem .65rem;
+      z-index: 1;
+    }
+    .gallery-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .75rem 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+    .gallery-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color .2s, color .2s;
+    }
+    .gallery-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .gallery-counter { color: var(--muted); font-size: .82rem; }
+
+    /* ── Как мы работаем ─────────────────────────── */
+    .how-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    .how-step {
+      background: var(--bg2);
+      padding: 2.5rem 2rem;
+      border-top: 3px solid var(--accent);
+      border-radius: 16px;
+    }
+    .how-step-icon {
+      width: 52px; height: 52px;
+      background: rgba(245,166,35,.1);
+      border: 1px solid rgba(245,166,35,.25);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+    .how-step-icon svg { width: 24px; height: 24px; stroke: var(--accent); }
+    .how-step-num {
+      font-family: 'Stolzl', sans-serif;
+      font-size: .8rem;
+      letter-spacing: .18em;
+      color: var(--accent);
+      margin-bottom: .5rem;
+    }
+    .how-step-title { font-weight: 700; font-size: 1.05rem; margin-bottom: .75rem; }
+    .how-step-desc  { color: var(--muted); font-size: .88rem; line-height: 1.7; }
+
+    /* ── Мокап дашборда ──────────────────────────── */
+    .dash-mockup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+    .dash-checklist {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+      margin: 1.5rem 0 2rem;
+    }
+    .dash-checklist li {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      font-size: .92rem;
+      color: var(--muted);
+    }
+    .dash-checklist li::before {
+      content: '✓';
+      color: var(--success);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .dash-card-mock {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .dash-card-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .dash-card-header-title { font-size: .85rem; font-weight: 700; }
+    .dash-card-body { padding: 1.25rem; }
+    .mock-project-name { font-weight: 700; margin-bottom: .25rem; font-size: .95rem; }
+    .mock-project-code { color: var(--muted); font-size: .8rem; margin-bottom: 1rem; }
+    .mock-progress-wrap { margin-bottom: 1.25rem; }
+    .mock-progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: .4rem;
+    }
+    .mock-progress-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+    .mock-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 9999px;
+      width: 68%;
+    }
+    .mock-stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      margin-bottom: 1rem;
+    }
+    .mock-stat {
+      background: var(--bg3);
+      padding: .75rem;
+      text-align: center;
+    }
+    .mock-stat-val { font-family: 'Stolzl', sans-serif; font-size: 1.6rem; color: var(--accent); line-height: 1; }
+    .mock-stat-lbl { color: var(--muted); font-size: .7rem; margin-top: .15rem; }
+    .mock-status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .8rem;
+      color: var(--muted);
+    }
+
+    /* ── Партнёры (бегущая строка) ───────────────── */
+    .partners-section { background: var(--bg2); padding: 4rem 0; overflow: hidden; }
+    .partners-header  { text-align: center; padding: 0 2rem 2.5rem; }
+    .partners-wrap {
+      position: relative;
+      overflow: hidden;
+    }
+    .partners-wrap::before,
+    .partners-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      width: 120px;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .partners-wrap::before { left: 0;  background: linear-gradient(to right, var(--bg2), transparent); }
+    .partners-wrap::after  { right: 0; background: linear-gradient(to left,  var(--bg2), transparent); }
+    .partners-track {
+      display: flex;
+      animation: marqueeScroll 25s linear infinite;
+      white-space: nowrap;
+      align-items: center;
+      padding: .5rem 0;
+    }
+    .partner-item {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: .1em;
+      color: var(--muted);
+      padding: 0 2.5rem;
+      transition: color .2s;
+      cursor: default;
+    }
+    .partner-item:hover { color: var(--accent); }
+    .partner-dot {
+      color: var(--accent);
+      font-size: 1rem;
+      opacity: .4;
+    }
+
+    /* ── Контакты (3 колонки) ────────────────────── */
+    .contact-3col {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .contact-col {
+      padding: 3.5rem 3rem;
+      border-right: 1px solid var(--border);
+    }
+    .contact-col:last-child { border-right: none; }
+    .contact-col-title {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.8rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.1;
+    }
+    .contact-link-item {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1.25rem;
+      font-size: .95rem;
+    }
+    .contact-link-item svg { width: 18px; height: 18px; stroke: var(--accent); flex-shrink: 0; }
+    .contact-link-item a { color: var(--text); transition: color .2s; }
+    .contact-link-item a:hover { color: var(--accent); text-decoration: none; }
+    .contact-link-item span { color: var(--muted); }
+
+    .contact-logo-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 1.25rem;
+    }
+    .contact-logo-glow {
+      animation: logoGlow 2.5s ease-in-out infinite;
+      width: 180px;
+    }
+    @keyframes logoGlow {
+      0%, 100% { filter: drop-shadow(0 0 0px var(--accent)); opacity: 1; transform: scale(1); }
+      50%       { filter: drop-shadow(0 0 24px var(--accent)); opacity: .85; transform: scale(.97); }
+    }
+    .contact-tagline {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1rem;
+      color: var(--accent);
+      letter-spacing: .15em;
+      text-align: center;
+    }
+
+    /* Форма в контактах */
+    .contact-form-inner { display: flex; flex-direction: column; height: 100%; }
+    .contact-form-inner .form-control { background: var(--bg3); }
+    .consent-row {
+      display: flex;
+      align-items: flex-start;
+      gap: .65rem;
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: 1.25rem;
+    }
+    .consent-row input[type=checkbox] { margin-top: 2px; accent-color: var(--accent); flex-shrink: 0; }
+
+    /* ── Кнопка наверх ───────────────────────────── */
+    .btn-to-top {
+      position: fixed;
+      bottom: 104px;
+      right: 32px;
+      width: 44px; height: 44px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      color: var(--muted);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s, transform .2s, border-color .2s, color .2s;
+      z-index: 999;
+    }
+    .btn-to-top.visible { opacity: 1; pointer-events: auto; }
+    .btn-to-top:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+    .btn-to-top svg { width: 18px; height: 18px; }
+
+    /* ── Адаптив ─────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .how-grid { grid-template-columns: repeat(2, 1fr); }
+      .dash-mockup-grid { grid-template-columns: 1fr; }
+      .dash-card-mock { display: none; }
+    }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-right { display: none; }
+      .hero-left { padding: 7rem 2rem 3rem; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .detail-gallery-side { display: none; }
+      .contact-3col { grid-template-columns: 1fr; }
+      .contact-col { border-right: none; border-bottom: 1px solid var(--border); }
+      .contact-col:last-child { border-bottom: none; }
+      .btn-to-top { bottom: 86px; right: 20px; }
+    }
+    @media (max-width: 768px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-right { display: none; }
+      .hero-left {
+        padding: 5.5rem 1.5rem 3rem;
+        background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 60%, #0a1830 100%);
+        min-height: 100vh;
+      }
+      .hero-title { font-size: 3rem; }
+      .hero-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .hero-actions .btn { width: 100%; justify-content: center; }
+    }
+    @media (max-width: 600px) {
+      .how-grid { grid-template-columns: 1fr; }
+      .hero-stats { gap: 1.5rem; }
+    }
+  </style>
+</head>
+<body class="grid-bg">
+<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+
+<!-- НАВБАР -->
+<nav class="navbar">
+  <a href="/"><img src="/img/logo.png" alt="ЭнергоАтлант" style="height:36px;width:auto"></a>
+  <ul class="navbar-links">
+    <li><a href="/">Главная</a></li>
+    <li><a href="/services.html">Услуги</a></li>
+    <li><a href="/portfolio.html">Объекты</a></li>
+    <li><a href="/partners.html">Партнёрам</a></li>
+    <li><a href="/contact.html">Контакты</a></li>
+  </ul>
+  <div class="navbar-actions">
+    <button class="navbar-burger" aria-label="Меню">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="/login.html" class="btn btn-primary btn-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="navbar-btn-text">Личный кабинет</span>
+    </a>
+  </div>
+</nav>
+
+<!-- ══ ГЕРОЙ ════════════════════════════════════════════ -->
+<section class="hero">
+  <!-- Текст слева -->
+  <div class="hero-left">
+    <p class="hero-subtitle">Электромонтаж · 110 кВ · Москва и МО</p>
+    <h1 class="hero-title">
+      СТРОИМ<br>
+      ЭЛЕКТРИЧЕСКИЕ<br>
+      СЕТИ<br>
+      <span>ПОД КЛЮЧ</span>
+    </h1>
+    <p class="hero-desc">Проектируем, монтируем и сдаём объекты электроснабжения 0.4–110 кВ. В срок, с документами, с гарантией.</p>
+    <div class="hero-actions">
+      <a href="#request" class="btn btn-primary">Получить расчёт бесплатно</a>
+      <a href="/portfolio.html" class="btn btn-outline">Смотреть объекты</a>
+    </div>
+    <div class="hero-stats">
+      <div>
+        <div class="hero-stat-val">80+</div>
+        <div class="hero-stat-lbl">объектов сдано</div>
+      </div>
+      <div>
+        <div class="hero-stat-val">10+</div>
+        <div class="hero-stat-lbl">лет на рынке</div>
+      </div>
+      <div>
+        <div class="hero-stat-val">2 года</div>
+        <div class="hero-stat-lbl">гарантия</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Видео справа -->
+  <div class="hero-right">
+    <div class="hero-right-bg"></div>
+    <video class="hero-video" autoplay muted loop playsinline>
+      <source src="/img/hero.mp4" type="video/mp4">
+    </video>
+    <div class="hero-video-fade"></div>
+    <div class="hero-right-decor">
+      <div class="hero-right-kv">110<br>кВ</div>
+    </div>
+    <div class="hero-right-line"></div>
+  </div>
+</section>
+
+<!-- ══ БЕГУЩАЯ СТРОКА ════════════════════════════════════ -->
+<div class="marquee-band">
+  <div class="marquee-track">
+    <span>ПРОЕКТИРОВАНИЕ</span><span>·</span>
+    <span>СМР</span><span>·</span>
+    <span>ГНБ</span><span>·</span>
+    <span>СОГЛАСОВАНИЕ</span><span>·</span>
+    <span>ПНР</span><span>·</span>
+    <span>КАБЕЛЬНЫЕ ЛИНИИ</span><span>·</span>
+    <span>ВОЗДУШНЫЕ ЛИНИИ</span><span>·</span>
+    <span>ПОДСТАНЦИИ</span><span>·</span>
+    <!-- Дублируем для бесшовности -->
+    <span>ПРОЕКТИРОВАНИЕ</span><span>·</span>
+    <span>СМР</span><span>·</span>
+    <span>ГНБ</span><span>·</span>
+    <span>СОГЛАСОВАНИЕ</span><span>·</span>
+    <span>ПНР</span><span>·</span>
+    <span>КАБЕЛЬНЫЕ ЛИНИИ</span><span>·</span>
+    <span>ВОЗДУШНЫЕ ЛИНИИ</span><span>·</span>
+    <span>ПОДСТАНЦИИ</span><span>·</span>
+  </div>
+</div>
+
+<!-- ══ УСЛУГИ ════════════════════════════════════════════ -->
+<section class="section">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <p class="section-label">Что мы делаем</p>
+      <h2 class="section-title">Наши услуги</h2>
+      <p class="section-desc">Нажмите на карточку, чтобы узнать подробнее</p>
+    </div>
+
+    <div class="services-grid" id="services-grid">
+      <div class="service-card-clickable" data-svc="1" data-aos="fade-up" data-aos-delay="0">
+        <img class="service-img-bg" src="/img/services/vl.jpg" alt="" onerror="this.style.display='none'">
+        <div class="service-num">01</div>
+        <div class="service-name">Воздушные линии электропередачи</div>
+        <div class="service-desc">Монтаж ВЛ 0.4–110 кВ на опорах любых типов</div>
+        <div class="service-arrow">→</div>
+      </div>
+      <div class="service-card-clickable" data-svc="2" data-aos="fade-up" data-aos-delay="60">
+        <img class="service-img-bg" src="/img/services/kl.jpg" alt="" onerror="this.style.display='none'">
+        <div class="service-num">02</div>
+        <div class="service-name">Кабельные линии</div>
+        <div class="service-desc">Прокладка КЛ в земле, лотках, ГНБ под дорогами</div>
+        <div class="service-arrow">→</div>
+      </div>
+      <div class="service-card-clickable" data-svc="3" data-aos="fade-up" data-aos-delay="120">
+        <img class="service-img-bg" src="/img/services/tp.jpg" alt="" onerror="this.style.display='none'">
+        <div class="service-num">03</div>
+        <div class="service-name">Трансформаторные подстанции</div>
+        <div class="service-desc">Монтаж КТП, ЗТП, РТП. Подключение трансформаторов</div>
+        <div class="service-arrow">→</div>
+      </div>
+      <div class="service-card-clickable" data-svc="4" data-aos="fade-up" data-aos-delay="0">
+        <img class="service-img-bg" src="/img/services/pnr.jpg" alt="" onerror="this.style.display='none'">
+        <div class="service-num">04</div>
+        <div class="service-name">Электроснабжение объектов</div>
+        <div class="service-desc">Монтаж щитов, прокладка трасс, подключение оборудования</div>
+        <div class="service-arrow">→</div>
+      </div>
+      <div class="service-card-clickable" data-svc="5" data-aos="fade-up" data-aos-delay="60">
+        <img class="service-img-bg" src="/img/services/docs.jpg" alt="" onerror="this.style.display='none'">
+        <div class="service-num">05</div>
+        <div class="service-name">Исполнительная документация</div>
+        <div class="service-desc">Полный комплект ИД: АСР, схемы, протоколы испытаний</div>
+        <div class="service-arrow">→</div>
+      </div>
+      <div class="service-card-clickable" data-svc="6" data-aos="fade-up" data-aos-delay="120">
+        <img class="service-img-bg" src="/img/services/project.jpg" alt="" onerror="this.style.display='none'">
+        <div class="service-num">06</div>
+        <div class="service-name">Проектирование</div>
+        <div class="service-desc">Разработка РД, получение ТУ, согласование с Россети</div>
+        <div class="service-arrow">→</div>
+      </div>
+    </div>
+
+    <!-- Детальный блок -->
+    <div id="service-details">
+      <div class="detail-grid">
+        <div class="detail-text-side" id="detail-text"></div>
+        <div class="detail-gallery-side">
+          <div class="gallery-frame" id="gallery-frame"></div>
+          <div class="gallery-controls">
+            <button class="gallery-btn" id="gallery-prev">←</button>
+            <div class="gallery-counter" id="gallery-counter">1 / 3</div>
+            <button class="gallery-btn" id="gallery-next">→</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ КАК МЫ РАБОТАЕМ ════════════════════════════════════ -->
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <p class="section-label">Процесс работы</p>
+      <h2 class="section-title">Как мы работаем</h2>
+    </div>
+
+    <div class="how-grid">
+      <div class="how-step" data-aos="fade-up" data-aos-delay="0">
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.08 6.08l1.14-1.14a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+        </div>
+        <div class="how-step-num">Шаг 01</div>
+        <div class="how-step-title">Заявка</div>
+        <div class="how-step-desc">Оставляете заявку или звоните. В течение 2 часов перезваниваем и уточняем детали объекта.</div>
+      </div>
+      <div class="how-step" data-aos="fade-up" data-aos-delay="100">
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        <div class="how-step-num">Шаг 02</div>
+        <div class="how-step-title">Выезд на объект</div>
+        <div class="how-step-desc">Инженер приезжает на объект, оценивает объём работ и готовит коммерческое предложение.</div>
+      </div>
+      <div class="how-step" data-aos="fade-up" data-aos-delay="200">
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <div class="how-step-num">Шаг 03</div>
+        <div class="how-step-title">Монтаж</div>
+        <div class="how-step-desc">Ведём работы строго по проекту. Прораб отправляет фотоотчёты каждый день через личный кабинет.</div>
+      </div>
+      <div class="how-step" data-aos="fade-up" data-aos-delay="300">
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <div class="how-step-num">Шаг 04</div>
+        <div class="how-step-title">Сдача объекта</div>
+        <div class="how-step-desc">Передаём полный комплект исполнительной документации. Гарантия на все виды работ — 2 года.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ МОКАП ЛИЧНОГО КАБИНЕТА ═════════════════════════════ -->
+<section class="section" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="container">
+    <div class="dash-mockup-grid">
+      <div data-aos="fade-right">
+        <p class="section-label">Для заказчиков</p>
+        <h2 style="margin-bottom:1rem">Контролируйте<br>ход работ онлайн</h2>
+        <p style="color:var(--muted);font-size:.95rem;line-height:1.75;max-width:420px">Доступ к личному кабинету — в подарок к каждому договору. Видите этапы, фото с объекта и документы в реальном времени.</p>
+        <ul class="dash-checklist">
+          <li>Фотоотчёты с объекта каждый день</li>
+          <li>Статусы этапов строительства</li>
+          <li>Исполнительная документация онлайн</li>
+          <li>Чат с менеджером проекта</li>
+        </ul>
+        <a href="/login.html" class="btn btn-primary">Войти в кабинет</a>
+      </div>
+      <div data-aos="fade-left">
+        <div class="dash-card-mock">
+          <div class="dash-card-header">
+            <div class="dash-card-header-title">Мой объект</div>
+            <span class="badge badge-blue">В работе</span>
+          </div>
+          <div class="dash-card-body">
+            <div class="mock-project-name">ВЛ 10 кВ, Промзона Люберцы</div>
+            <div class="mock-project-code">PRJ-2026-0042 · Начало: 15.03.2026</div>
+            <div class="mock-progress-wrap">
+              <div class="mock-progress-label"><span>Прогресс</span><span style="color:var(--accent)">68%</span></div>
+              <div class="mock-progress-bar"><div class="mock-progress-fill"></div></div>
+            </div>
+            <div class="mock-stats-row">
+              <div class="mock-stat">
+                <div class="mock-stat-val">14</div>
+                <div class="mock-stat-lbl">фото сегодня</div>
+              </div>
+              <div class="mock-stat">
+                <div class="mock-stat-val">6</div>
+                <div class="mock-stat-lbl">актов ИД</div>
+              </div>
+              <div class="mock-stat">
+                <div class="mock-stat-val">3</div>
+                <div class="mock-stat-lbl">этапа из 5</div>
+              </div>
+            </div>
+            <div class="mock-status-row">
+              <span>Прораб: Д. Иванов</span>
+              <span style="color:var(--success)">● Онлайн</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ПАРТНЁРЫ ═══════════════════════════════════════════ -->
+<div class="partners-section" data-aos="fade-up">
+  <div class="partners-header">
+    <p class="section-label">Нам доверяют</p>
+    <h2>Партнёры и заказчики</h2>
+  </div>
+  <div class="partners-wrap">
+    <div class="partners-track">
+      <span class="partner-item">РОССЕТИ МОСКОВСКИЙ РЕГИОН</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">МОСЭНЕРГО</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ПИК ГРУППА</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ЛСР ГРУПП</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">СЕТЕВАЯ КОМПАНИЯ</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">МОСОБЛЭНЕРГО</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ИНТЕР РАО</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ФСК ЕЭС</span>
+      <span class="partner-dot">·</span>
+      <!-- дубль для бесшовности -->
+      <span class="partner-item">РОССЕТИ МОСКОВСКИЙ РЕГИОН</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">МОСЭНЕРГО</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ПИК ГРУППА</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ЛСР ГРУПП</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">СЕТЕВАЯ КОМПАНИЯ</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">МОСОБЛЭНЕРГО</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ИНТЕР РАО</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ФСК ЕЭС</span>
+      <span class="partner-dot">·</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ КОНТАКТЫ + ФОРМА ═══════════════════════════════════ -->
+<section class="section" id="request">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <p class="section-label">Свяжитесь с нами</p>
+      <h2 class="section-title">Есть объект? Обсудим!</h2>
+    </div>
+
+    <div class="contact-3col" data-aos="fade-up">
+      <!-- Колонка 1: реквизиты -->
+      <div class="contact-col">
+        <div class="contact-link-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.08 6.08l1.14-1.14a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+          <a href="tel:+79939074577">+7 (993) 907-45-77</a>
+        </div>
+        <div class="contact-link-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <a href="https://t.me/energoatlant" target="_blank">Telegram @energoatlant</a>
+        </div>
+        <div class="contact-link-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+          </svg>
+          <a href="mailto:info@energoatlant.ru">info@energoatlant.ru</a>
+        </div>
+        <div class="contact-link-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+          <span>Москва, Пресненская наб. 8с1</span>
+        </div>
+        <div style="margin-top:2rem;color:var(--muted);font-size:.85rem;line-height:1.7">
+          Работаем по всей Московской области и регионам.<br>
+          Пн–Пт: 09:00–18:00 · Сб: 10:00–15:00
+        </div>
+      </div>
+
+      <!-- Колонка 2: логотип с пульсацией -->
+      <div class="contact-col">
+        <div class="contact-logo-wrap">
+          <img src="/img/logo.png" alt="ЭнергоАтлант" class="contact-logo-glow">
+          <div style="color:var(--muted);font-size:.82rem;text-align:center;max-width:220px">Инжиниринговая компания полного цикла</div>
+        </div>
+      </div>
+
+      <!-- Колонка 3: форма -->
+      <div class="contact-col">
+        <div class="contact-form-inner">
+          <form id="request-form">
+            <div class="form-group">
+              <label class="form-label">Имя</label>
+              <input type="text" class="form-control" name="name" placeholder="Ваше имя">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Телефон *</label>
+              <input type="tel" class="form-control" name="phone" placeholder="+7 (___) ___-__-__" required>
+            </div>
+            <div class="consent-row">
+              <input type="checkbox" id="consent" required>
+              <label for="consent">Нажимая кнопку, даю согласие на обработку персональных данных в соответствии с&nbsp;152-ФЗ</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-full">Получить расчёт бесплатно</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ФУТЕР -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-col-title">ЭнергоАтлант</div>
+      <p style="color:var(--muted);font-size:.9rem">Электромонтажные работы в Москве и МО. Напряжение 0.4–110 кВ.</p>
+    </div>
+    <div>
+      <div class="footer-col-title">Услуги</div>
+      <ul class="footer-links">
+        <li><a href="/services.html">ВЛ и КЛ</a></li>
+        <li><a href="/services.html">Подстанции</a></li>
+        <li><a href="/services.html">Электроснабжение</a></li>
+        <li><a href="/services.html">ИД</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Компания</div>
+      <ul class="footer-links">
+        <li><a href="/portfolio.html">Объекты</a></li>
+        <li><a href="/partners.html">Партнёрам</a></li>
+        <li><a href="/contact.html">Контакты</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Контакты</div>
+      <ul class="footer-links">
+        <li><a href="tel:+79939074577">+7 (993) 907-45-77</a></li>
+        <li><a href="mailto:info@energoatlant.ru">info@energoatlant.ru</a></li>
+        <li style="color:var(--muted);font-size:.85rem">Москва, Пресненская наб. 8с1</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
+    <span><a href="/login.html">Личный кабинет</a></span>
+  </div>
+</footer>
+
+<!-- Кнопка наверх -->
+<button class="btn-to-top" id="btn-to-top" aria-label="Наверх">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="18 15 12 9 6 15"/>
+  </svg>
+</button>
+
+<div id="toast-container"></div>
+<script src="/js/preloader.js"></script>
+<script src="https://unpkg.com/imask"></script>
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/float-call.js"></script>
+<script src="/js/aos.js"></script>
+<script>
+AOS.init({ once: true, offset: 60 });
+
+// Явный запуск видео (обход политики autoplay)
+const heroVideo = document.querySelector('.hero-video');
+if (heroVideo) {
+  heroVideo.muted = true;
+  heroVideo.play().catch(() => {});
+}
+
+// ─── Данные услуг ─────────────────────────────────────────
+const SERVICES = {
+  '1': {
+    badge: 'Воздушные линии',
+    title: 'Воздушные линии электропередачи',
+    desc: 'Монтаж ВЛ 0.4–110 кВ на деревянных, металлических и железобетонных опорах. Выполняем раскатку и натяжку провода, монтаж защитных тросов, устройство заземляющих контуров.',
+    list: ['Монтаж опор ВЛ 0.4 / 6 / 10 / 35 / 110 кВ', 'Раскатка, натяжка и подвеска провода', 'Монтаж защитных тросов и опасных переходов', 'Устройство заземления и молниезащиты', 'Измерения: изоляция, сопротивление ЗУ'],
+    slides: ['ВЛ 0.4 кВ', 'ВЛ 10 кВ', 'ВЛ 110 кВ'],
+  },
+  '2': {
+    badge: 'Кабельные линии',
+    title: 'Кабельные линии',
+    desc: 'Прокладка кабеля в земле, кабельных лотках, трубах и блочной канализации. Монтаж концевых и соединительных муфт. Испытания КЛ повышенным напряжением. ГНБ под дорогами без вскрытия грунта.',
+    list: ['Прокладка КЛ в траншеях и кабельных блоках', 'ГНБ под дорогами, реками, зданиями', 'Монтаж концевых и соединительных муфт', 'Прокладка в лотках, коробах, трубах', 'Испытания ПНН, измерение ЧР'],
+    slides: ['КЛ в траншее', 'ГНБ', 'Муфты'],
+  },
+  '3': {
+    badge: 'Подстанции',
+    title: 'Трансформаторные подстанции',
+    desc: 'Монтаж комплектных трансформаторных подстанций всех типов: КТП, БКТП, ЗТП, РТП, МТП. Подключение силовых трансформаторов, сборка высоковольтных ячеек. ПНР и испытания.',
+    list: ['Монтаж КТП, БКТП, ЗТП 10/0.4 кВ', 'Подключение трансформаторов 25–1600 кВА', 'Сборка ячеек РУВН и РУНН', 'Монтаж систем учёта и защиты', 'ПНР и испытания оборудования'],
+    slides: ['КТП 10/0.4 кВ', 'БКТП', 'ЗТП'],
+  },
+  '4': {
+    badge: 'Электроснабжение',
+    title: 'Электроснабжение объектов',
+    desc: 'Монтаж внутренних электрических сетей промышленных, коммерческих и жилых объектов. Установка ВРУ, щитов, прокладка кабельных трасс, подключение технологического оборудования.',
+    list: ['Монтаж ВРУ, ГРЩ, этажных щитов', 'Прокладка кабельных трасс внутри зданий', 'Подключение промышленного оборудования', 'Монтаж освещения и розеточных групп', 'Замеры: изоляция, петля фаза-ноль'],
+    slides: ['ВРУ', 'Кабельные трассы', 'Щитовая'],
+  },
+  '5': {
+    badge: 'Исполнительная документация',
+    title: 'Исполнительная документация',
+    desc: 'Подготовка полного комплекта ИД для сдачи объекта в эксплуатацию. Акты скрытых работ, исполнительные схемы, геодезические съёмки, протоколы испытаний — строго по требованиям надзора.',
+    list: ['Акты скрытых работ (АСР)', 'Исполнительные схемы и чертежи', 'Геодезическая исполнительная съёмка', 'Протоколы испытаний и измерений', 'Журналы работ, акты приёмки'],
+    slides: ['АСР', 'Исполнительные схемы', 'Протоколы'],
+  },
+  '6': {
+    badge: 'Проектирование',
+    title: 'Проектирование',
+    desc: 'Разработка проектной и рабочей документации для объектов электроснабжения любой сложности. Получение ТУ, согласование с Россети / Мосэнерго, сопровождение экспертизы. Авторский надзор.',
+    list: ['Разработка проектной и рабочей документации', 'Получение технических условий', 'Согласование с сетевыми организациями', 'Прохождение государственной экспертизы', 'Авторский надзор в период СМР'],
+    slides: ['Однолинейная схема', 'Генплан', 'Разрез'],
+  },
+};
+
+let currentSvc = null;
+let currentSlide = 0;
+
+// ─── Карточки услуг → детальный блок ─────────────────────
+document.querySelectorAll('.service-card-clickable').forEach(card => {
+  card.addEventListener('click', () => {
+    const id = card.dataset.svc;
+    document.querySelectorAll('.service-card-clickable').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+
+    if (currentSvc === id) {
+      // Свернуть при повторном клике
+      const det = document.getElementById('service-details');
+      det.classList.remove('shown');
+      setTimeout(() => det.classList.remove('visible'), 250);
+      currentSvc = null;
+      return;
+    }
+    currentSvc = id;
+    currentSlide = 0;
+    showServiceDetail(id);
+  });
+});
+
+function showServiceDetail(id) {
+  const svc = SERVICES[id];
+  const det = document.getElementById('service-details');
+
+  // Fade out → swap → fade in
+  det.classList.remove('shown');
+
+  setTimeout(() => {
+    // Заполняем текст
+    document.getElementById('detail-text').innerHTML = `
+      <div class="detail-badge">${svc.badge}</div>
+      <h3 class="detail-title">${svc.title}</h3>
+      <p class="detail-desc">${svc.desc}</p>
+      <ul class="detail-checklist">
+        ${svc.list.map(item => `<li>${item}</li>`).join('')}
+      </ul>
+      <a href="#request" class="btn btn-primary">Обсудить проект</a>
+    `;
+
+    // Слайды галереи
+    document.getElementById('gallery-frame').innerHTML = svc.slides.map((s, i) => `
+      <div class="gallery-slide ${i === 0 ? 'active' : ''}">
+        <img src="/img/services/svc_${id}_${i + 1}.jpg" alt="${s}"
+          style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div style="display:none;position:absolute;inset:0;background:#1a1a1a;align-items:center;justify-content:center;color:#F5A623;font-family:'Stolzl',sans-serif;font-size:1.25rem;letter-spacing:.12em">Фото скоро</div>
+        <div class="gallery-slide-sub">${s}</div>
+      </div>
+    `).join('');
+
+    updateGalleryCounter();
+
+    det.classList.add('visible');
+    det.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    requestAnimationFrame(() => det.classList.add('shown'));
+  }, 200);
+}
+
+function updateGalleryCounter() {
+  const svc = SERVICES[currentSvc];
+  if (!svc) return;
+  document.getElementById('gallery-counter').textContent = `${currentSlide + 1} / ${svc.slides.length}`;
+}
+
+document.getElementById('gallery-prev').addEventListener('click', () => {
+  if (!currentSvc) return;
+  const slides = document.querySelectorAll('.gallery-slide');
+  slides[currentSlide].classList.remove('active');
+  currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+  slides[currentSlide].classList.add('active');
+  updateGalleryCounter();
+});
+
+document.getElementById('gallery-next').addEventListener('click', () => {
+  if (!currentSvc) return;
+  const slides = document.querySelectorAll('.gallery-slide');
+  slides[currentSlide].classList.remove('active');
+  currentSlide = (currentSlide + 1) % slides.length;
+  slides[currentSlide].classList.add('active');
+  updateGalleryCounter();
+});
+
+// ─── Форма заявки ─────────────────────────────────────────
+document.getElementById('request-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = { message: fd.get('message') || '' };
+  if (fd.get('name'))  body.name  = fd.get('name');
+  if (fd.get('phone')) body.phone = fd.get('phone');
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true; btn.textContent = 'Отправка...';
+
+  const { ok, data } = await apiRequest('POST', '/api/public/requests', body);
+
+  if (ok) {
+    showToast('Заявка отправлена! Перезвоним в течение 2 часов.', 'success');
+    e.target.reset();
+  } else {
+    showToast(data.error || 'Ошибка отправки', 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Получить расчёт бесплатно';
+});
+
+// ─── Кнопка «Наверх» ──────────────────────────────────────
+const toTopBtn = document.getElementById('btn-to-top');
+window.addEventListener('scroll', () => {
+  toTopBtn.classList.toggle('visible', window.scrollY > 400);
+}, { passive: true });
+toTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+</script>
+</body>
+</html>

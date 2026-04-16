@@ -1,0 +1,68 @@
+require('dotenv').config();
+
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+
+const { helmetConfig } = require('./config/helmet');
+const { session, sessionConfig } = require('./config/session');
+const { errorHandler } = require('./middleware/errorHandler');
+const { runMigrations } = require('./db/init');
+
+const app = express();
+
+// Безопасность
+app.use(helmetConfig);
+
+// CORS — только для dev; в prod фронт и бэк на одном домене
+if (process.env.NODE_ENV === 'development') {
+  app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+}
+
+// Парсинг тела запроса
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+// Сессии
+app.use(session(sessionConfig));
+
+// Статика (публичная папка)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Роуты (подключаются по мере готовности)
+app.use('/api/auth',          require('./routes/auth'));
+app.use('/api/public',        require('./routes/public'));
+app.use('/api/admin',         require('./routes/admin'));
+app.use('/api/manager',       require('./routes/manager'));
+app.use('/api/foreman',       require('./routes/foreman'));
+app.use('/api/supplier',      require('./routes/supplier'));
+app.use('/api/pto',           require('./routes/pto'));
+app.use('/api/customer',      require('./routes/customer'));
+app.use('/api/partner',       require('./routes/partner'));
+app.use('/api/messages',      require('./routes/messages'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/documents',     require('./routes/documents'));
+
+// SPA-фолбэк: все неизвестные GET → index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Централизованный обработчик ошибок (всегда последний)
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 3000;
+
+async function start() {
+  try {
+    await runMigrations();
+    app.listen(PORT, () => {
+      console.log(`[SERVER] ЭнергоАтлант запущен на порту ${PORT} (${process.env.NODE_ENV})`);
+    });
+  } catch (err) {
+    console.error('[SERVER] Ошибка запуска:', err.message);
+    process.exit(1);
+  }
+}
+
+start();

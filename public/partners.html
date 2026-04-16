@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Партнёрам — ЭнергоАтлант</title>
+  <meta property="og:title" content="Партнёрская программа — ЭнергоАтлант">
+  <meta property="og:description" content="Зарабатывайте до 15% с каждого приведённого клиента. Регистрируйтесь в партнёрской программе ЭнергоАтлант.">
+  <meta property="og:url" content="https://energoatlant.ru/partners.html">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="/img/logo.png">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/aos.css">
+  <style>
+    .page-hero {
+      padding: 140px 2rem 5rem;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-hero .section-label { margin-bottom: .75rem; }
+    .page-hero h1 { margin-bottom: 1rem; }
+    .page-hero p { color: var(--muted); max-width: 580px; margin: 0 auto; }
+    .page-hero .accent { color: var(--accent); }
+
+    /* Шаги */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+    .step-card {
+      background: var(--bg2);
+      padding: 2.5rem;
+      position: relative;
+    }
+    .step-num {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 5rem;
+      color: var(--border);
+      line-height: 1;
+      margin-bottom: .5rem;
+    }
+    .step-title {
+      font-weight: 700;
+      font-size: 1.05rem;
+      margin-bottom: .75rem;
+    }
+    .step-desc { color: var(--muted); font-size: .9rem; line-height: 1.7; }
+    .step-icon {
+      width: 48px; height: 48px;
+      background: rgba(245,166,35,.1);
+      border: 1px solid rgba(245,166,35,.2);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      margin-bottom: 1.25rem;
+    }
+    .step-icon svg { width: 22px; height: 22px; stroke: var(--accent); }
+
+    /* Таблица уровней */
+    .levels-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .95rem;
+    }
+    .levels-table th {
+      background: var(--bg);
+      color: var(--muted);
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      padding: 1rem 1.25rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .levels-table td {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .levels-table tr:hover td { background: rgba(245,166,35,.03); }
+    .level-name {
+      font-weight: 700;
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: .06em;
+    }
+    .level-commission {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.8rem;
+      color: var(--accent);
+      letter-spacing: .04em;
+    }
+    .level-star { color: var(--accent); letter-spacing: -.05em; }
+
+    /* Кто может */
+    .who-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+    .who-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .who-icon {
+      font-size: 2rem;
+      margin-bottom: .75rem;
+    }
+    .who-title {
+      font-weight: 700;
+      font-size: .95rem;
+      margin-bottom: .5rem;
+    }
+    .who-desc { color: var(--muted); font-size: .82rem; line-height: 1.6; }
+
+    /* CTA финальный */
+    .final-cta {
+      background: linear-gradient(135deg, #0f1e36 0%, #0a1526 100%);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      padding: 4rem 3rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2rem;
+      align-items: center;
+    }
+    .final-cta-title {
+      font-family: 'Stolzl', sans-serif;
+      font-size: clamp(1.8rem, 3vw, 2.5rem);
+      margin-bottom: .5rem;
+    }
+    .final-cta-desc { color: var(--muted); font-size: .95rem; }
+
+    @media (max-width: 900px) {
+      .steps-grid { grid-template-columns: 1fr; }
+      .who-grid { grid-template-columns: repeat(2, 1fr); }
+      .final-cta { grid-template-columns: 1fr; text-align: center; }
+    }
+    @media (max-width: 600px) {
+      .who-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body class="grid-bg">
+<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+
+<!-- НАВБАР -->
+<nav class="navbar">
+  <a href="/"><img src="/img/logo.png" alt="ЭнергоАтлант" style="height:36px;width:auto"></a>
+  <ul class="navbar-links">
+    <li><a href="/">Главная</a></li>
+    <li><a href="/services.html">Услуги</a></li>
+    <li><a href="/portfolio.html">Объекты</a></li>
+    <li><a href="/partners.html">Партнёрам</a></li>
+    <li><a href="/contact.html">Контакты</a></li>
+  </ul>
+  <div class="navbar-actions">
+    <button class="navbar-burger" aria-label="Меню">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="/login.html" class="btn btn-primary btn-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="navbar-btn-text">Личный кабинет</span>
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="page-hero">
+  <p class="section-label" data-aos="fade-up">Зарабатывайте с нами</p>
+  <h1 data-aos="fade-up" data-aos-delay="100">Партнёрская<br><span class="accent">программа</span></h1>
+  <p data-aos="fade-up" data-aos-delay="200">Приводите клиентов на электромонтажные работы — получайте комиссию <strong style="color:var(--text)">до 15%</strong> от суммы каждого контракта. Прозрачные условия, выплаты в срок, личный кабинет для контроля.</p>
+  <div style="margin-top:2rem" data-aos="fade-up" data-aos-delay="300">
+    <a href="/register.html" class="btn btn-primary">Стать партнёром</a>
+  </div>
+</div>
+
+<!-- СТАТИСТИКА ПРОГРАММЫ -->
+<div class="stats" data-aos="fade-up">
+  <div class="stat-item">
+    <div class="stat-value">15%</div>
+    <div class="stat-label">Максимальная комиссия</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">2 дня</div>
+    <div class="stat-label">Срок зачисления выплат</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">ЛК</div>
+    <div class="stat-label">Личный кабинет партнёра</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">0₽</div>
+    <div class="stat-label">Вступительный взнос</div>
+  </div>
+</div>
+
+<!-- КАК ЭТО РАБОТАЕТ -->
+<section class="section">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <p class="section-label">Просто и прозрачно</p>
+      <h2 class="section-title">Как это работает</h2>
+      <p class="section-desc">Три шага от регистрации до выплаты комиссии</p>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step-card" data-aos="fade-up" data-aos-delay="0">
+        <div class="step-num">01</div>
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="step-title">Регистрируетесь</div>
+        <div class="step-desc">Создайте аккаунт партнёра на сайте. Никаких документов и взносов. После проверки администратором получаете личный кабинет с реферальной ссылкой и кодом.</div>
+      </div>
+      <div class="step-card" data-aos="fade-up" data-aos-delay="100">
+        <div class="step-num">02</div>
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="step-title">Приводите клиента</div>
+        <div class="step-desc">Рекомендуйте ЭнергоАтлант своим знакомым, клиентам, партнёрам. Клиент оставляет заявку с вашей ссылкой или называет ваш код менеджеру при первом звонке.</div>
+      </div>
+      <div class="step-card" data-aos="fade-up" data-aos-delay="200">
+        <div class="step-num">03</div>
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+          </svg>
+        </div>
+        <div class="step-title">Получаете комиссию</div>
+        <div class="step-desc">После подписания договора с клиентом на ваш счёт начисляется комиссия. Следите за статусами в личном кабинете, запрашивайте выплату в один клик.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- УРОВНИ ПАРТНЁРСТВА -->
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <p class="section-label">Растите вместе с нами</p>
+      <h2 class="section-title">Уровни партнёрства</h2>
+      <p class="section-desc">Чем больше клиентов вы приводите — тем выше ваша комиссия</p>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden" data-aos="fade-up">
+      <div class="table-wrap">
+        <table class="levels-table">
+          <thead>
+            <tr>
+              <th>Уровень</th>
+              <th>Количество клиентов</th>
+              <th>Комиссия</th>
+              <th>Бонусы</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="level-name">Старт</div>
+                <div class="level-star">★</div>
+              </td>
+              <td style="color:var(--muted)">0–2 клиента</td>
+              <td><div class="level-commission">5%</div></td>
+              <td style="color:var(--muted);font-size:.88rem">Личный кабинет, статистика</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="level-name">Базовый</div>
+                <div class="level-star" style="color:var(--warning)">★★</div>
+              </td>
+              <td style="color:var(--muted)">3–7 клиентов</td>
+              <td><div class="level-commission">8%</div></td>
+              <td style="color:var(--muted);font-size:.88rem">Приоритетная поддержка</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="level-name">Профи</div>
+                <div class="level-star" style="color:var(--accent)">★★★</div>
+              </td>
+              <td style="color:var(--muted)">8–15 клиентов</td>
+              <td><div class="level-commission">12%</div></td>
+              <td style="color:var(--muted);font-size:.88rem">Персональный менеджер</td>
+            </tr>
+            <tr style="background:rgba(245,166,35,.04)">
+              <td>
+                <div class="level-name" style="color:var(--accent)">Эксперт</div>
+                <div class="level-star" style="color:var(--accent)">★★★★</div>
+              </td>
+              <td style="color:var(--muted)">15+ клиентов</td>
+              <td><div class="level-commission">15%</div></td>
+              <td style="color:var(--muted);font-size:.88rem">Максимальная ставка + бонусы</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- КТО МОЖЕТ СТАТЬ ПАРТНЁРОМ -->
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <p class="section-label">Для всех</p>
+      <h2 class="section-title">Кто может стать партнёром</h2>
+      <p class="section-desc">Партнёром может стать любой человек или организация, готовые рекомендовать наши услуги</p>
+    </div>
+
+    <div class="who-grid">
+      <div class="who-card" data-aos="fade-up" data-aos-delay="0">
+        <div class="who-icon">📐</div>
+        <div class="who-title">Проектировщики</div>
+        <div class="who-desc">Проектные организации и частные инженеры-проектировщики, работающие с объектами электроснабжения</div>
+      </div>
+      <div class="who-card" data-aos="fade-up" data-aos-delay="60">
+        <div class="who-icon">🏗️</div>
+        <div class="who-title">Подрядчики</div>
+        <div class="who-desc">Строительные организации, генподрядчики и субподрядчики, работающие на объектах промышленного и гражданского строительства</div>
+      </div>
+      <div class="who-card" data-aos="fade-up" data-aos-delay="120">
+        <div class="who-icon">🏢</div>
+        <div class="who-title">Риелторы</div>
+        <div class="who-desc">Агентства недвижимости и частные риелторы, работающие с коммерческой недвижимостью и новостройками</div>
+      </div>
+      <div class="who-card" data-aos="fade-up" data-aos-delay="180">
+        <div class="who-icon">👤</div>
+        <div class="who-title">Частные лица</div>
+        <div class="who-desc">Все, кто готов рекомендовать нас своим знакомым, коллегам или деловым партнёрам, имеющим потребность в электромонтаже</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ИТОГОВЫЙ CTA -->
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="final-cta" data-aos="fade-up">
+      <div>
+        <div class="final-cta-title">Начните зарабатывать сегодня</div>
+        <div class="final-cta-desc">Регистрация занимает 2 минуты. Первую комиссию можно получить уже на этой неделе.</div>
+      </div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap">
+        <a href="/register.html" class="btn btn-primary">Стать партнёром</a>
+        <a href="/contact.html" class="btn btn-outline">Задать вопрос</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ФУТЕР -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-col-title">ЭнергоАтлант</div>
+      <p style="color:var(--muted);font-size:.9rem">Электромонтажные работы в Москве и МО. Напряжение 0.4–110 кВ.</p>
+    </div>
+    <div>
+      <div class="footer-col-title">Услуги</div>
+      <ul class="footer-links">
+        <li><a href="/services.html">ВЛ и КЛ</a></li>
+        <li><a href="/services.html">Подстанции</a></li>
+        <li><a href="/services.html">Электроснабжение</a></li>
+        <li><a href="/services.html">ИД</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Компания</div>
+      <ul class="footer-links">
+        <li><a href="/portfolio.html">Объекты</a></li>
+        <li><a href="/partners.html">Партнёрам</a></li>
+        <li><a href="/contact.html">Контакты</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Контакты</div>
+      <ul class="footer-links">
+        <li><a href="tel:+74951234567">+7 (495) 123-45-67</a></li>
+        <li><a href="mailto:info@energoatlant.ru">info@energoatlant.ru</a></li>
+        <li style="color:var(--muted);font-size:.85rem">Москва, Пресненская наб. 8с1</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
+    <span><a href="/login.html">Личный кабинет</a></span>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+<script src="/js/preloader.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/float-call.js"></script>
+<script src="/js/aos.js"></script>
+<script>AOS.init({ once: true, offset: 60 });</script>
+</body>
+</html>

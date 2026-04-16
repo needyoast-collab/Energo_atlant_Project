@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Наши объекты — ЭнергоАтлант</title>
+  <meta property="og:title" content="Наши объекты — ЭнергоАтлант">
+  <meta property="og:description" content="Реализованные объекты электромонтажных работ в Москве и Московской области">
+  <meta property="og:url" content="https://energoatlant.ru/portfolio.html">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="/img/logo.png">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/aos.css">
+  <style>
+    .page-hero {
+      padding: 140px 2rem 5rem;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-hero .section-label { margin-bottom: .75rem; }
+    .page-hero h1 { margin-bottom: 1rem; }
+    .page-hero p { color: var(--muted); max-width: 540px; margin: 0 auto; }
+
+    /* Фильтры */
+    .filter-bar {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: .5rem 1.25rem;
+      border-radius: 9999px;
+      font-family: 'Geometria', sans-serif;
+      font-size: .82rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+    /* Сетка проектов */
+    .portfolio-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+    }
+    .portfolio-card {
+      background: var(--bg2);
+      cursor: pointer;
+      transition: background .2s;
+      overflow: hidden;
+    }
+    .portfolio-card:hover { background: var(--bg3); }
+    .portfolio-card.hidden { display: none; }
+
+    .portfolio-photo {
+      height: 200px;
+      position: relative;
+      overflow: hidden;
+    }
+    .portfolio-photo-bg {
+      width: 100%;
+      height: 100%;
+      filter: grayscale(100%);
+      transition: filter .4s ease, transform .4s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .portfolio-card:hover .portfolio-photo-bg {
+      filter: grayscale(0%);
+      transform: scale(1.04);
+    }
+    .portfolio-photo-type {
+      position: absolute;
+      top: .75rem;
+      left: .75rem;
+      background: rgba(6,10,16,.8);
+      border: 1px solid var(--border);
+      padding: .2rem .65rem;
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .portfolio-info {
+      padding: 1.5rem;
+    }
+    .portfolio-name {
+      font-weight: 700;
+      font-size: .95rem;
+      margin-bottom: .5rem;
+      line-height: 1.4;
+    }
+    .portfolio-meta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .portfolio-meta span {
+      color: var(--muted);
+      font-size: .8rem;
+    }
+    .portfolio-meta span strong {
+      color: var(--text);
+    }
+
+    /* Модалка проекта */
+    .modal-wide { max-width: 720px; }
+    .modal-project-tags {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .tag {
+      background: rgba(245,166,35,.12);
+      color: var(--accent);
+      padding: .2rem .65rem;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .modal-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .modal-detail-item label {
+      display: block;
+      font-size: .75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: .25rem;
+    }
+    .modal-detail-item span {
+      font-weight: 600;
+      font-size: .95rem;
+    }
+    .modal-photo-placeholder {
+      width: 100%;
+      height: 220px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Stolzl', sans-serif;
+      font-size: 3rem;
+      color: rgba(245,166,35,.2);
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .modal-photo-placeholder::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(rgba(245,166,35,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(245,166,35,.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    /* Плейсхолдер фото с цветным акцентом */
+    .ph-1 { background: linear-gradient(135deg, #0a1628 0%, #0d1f3a 100%); }
+    .ph-2 { background: linear-gradient(135deg, #0a1428 0%, #101e34 100%); }
+    .ph-3 { background: linear-gradient(135deg, #0c1620 0%, #111e2c 100%); }
+    .ph-4 { background: linear-gradient(135deg, #0a1830 0%, #0e1f3c 100%); }
+    .ph-5 { background: linear-gradient(135deg, #081424 0%, #0c1a30 100%); }
+    .ph-6 { background: linear-gradient(135deg, #0a1826 0%, #101e30 100%); }
+    .ph-7 { background: linear-gradient(135deg, #0c1a2c 0%, #111e36 100%); }
+    .ph-8 { background: linear-gradient(135deg, #081520 0%, #0d1d2e 100%); }
+
+    .ph-label {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 4rem;
+      color: rgba(245,166,35,.15);
+      position: relative;
+      z-index: 1;
+    }
+
+    @media (max-width: 900px) {
+      .portfolio-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .portfolio-grid { grid-template-columns: 1fr; }
+      .modal-detail-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Галерея */
+    .gallery-slider {
+      position: relative; width: 100%; height: 280px;
+      background: var(--bg3); margin-bottom: 1.5rem; overflow: hidden;
+    }
+    .gallery-slide { position: absolute; inset: 0; opacity: 0; transition: opacity .3s ease; }
+    .gallery-slide.active { opacity: 1; }
+    .gallery-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .gallery-btn {
+      position: absolute; top: 50%; transform: translateY(-50%); z-index: 10;
+      background: rgba(6,10,16,.75); border: 1px solid var(--border); color: var(--text);
+      width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+      transition: background .2s, border-color .2s; line-height: 1;
+    }
+    .gallery-btn:hover { background: rgba(245,166,35,.25); border-color: var(--accent); color: var(--accent); }
+    .gallery-prev { left: .75rem; }
+    .gallery-next { right: .75rem; }
+    .gallery-counter {
+      position: absolute; bottom: .6rem; right: .75rem;
+      background: rgba(6,10,16,.7); color: var(--muted);
+      font-size: .75rem; padding: .15rem .5rem; border-radius: 4px; pointer-events: none;
+    }
+    .gallery-dots {
+      position: absolute; bottom: .65rem; left: 50%; transform: translateX(-50%);
+      display: flex; gap: .4rem; pointer-events: none;
+    }
+    .gallery-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(255,255,255,.3); pointer-events: all; cursor: pointer;
+      transition: background .2s;
+    }
+    .gallery-dot.active { background: var(--accent); }
+  </style>
+</head>
+<body class="grid-bg">
+<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+
+<!-- НАВБАР -->
+<nav class="navbar">
+  <a href="/"><img src="/img/logo.png" alt="ЭнергоАтлант" style="height:36px;width:auto"></a>
+  <ul class="navbar-links">
+    <li><a href="/">Главная</a></li>
+    <li><a href="/services.html">Услуги</a></li>
+    <li><a href="/portfolio.html">Объекты</a></li>
+    <li><a href="/partners.html">Партнёрам</a></li>
+    <li><a href="/contact.html">Контакты</a></li>
+  </ul>
+  <div class="navbar-actions">
+    <button class="navbar-burger" aria-label="Меню">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="/login.html" class="btn btn-primary btn-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="navbar-btn-text">Личный кабинет</span>
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="page-hero">
+  <p class="section-label" data-aos="fade-up">Реализованные проекты</p>
+  <h1 data-aos="fade-up" data-aos-delay="100">Наши объекты</h1>
+  <p data-aos="fade-up" data-aos-delay="200">Объекты электроснабжения, построенные нашей командой в Москве и Московской области</p>
+</div>
+
+<!-- КОНТЕНТ -->
+<section class="section">
+  <div class="container">
+
+    <!-- Фильтры -->
+    <div class="filter-bar" style="margin-bottom:2.5rem" data-aos="fade-up">
+      <button class="filter-btn active" data-filter="all">Все</button>
+      <button class="filter-btn" data-filter="ВЛ">ВЛ</button>
+      <button class="filter-btn" data-filter="КЛ">КЛ</button>
+      <button class="filter-btn" data-filter="ТП">ТП</button>
+      <button class="filter-btn" data-filter="ГНБ">ГНБ</button>
+    </div>
+
+    <!-- Сетка -->
+    <div class="portfolio-grid" id="portfolio-grid">
+      <!-- Карточки генерируются JS -->
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-block">
+  <div class="container" style="text-align:center">
+    <p class="section-label">Ваш объект</p>
+    <h2 style="margin-bottom:1rem">Готовы взяться за ваш проект</h2>
+    <p class="text-muted" style="margin-bottom:2rem">Расскажите об объекте — оценим стоимость и сроки</p>
+    <a href="/contact.html#request" class="btn btn-primary">Обсудить проект</a>
+  </div>
+</section>
+
+<!-- ФУТЕР -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-col-title">ЭнергоАтлант</div>
+      <p style="color:var(--muted);font-size:.9rem">Электромонтажные работы в Москве и МО. Напряжение 0.4–110 кВ.</p>
+    </div>
+    <div>
+      <div class="footer-col-title">Услуги</div>
+      <ul class="footer-links">
+        <li><a href="/services.html">ВЛ и КЛ</a></li>
+        <li><a href="/services.html">Подстанции</a></li>
+        <li><a href="/services.html">Электроснабжение</a></li>
+        <li><a href="/services.html">ИД</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Компания</div>
+      <ul class="footer-links">
+        <li><a href="/portfolio.html">Объекты</a></li>
+        <li><a href="/partners.html">Партнёрам</a></li>
+        <li><a href="/contact.html">Контакты</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Контакты</div>
+      <ul class="footer-links">
+        <li><a href="tel:+74951234567">+7 (495) 123-45-67</a></li>
+        <li><a href="mailto:info@energoatlant.ru">info@energoatlant.ru</a></li>
+        <li style="color:var(--muted);font-size:.85rem">Москва, Пресненская наб. 8с1</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
+    <span><a href="/login.html">Личный кабинет</a></span>
+  </div>
+</footer>
+
+<!-- МОДАЛКА ПРОЕКТА -->
+<div class="modal-overlay" id="modal-project">
+  <div class="modal modal-wide">
+    <button class="modal-close" id="modal-project-close">×</button>
+    <div id="modal-project-content"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/preloader.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/float-call.js"></script>
+<script src="/js/aos.js"></script>
+<script>
+AOS.init({ once: true, offset: 60 });
+
+const PROJECTS = [
+  {
+    id: 1, type: 'ВЛ', img: '/img/portfolio/obj_1_1.jpg',
+    name: 'ВЛ-0,4 кВ "ДШТ Чайка"',
+    location: 'Московская обл., Красногорск',
+    voltage: '0,4 кВ',
+    year: '2025',
+    length: '0,6 км',
+    desc: 'Строительство воздушной линии электропередачи 0,4 на железных опорах типа СФГ-700. Натяжка провода СИП-2 3*150+1*95,устройство заземлений семи опор.'
+  },
+  {
+    id: 2, type: 'ВЛ', img: '/img/portfolio/obj_2_1.jpg',
+    name: 'Безопасность пешеходных переходов',
+    location: 'Московская область, пгт Лотошино',
+    voltage: '0,4 кВ',
+    year: '2025',
+    length: '-',
+    desc: 'Монтаж и подключение освещения на четырёх пешеходных переходах в рамках программы повышения безопасности дорожного движения. Установка опор, прокладка кабеля, подключение к существующей сети.'
+  },
+  {
+    id: 3, type: 'ТП', img: '/img/portfolio/obj_3_1.jpg',
+    name: 'КТП 630 кВА',
+    location: 'Московская обл.',
+    voltage: '10/0.4 кВ',
+    year: '2024',
+    length: '—',
+    desc: 'Монтаж комплектной трансформаторной подстанции 10/0.4 кВ мощностью 630 кВА для промышленного предприятия.'
+  },
+  {
+    id: 4, type: 'КТП', img: '/img/portfolio/obj_4_1.jpg',
+    name: 'КТП 400 кВа"',
+    location: 'Одинцово, Московская обл.',
+    voltage: '10/0.4 кВ',
+    year: '2024',
+    length: '-',
+    desc: 'Монтаж комплектной трансформаторной подстанции 10/0.4 кВ мощностью 400 кВА для жилого комплекса. Установка трансформатора, сборка и подключение КРУ, прокладка кабельных линий к распределительным щитам.'
+  },
+  {
+    id: 5, type: 'РТП', img: '/img/portfolio/obj_5_1.jpg',
+    name: 'Монтаж РТП 6 кВ с ГНБ',
+    location: 'Москва',
+    voltage: '6 кВ',
+    year: '2025',
+    length: '-',
+    desc: 'Монтаж РТП 6 кВ с ГНБ для электроснабжения нового жилого комплекса. Бестраншейная прокладка кабельной линии 6 кВ протяжённостью 1 км, установка РТП в защитном кожухе, подключение к городской сети.'
+  },
+    {
+    id: 6, type: 'КТП', img: '/img/portfolio/obj_6_1.jpg',
+    name: 'КТП 630 кВА для производственного предприятия',
+    location: 'Подольск, Московская обл.',
+    voltage: '10/0,4 кВ',
+    year: '2024',
+    length: '-',
+    desc: 'Монтаж комплектной трансформаторной подстанции 10/0,4 кВ мощностью 630 кВА для производственного предприятия. Включает установку трансформатора, сборку и подключение КРУ, прокладку кабельных линий к распределительным щитам.'
+  },
+  {
+    
+    id: 7, type: 'КЛ', img: '/img/portfolio/obj_7_1.jpg',
+    name: 'КЛ 10 кВ для реконструкции подстанции',
+    location: 'Серпухов, Московская обл.',
+    voltage: '10 кВ',
+    year: '2024',
+    length: '0,8 км',
+    desc: 'Прокладка кабельной линии 10 кВ протяженностью 800 м. Кабель ААБ2л-10кВ 1×240 мм², монтаж концевых муфт, испытания повышенным напряжением. Линия обеспечивает электроснабжение реконструируемой подстанции и подключение новых потребителей.'
+  },
+  {
+    id: 8, type: 'ВЛ', img: '/img/portfolio/obj_8_1.jpg',
+    name: 'ВЛ-0,4 кВ СНТ "Калинка"',
+    location: 'Можайск, Московская обл.',
+    voltage: '0,4 кВ',
+    year: '2024',
+    length: '1,4 км',
+    desc: 'Монтаж ВЛ-0,4кВ для СНТ "Калинка".'
+  },
+];
+
+let activeFilter = 'all';
+
+function renderCards() {
+  const grid = document.getElementById('portfolio-grid');
+  const filtered = activeFilter === 'all' ? PROJECTS : PROJECTS.filter(p => p.type === activeFilter);
+
+  grid.innerHTML = filtered.map((p, i) => `
+    <div class="portfolio-card" data-id="${p.id}" data-aos="fade-up" data-aos-delay="${(i % 3) * 60}">
+      <div class="portfolio-photo">
+        <img src="${p.img}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;display:block"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div style="display:none;align-items:center;justify-content:center;height:100%;background:#1a1a1a;color:#F5A623;font-family:'Stolzl',sans-serif;font-size:1.6rem;letter-spacing:.1em">Фото скоро</div>
+        <div class="portfolio-photo-type">${p.type}</div>
+      </div>
+      <div class="portfolio-info">
+        <div class="portfolio-name">${p.name}</div>
+        <div class="portfolio-meta">
+          <span>📍 <strong>${p.location}</strong></span>
+          <span>${p.voltage}</span>
+          <span>${p.year}</span>
+        </div>
+      </div>
+    </div>
+  `).join('') || '<div style="padding:3rem;color:var(--muted);text-align:center;grid-column:1/-1">Нет объектов по выбранному фильтру</div>';
+
+  // Переинициализируем AOS для новых элементов
+  AOS.refresh();
+}
+
+// Фильтры
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    renderCards();
+  });
+});
+
+// Галерея — состояние
+let _gPhotos = [], _gIdx = 0;
+
+function _gGo(idx) {
+  const slider = document.getElementById('proj-gallery');
+  if (!slider) return;
+  _gIdx = (idx + _gPhotos.length) % _gPhotos.length;
+  slider.querySelectorAll('.gallery-slide').forEach((s, i) => s.classList.toggle('active', i === _gIdx));
+  slider.querySelectorAll('.gallery-dot').forEach((d, i) => d.classList.toggle('active', i === _gIdx));
+  const ctr = slider.querySelector('.gallery-counter');
+  if (ctr) ctr.textContent = (_gIdx + 1) + ' / ' + _gPhotos.length;
+}
+
+function _detectPhotos(id) {
+  const results = [];
+  const tasks = [];
+  for (let i = 1; i <= 20; i++) {
+    const url = '/img/portfolio/obj_' + id + '_' + i + '.jpg';
+    const n = i;
+    tasks.push(new Promise(res => {
+      const img = new Image();
+      img.onload  = () => { results.push({ n, url }); res(); };
+      img.onerror = () => res();
+      img.src = url;
+    }));
+  }
+  return Promise.all(tasks).then(() => results.sort((a,b) => a.n - b.n).map(r => r.url));
+}
+
+function _buildGallery(photos, name) {
+  _gPhotos = photos; _gIdx = 0;
+  if (!photos.length) return '<div class="modal-photo-placeholder" style="margin-bottom:1.5rem"><span class="ph-label">⚡</span></div>';
+  const nav = photos.length > 1;
+  const slides = photos.map((u, i) =>
+    '<div class="gallery-slide' + (i===0?' active':'') + '"><img src="' + u + '" alt="' + name + '"></div>'
+  ).join('');
+  const dots = nav ? photos.map((_,i) =>
+    '<div class="gallery-dot' + (i===0?' active':'') + '" data-gi="' + i + '"></div>'
+  ).join('') : '';
+  return '<div class="gallery-slider" id="proj-gallery">' +
+    slides +
+    (nav ? '<button class="gallery-btn gallery-prev" data-gd="-1">&#8249;</button>' : '') +
+    (nav ? '<button class="gallery-btn gallery-next" data-gd="1">&#8250;</button>' : '') +
+    (nav ? '<div class="gallery-counter">1 / ' + photos.length + '</div>' : '') +
+    (nav ? '<div class="gallery-dots">' + dots + '</div>' : '') +
+  '</div>';
+}
+
+// Делегирование кликов галереи (вешаем один раз)
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-gd]');
+  if (btn) { e.stopPropagation(); _gGo(_gIdx + parseInt(btn.dataset.gd)); return; }
+  const dot = e.target.closest('[data-gi]');
+  if (dot && dot.classList.contains('gallery-dot')) { e.stopPropagation(); _gGo(parseInt(dot.dataset.gi)); }
+});
+
+// Открыть модалку
+document.getElementById('portfolio-grid').addEventListener('click', async (e) => {
+  const card = e.target.closest('.portfolio-card');
+  if (!card) return;
+  const project = PROJECTS.find(p => p.id == card.dataset.id);
+  if (!project) return;
+
+  // Открываем сразу с лоадером
+  document.getElementById('modal-project-content').innerHTML =
+    '<div class="gallery-slider" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.9rem">Загружаем фото...</div>' +
+    '<div class="modal-title" style="margin-top:1.5rem">' + project.name + '</div>';
+  document.getElementById('modal-project').classList.add('open');
+
+  const photos = await _detectPhotos(project.id);
+  const lenRow = project.length !== '—'
+    ? '<div class="modal-detail-item"><label>Протяжённость</label><span>' + project.length + '</span></div>'
+    : '';
+
+  document.getElementById('modal-project-content').innerHTML =
+    _buildGallery(photos, project.name) +
+    '<div class="modal-project-tags">' +
+      '<span class="tag">' + project.type + '</span>' +
+      '<span class="tag">' + project.voltage + '</span>' +
+      '<span class="tag">' + project.year + '</span>' +
+    '</div>' +
+    '<div class="modal-title">' + project.name + '</div>' +
+    '<div class="modal-detail-grid">' +
+      '<div class="modal-detail-item"><label>Местоположение</label><span>' + project.location + '</span></div>' +
+      '<div class="modal-detail-item"><label>Класс напряжения</label><span>' + project.voltage + '</span></div>' +
+      '<div class="modal-detail-item"><label>Год завершения</label><span>' + project.year + '</span></div>' +
+      lenRow +
+    '</div>' +
+    '<p style="color:var(--muted);font-size:.95rem;line-height:1.7;margin-bottom:1.5rem">' + project.desc + '</p>' +
+    '<a href="/contact.html#request" class="btn btn-primary">Обсудить похожий проект</a>';
+});
+
+// Закрыть модалку
+document.getElementById('modal-project-close').addEventListener('click', () => {
+  document.getElementById('modal-project').classList.remove('open');
+});
+document.getElementById('modal-project').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modal-project')) {
+    document.getElementById('modal-project').classList.remove('open');
+  }
+});
+
+renderCards();
+</script>
+</body>
+</html>

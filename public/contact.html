@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Контакты — ЭнергоАтлант</title>
+  <meta property="og:title" content="Контакты — ЭнергоАтлант">
+  <meta property="og:description" content="Свяжитесь с нами — электромонтажные работы в Москве и Московской области">
+  <meta property="og:url" content="https://energoatlant.ru/contact.html">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="/img/logo.png">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/aos.css">
+  <style>
+    .page-hero {
+      padding: 140px 2rem 5rem;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-hero .section-label { margin-bottom: .75rem; }
+    .page-hero h1 { margin-bottom: 1rem; }
+    .page-hero p { color: var(--muted); max-width: 540px; margin: 0 auto; }
+
+    /* Основная сетка контактов */
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 3rem;
+      align-items: start;
+    }
+
+    /* Блок контактной информации */
+    .contact-info-block {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    .contact-info-item {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .contact-info-icon {
+      width: 44px; height: 44px;
+      background: rgba(245,166,35,.1);
+      border: 1px solid rgba(245,166,35,.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .contact-info-icon svg { width: 20px; height: 20px; stroke: var(--accent); }
+    .contact-info-label {
+      font-size: .75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: .3rem;
+    }
+    .contact-info-value {
+      font-weight: 600;
+      font-size: .95rem;
+    }
+    .contact-info-value a {
+      color: var(--text);
+      transition: color .2s;
+    }
+    .contact-info-value a:hover { color: var(--accent); text-decoration: none; }
+
+    /* Часы работы */
+    .work-hours {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      padding: 1.25rem 1.5rem;
+    }
+    .work-hours-title {
+      font-weight: 700;
+      font-size: .88rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: .75rem;
+    }
+    .work-hours-row {
+      display: flex;
+      justify-content: space-between;
+      padding: .3rem 0;
+      font-size: .88rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .work-hours-row:last-child { border: none; }
+    .work-hours-row span:first-child { color: var(--muted); }
+    .work-hours-row span:last-child { font-weight: 600; }
+
+    /* Форма */
+    .contact-form-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    }
+    .contact-form-title {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.8rem;
+      color: var(--accent);
+      margin-bottom: .5rem;
+    }
+    .contact-form-sub {
+      color: var(--muted);
+      font-size: .88rem;
+      margin-bottom: 1.75rem;
+    }
+
+    /* Карта */
+    .map-wrap {
+      width: 100%;
+      height: 300px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-top: 3rem;
+      position: relative;
+    }
+    .map-wrap iframe { width: 100%; height: 100%; border: none; filter: grayscale(40%) invert(10%); }
+
+    /* Соцсети */
+    .socials {
+      display: flex;
+      gap: .75rem;
+      margin-top: .5rem;
+    }
+    .social-btn {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: .5rem 1rem;
+      border-radius: 9999px;
+      font-size: .82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: border-color .2s, color .2s;
+    }
+    .social-btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+    .social-btn svg { width: 16px; height: 16px; }
+
+    /* Форма успеха */
+    .form-success {
+      display: none;
+      text-align: center;
+      padding: 2rem 0;
+    }
+    .form-success-icon {
+      width: 64px; height: 64px;
+      background: rgba(0,196,140,.15);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1rem;
+    }
+    .form-success-icon svg { width: 32px; height: 32px; stroke: var(--success); }
+
+    @media (max-width: 900px) {
+      .contact-grid { grid-template-columns: 1fr; }
+    }
+
+    input, select, textarea {
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #ffffff;
+    }
+  </style>
+</head>
+<body class="grid-bg">
+<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+
+<!-- НАВБАР -->
+<nav class="navbar">
+  <a href="/"><img src="/img/logo.png" alt="ЭнергоАтлант" style="height:36px;width:auto"></a>
+  <ul class="navbar-links">
+    <li><a href="/">Главная</a></li>
+    <li><a href="/services.html">Услуги</a></li>
+    <li><a href="/portfolio.html">Объекты</a></li>
+    <li><a href="/partners.html">Партнёрам</a></li>
+    <li><a href="/contact.html">Контакты</a></li>
+  </ul>
+  <div class="navbar-actions">
+    <button class="navbar-burger" aria-label="Меню">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="/login.html" class="btn btn-primary btn-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="navbar-btn-text">Личный кабинет</span>
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="page-hero">
+  <p class="section-label" data-aos="fade-up">Свяжитесь с нами</p>
+  <h1 data-aos="fade-up" data-aos-delay="100">Контакты</h1>
+  <p data-aos="fade-up" data-aos-delay="200">Обсудим ваш объект, ответим на вопросы и подготовим коммерческое предложение</p>
+</div>
+
+<!-- КОНТАКТЫ + ФОРМА -->
+<section class="section" id="request">
+  <div class="container">
+    <div class="contact-grid">
+
+      <!-- Левая колонка: контактная информация -->
+      <div data-aos="fade-right">
+        <div class="contact-info-block">
+          <div class="contact-info-item">
+            <div class="contact-info-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.08 6.08l1.14-1.14a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="contact-info-label">Телефон</div>
+              <div class="contact-info-value"><a href="tel:+74951234567">+7 (495) 123-45-67</a></div>
+              <div class="contact-info-value" style="margin-top:.2rem"><a href="tel:+79939074577">+7 (993) 907-45-77</a></div>
+            </div>
+          </div>
+
+          <div class="contact-info-item">
+            <div class="contact-info-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            </div>
+            <div>
+              <div class="contact-info-label">Email</div>
+              <div class="contact-info-value"><a href="mailto:info@energoatlant.ru">info@energoatlant.ru</a></div>
+            </div>
+          </div>
+
+          <div class="contact-info-item">
+            <div class="contact-info-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </div>
+            <div>
+              <div class="contact-info-label">Адрес офиса</div>
+              <div class="contact-info-value">Москва, Пресненская наб., д. 8, стр. 1</div>
+              <div style="color:var(--muted);font-size:.82rem;margin-top:.25rem">Москва-Сити, башня «Меркурий»</div>
+            </div>
+          </div>
+
+          <div class="contact-info-item">
+            <div class="contact-info-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="contact-info-label">Мессенджеры</div>
+              <div class="socials">
+                <a href="https://t.me/energoatlant" class="social-btn" target="_blank">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.94 8.16-2.05 9.66c-.15.67-.55.83-1.11.52l-3.08-2.27-1.49 1.43c-.16.16-.3.3-.62.3l.22-3.11 5.68-5.13c.25-.22-.05-.34-.38-.12L6.43 14.36l-3.01-.94c-.65-.2-.66-.65.14-.96l11.73-4.52c.54-.2 1.01.12.65.22z"/></svg>
+                  Telegram
+                </a>
+                <a href="https://wa.me/79939074577" class="social-btn" target="_blank">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.47 14.38c-.3-.15-1.75-.87-2.02-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5-.9-.8-1.5-1.79-1.67-2.09-.18-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51-.17-.01-.37-.01-.57-.01s-.52.07-.8.37c-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.15.2 2.1 3.2 5.09 4.48.71.31 1.27.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.75-.72 2-1.41.25-.69.25-1.28.17-1.4-.07-.12-.27-.19-.57-.34z"/><path d="M12 0C5.37 0 0 5.37 0 12c0 2.12.55 4.1 1.52 5.82L0 24l6.35-1.49A11.93 11.93 0 0 0 12 24c6.63 0 12-5.37 12-12S18.63 0 12 0zm0 21.6a9.58 9.58 0 0 1-4.9-1.34l-.35-.21-3.63.85.88-3.52-.23-.37A9.56 9.56 0 0 1 2.4 12c0-5.3 4.3-9.6 9.6-9.6 5.3 0 9.6 4.3 9.6 9.6 0 5.3-4.3 9.6-9.6 9.6z"/></svg>
+                  WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Часы работы -->
+        <div class="work-hours" style="margin-top:2rem">
+          <div class="work-hours-title">Часы работы</div>
+          <div class="work-hours-row"><span>Пн — Пт</span><span>09:00 — 18:00</span></div>
+          <div class="work-hours-row"><span>Суббота</span><span>10:00 — 15:00</span></div>
+          <div class="work-hours-row"><span>Воскресенье</span><span style="color:var(--muted)">Выходной</span></div>
+        </div>
+      </div>
+
+      <!-- Правая колонка: форма -->
+      <div data-aos="fade-left">
+        <div class="contact-form-card">
+          <div class="contact-form-title">Оставить заявку</div>
+          <div class="contact-form-sub">Перезвоним в течение 2 часов в рабочее время</div>
+
+          <form id="request-form">
+            <div class="form-group">
+              <label class="form-label">Имя</label>
+              <input type="text" class="form-control" name="name" placeholder="Ваше имя">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Телефон *</label>
+              <input type="tel" class="form-control" name="phone" placeholder="+7 (___) ___-__-__" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" name="email" placeholder="your@email.ru">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Сообщение</label>
+              <textarea class="form-control" name="message" placeholder="Расскажите об объекте — тип работ, местоположение, объём..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-full">Отправить заявку</button>
+          </form>
+
+          <div class="form-success" id="form-success">
+            <div class="form-success-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <h3 style="margin-bottom:.5rem">Заявка отправлена!</h3>
+            <p style="color:var(--muted);font-size:.9rem">Перезвоним в течение 2 часов в рабочее время</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Карта -->
+    <div class="map-wrap" data-aos="fade-up" style="margin-top:3rem">
+      <iframe
+        src="https://yandex.ru/map-widget/v1/?ll=37.539302%2C55.749893&z=15&pt=37.539302%2C55.749893,pm2rdm&text=%D0%9F%D1%80%D0%B5%D1%81%D0%BD%D0%B5%D0%BD%D1%81%D0%BA%D0%B0%D1%8F%20%D0%BD%D0%B0%D0%B1.%208%D1%811"
+        allowfullscreen
+        loading="lazy"
+        title="Офис ЭнергоАтлант на карте"
+      ></iframe>
+    </div>
+  </div>
+</section>
+
+<!-- ФУТЕР -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-col-title">ЭнергоАтлант</div>
+      <p style="color:var(--muted);font-size:.9rem">Электромонтажные работы в Москве и МО. Напряжение 0.4–110 кВ.</p>
+    </div>
+    <div>
+      <div class="footer-col-title">Услуги</div>
+      <ul class="footer-links">
+        <li><a href="/services.html">ВЛ и КЛ</a></li>
+        <li><a href="/services.html">Подстанции</a></li>
+        <li><a href="/services.html">Электроснабжение</a></li>
+        <li><a href="/services.html">ИД</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Компания</div>
+      <ul class="footer-links">
+        <li><a href="/portfolio.html">Объекты</a></li>
+        <li><a href="/partners.html">Партнёрам</a></li>
+        <li><a href="/contact.html">Контакты</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Контакты</div>
+      <ul class="footer-links">
+        <li><a href="tel:+74951234567">+7 (495) 123-45-67</a></li>
+        <li><a href="mailto:info@energoatlant.ru">info@energoatlant.ru</a></li>
+        <li style="color:var(--muted);font-size:.85rem">Москва, Пресненская наб. 8с1</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
+    <span><a href="/login.html">Личный кабинет</a></span>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+<script src="/js/preloader.js"></script>
+<script src="https://unpkg.com/imask"></script>
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/float-call.js"></script>
+<script src="/js/aos.js"></script>
+<script>
+AOS.init({ once: true, offset: 60 });
+
+document.getElementById('request-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = { message: fd.get('message') || '' };
+  if (fd.get('name'))  body.name  = fd.get('name');
+  if (fd.get('phone')) body.phone = fd.get('phone');
+  if (fd.get('email')) body.email = fd.get('email');
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true; btn.textContent = 'Отправка...';
+
+  const { ok, data } = await apiRequest('POST', '/api/public/requests', body);
+
+  if (ok) {
+    e.target.style.display = 'none';
+    document.getElementById('form-success').style.display = 'block';
+  } else {
+    showToast(data.error || 'Ошибка отправки', 'error');
+    btn.disabled = false; btn.textContent = 'Отправить заявку';
+  }
+});
+</script>
+</body>
+</html>

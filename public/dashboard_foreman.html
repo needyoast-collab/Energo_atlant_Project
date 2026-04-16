@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Прораб — ЭнергоАтлант</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="grid-bg">
+<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+<div class="dash-layout">
+
+  <!-- САЙДБАР -->
+  <aside class="sidebar">
+    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-section="projects">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Проекты
+      </button>
+      <button class="nav-item" data-section="mtr">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Заявки МТР
+      </button>
+      <button class="nav-item" data-section="warehouse">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Склад
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <strong id="user-name">—</strong>
+        <span>Прораб</span>
+      </div>
+      <button class="btn btn-outline btn-sm w-full" id="logout-btn">Выйти</button>
+    </div>
+  </aside>
+
+  <!-- ОСНОВНОЙ КОНТЕНТ -->
+  <main class="dash-main">
+
+    <!-- ПРОЕКТЫ -->
+    <div class="dash-section active" id="section-projects">
+      <div class="dash-header flex-between">
+        <h1>Мои проекты</h1>
+        <button class="btn btn-outline btn-sm" id="btn-join-project">+ Войти по коду</button>
+      </div>
+      <div id="projects-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem"></div>
+    </div>
+
+    <!-- ЗАЯВКИ МТР -->
+    <div class="dash-section" id="section-mtr">
+      <div class="dash-header flex-between">
+        <h1>Заявки МТР</h1>
+        <button class="btn btn-primary btn-sm" id="btn-create-mtr">+ Новая заявка</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="mtr-table">
+            <thead>
+              <tr><th>Материал</th><th>Кол-во</th><th>Этап</th><th>Статус</th><th>Дата</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- СКЛАД -->
+    <div class="dash-section" id="section-warehouse">
+      <div class="dash-header">
+        <h1>Склад</h1>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="warehouse-table">
+            <thead>
+              <tr><th>Материал</th><th>Ед.</th><th>Получено</th><th>Использовано</th><th>Остаток</th><th>Источник</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- МОДАЛКА: войти по коду -->
+<div class="modal-overlay" id="modal-join">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-join">×</button>
+    <div class="modal-title">Войти в проект</div>
+    <form id="join-form">
+      <div class="form-group">
+        <label class="form-label">Код проекта</label>
+        <input type="text" class="form-control" name="code" placeholder="PRJ-2026-XXXX" required style="text-transform:uppercase">
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Присоединиться</button>
+    </form>
+  </div>
+</div>
+
+<!-- МОДАЛКА: проект (этапы + фото) -->
+<div class="modal-overlay" id="modal-project">
+  <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto">
+    <button class="modal-close" data-close="modal-project">×</button>
+    <div class="modal-title" id="modal-project-title">Проект</div>
+    <div id="modal-project-meta" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
+
+    <!-- Вкладки -->
+    <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:.75rem;flex-wrap:wrap">
+      <button class="btn btn-sm btn-primary" id="tab-btn-stages"    data-tab="stages">Этапы</button>
+      <button class="btn btn-sm btn-outline" id="tab-btn-specs"       data-tab="specs">ВОМ</button>
+      <button class="btn btn-sm btn-outline" id="tab-btn-work-specs"  data-tab="work-specs">ВОР</button>
+      <button class="btn btn-sm btn-outline" id="tab-btn-warehouse"   data-tab="warehouse">Склад</button>
+      <button class="btn btn-sm btn-outline" id="tab-btn-photos"    data-tab="photos">Фото</button>
+      <button class="btn btn-sm btn-outline" id="tab-btn-docs"      data-tab="docs">Документы</button>
+    </div>
+
+    <!-- Этапы -->
+    <div id="tab-stages">
+      <div class="flex-between mb-2">
+        <span style="font-weight:600;font-size:.9rem">Этапы работ</span>
+        <button class="btn btn-outline btn-sm" id="btn-add-stage">+ Добавить этап</button>
+      </div>
+      <div id="stages-list" class="stage-list"></div>
+    </div>
+
+    <!-- Ведомость материалов -->
+    <div id="tab-specs" style="display:none">
+      <div style="font-weight:600;font-size:.9rem;margin-bottom:.75rem">Ведомость материалов</div>
+      <div id="specs-list"></div>
+    </div>
+
+    <!-- ВОР: ведомость объёмов работ -->
+    <div id="tab-work-specs" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+        <div style="font-weight:600;font-size:.9rem">Ведомость объёмов работ</div>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-outline btn-sm" id="btn-batch-work-specs" style="font-size:.78rem">Массовое добавление</button>
+          <button class="btn btn-primary btn-sm" id="btn-add-work-spec" style="font-size:.78rem">+ Создать позицию</button>
+        </div>
+      </div>
+      <div id="work-specs-list"></div>
+    </div>
+
+    <!-- Склад объекта -->
+    <div id="tab-warehouse" style="display:none">
+      <div style="font-weight:600;font-size:.9rem;margin-bottom:.75rem">Склад объекта</div>
+      <div class="table-wrap">
+        <table id="modal-warehouse-table">
+          <thead>
+            <tr><th>Материал</th><th>Ед.</th><th>Получено</th><th>Использовано</th><th>Остаток</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Документы -->
+    <div id="tab-docs" style="display:none">
+      <div id="project-docs-list"><span style="color:var(--muted)">Загрузка...</span></div>
+    </div>
+
+    <!-- Фото -->
+    <div id="tab-photos" style="display:none">
+      <div class="flex-between mb-2">
+        <span style="font-weight:600;font-size:.9rem">Загрузить фото</span>
+      </div>
+      <form id="upload-photo-form" style="margin-bottom:1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Этап</label>
+            <select class="form-control" name="stage_id" id="photo-stage-select">
+              <option value="">— без этапа —</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Фото</label>
+            <input type="file" class="form-control" name="photo" accept="image/*" required style="padding:.4rem .6rem;font-size:.85rem">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:.5rem">
+          <input type="text" class="form-control" name="description" placeholder="Описание (необязательно)" style="font-size:.85rem">
+        </div>
+        <button type="submit" class="btn btn-outline btn-sm">Загрузить</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА: добавить этап -->
+<div class="modal-overlay" id="modal-add-stage">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-add-stage">×</button>
+    <div class="modal-title">Новый этап</div>
+    <form id="add-stage-form">
+      <div class="form-group">
+        <label class="form-label">Название этапа</label>
+        <input type="text" class="form-control" name="name" required placeholder="Прокладка кабеля">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label class="form-label">Порядок</label>
+          <input type="number" class="form-control" name="order_num" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Начало</label>
+          <input type="date" class="form-control" name="planned_start">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Окончание</label>
+          <input type="date" class="form-control" name="planned_end">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Создать</button>
+    </form>
+  </div>
+</div>
+
+<!-- МОДАЛКА: редактировать этап -->
+<div class="modal-overlay" id="modal-edit-stage">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-edit-stage">×</button>
+    <div class="modal-title">Редактировать этап</div>
+    <form id="edit-stage-form">
+      <div class="form-group">
+        <label class="form-label">Название</label>
+        <input type="text" class="form-control" name="name" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Статус</label>
+        <select class="form-control" name="status">
+          <option value="pending">Не начат</option>
+          <option value="in_progress">В работе</option>
+          <option value="done">Завершён</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label class="form-label">Плановое начало</label>
+          <input type="date" class="form-control" name="planned_start">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Плановое окончание</label>
+          <input type="date" class="form-control" name="planned_end">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Фактическое окончание</label>
+        <input type="date" class="form-control" name="actual_end">
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Сохранить</button>
+    </form>
+  </div>
+</div>
+
+<!-- МОДАЛКА: новая заявка МТР -->
+<div class="modal-overlay" id="modal-mtr">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-mtr">×</button>
+    <div class="modal-title">Заявка на материалы</div>
+    <form id="mtr-form">
+      <div class="form-group">
+        <label class="form-label">Проект</label>
+        <select class="form-control" name="project_id" id="mtr-project-select" required></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Этап (необязательно)</label>
+        <select class="form-control" name="stage_id" id="mtr-stage-select">
+          <option value="">— без этапа —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Материал</label>
+        <input type="text" class="form-control" name="material_name" required placeholder="Кабель ВВГнг 3×2.5">
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label class="form-label">Количество</label>
+          <input type="number" class="form-control" name="quantity" required min="0.001" step="0.001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ед. изм.</label>
+          <input type="text" class="form-control" name="unit" placeholder="м, шт, кг">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Примечание</label>
+        <textarea class="form-control" name="notes" rows="2"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Отправить заявку</button>
+    </form>
+  </div>
+</div>
+
+<!-- МОДАЛКА: списание со склада -->
+<div class="modal-overlay" id="modal-writeoff">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-writeoff">×</button>
+    <div class="modal-title">Списание материала</div>
+    <div id="writeoff-item-info" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
+    <form id="writeoff-form">
+      <div class="form-group">
+        <label class="form-label">Количество к списанию</label>
+        <input type="number" class="form-control" name="quantity" required min="0.001" step="0.001">
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Списать</button>
+    </form>
+  </div>
+</div>
+
+<!-- МОДАЛКА: добавить позицию ВОР -->
+<div class="modal-overlay" id="modal-add-work-spec">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-add-work-spec">×</button>
+    <div class="modal-title">Добавить позицию ВОР</div>
+    <form id="add-work-spec-form">
+      <div class="form-group">
+        <label class="form-label">Наименование работы <span style="color:var(--accent)">*</span></label>
+        <input type="text" class="form-control" name="work_name" required maxlength="200" placeholder="Монтаж кабельной линии">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label class="form-label">Ед. изм.</label>
+          <input type="text" class="form-control" name="unit" maxlength="20" placeholder="м, шт, компл...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Количество <span style="color:var(--accent)">*</span></label>
+          <input type="number" class="form-control" name="quantity" required min="0.001" step="0.001">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Добавить</button>
+    </form>
+  </div>
+</div>
+
+<!-- МОДАЛКА: отклонить позицию ведомости -->
+<div class="modal-overlay" id="modal-reject-spec">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-reject-spec">×</button>
+    <div class="modal-title">Отклонить позицию</div>
+    <div id="reject-spec-info" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
+    <form id="reject-spec-form">
+      <div class="form-group">
+        <label class="form-label">Причина отклонения <span style="color:var(--accent)">*</span></label>
+        <textarea class="form-control" name="rejection_note" required rows="3" placeholder="Укажите причину..."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Отклонить</button>
+    </form>
+  </div>
+</div>
+
+<!-- МОДАЛКА: массовое добавление ВОР -->
+<div class="modal-overlay" id="modal-batch">
+  <div class="modal" style="max-width:820px;max-height:90vh;display:flex;flex-direction:column;padding:2rem">
+    <button class="modal-close" data-close="modal-batch">×</button>
+    <div class="modal-title" id="batch-modal-title">Массовое добавление — ВОР</div>
+    <div id="batch-modal-subtitle" style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem"></div>
+    <div style="flex:1;overflow-y:auto;min-height:0">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border)">
+            <th style="padding:.5rem .6rem;text-align:center;color:var(--muted);font-size:.78rem;width:36px">№</th>
+            <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem">Наименование</th>
+            <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:110px">Ед. изм.</th>
+            <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:100px">Кол-во</th>
+          </tr>
+        </thead>
+        <tbody id="batch-tbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:.75rem">
+      <button class="btn btn-outline btn-sm" id="btn-batch-add-row" style="font-size:.82rem">+ Добавить строку</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div id="batch-counter" style="color:var(--muted);font-size:.85rem">0 позиций заполнено</div>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-outline" data-close="modal-batch">Отмена</button>
+        <button class="btn btn-primary" id="btn-batch-save">Сохранить в проект</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/preloader.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/dashboard.js"></script>
+<script src="/js/foreman.js"></script>
+</body>
+</html>

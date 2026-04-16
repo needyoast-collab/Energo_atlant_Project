@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Менеджер — ЭнергоАтлант</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="grid-bg">
+<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+<div class="dash-layout">
+
+  <!-- САЙДБАР -->
+  <aside class="sidebar">
+    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-section="funnel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Воронка
+      </button>
+      <button class="nav-item" data-section="requests">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Заявки
+      </button>
+      <button class="nav-item" data-section="messages">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Сообщения
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <strong id="user-name">—</strong>
+        <span>Менеджер</span>
+      </div>
+      <div class="notif-wrap">
+        <button class="notif-bell-btn" id="notif-bell-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          Уведомления
+          <span class="notif-badge hidden" id="notif-count">0</span>
+        </button>
+        <div class="notif-dropdown" id="notif-dropdown">
+          <div class="notif-dropdown-header">
+            <span>Уведомления</span>
+            <button id="notif-read-all">Прочитать все</button>
+          </div>
+          <div id="notif-list"><div class="notif-empty">Загрузка...</div></div>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm w-full" id="logout-btn">Выйти</button>
+    </div>
+  </aside>
+
+  <!-- ОСНОВНОЙ КОНТЕНТ -->
+  <main class="dash-main">
+
+    <!-- ВОРОНКА -->
+    <div class="dash-section active" id="section-funnel">
+      <div class="dash-header flex-between">
+        <h1>Проекты</h1>
+        <button class="btn btn-primary btn-sm" id="btn-create-project">+ Создать проект</button>
+      </div>
+      <div class="kanban" id="kanban-board"></div>
+    </div>
+
+    <!-- ЗАЯВКИ -->
+    <div class="dash-section" id="section-requests">
+      <div class="dash-header">
+        <h1>Заявки с сайта</h1>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="requests-table">
+            <thead>
+              <tr><th>Имя</th><th>Контакт</th><th>Сообщение</th><th>Статус</th><th>Дата</th><th>Действие</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- СООБЩЕНИЯ -->
+    <div class="dash-section" id="section-messages">
+      <div class="dash-header flex-between">
+        <h1>Сообщения</h1>
+        <button class="btn btn-primary btn-sm" id="btn-new-message">+ Написать</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="messages-table">
+            <thead>
+              <tr><th>От / Кому</th><th>Тема</th><th>Дата</th><th>Статус</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- МОДАЛКА: создать проект -->
+<div class="modal-overlay" id="modal-create-project">
+  <div class="modal" style="max-width:600px;max-height:90vh;overflow-y:auto">
+    <button class="modal-close" data-close="modal-create-project">×</button>
+    <div class="modal-title">Новый проект</div>
+    <form id="create-project-form">
+
+      <div class="form-group">
+        <label class="form-label">Название <span style="color:var(--accent)">*</span></label>
+        <input type="text" class="form-control" name="name" required>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label class="form-label">Тип объекта</label>
+          <select class="form-control" name="object_type">
+            <option value="">— не выбрано —</option>
+            <option value="промышленный">Промышленный</option>
+            <option value="жилой">Жилой</option>
+            <option value="инфраструктурный">Инфраструктурный</option>
+            <option value="прочее">Прочее</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Класс напряжения</label>
+          <select class="form-control" name="voltage_class">
+            <option value="">— не выбрано —</option>
+            <option value="0.4">0.4 кВ</option>
+            <option value="6">6 кВ</option>
+            <option value="10">10 кВ</option>
+            <option value="35">35 кВ</option>
+            <option value="110">110 кВ</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Виды работ</label>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem .75rem;margin-top:.25rem">
+          <label style="display:flex;align-items:center;gap:.3rem;font-size:.9rem">
+            <input type="checkbox" name="work_types" value="КЛ"> КЛ
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;font-size:.9rem">
+            <input type="checkbox" name="work_types" value="ВЛ"> ВЛ
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;font-size:.9rem">
+            <input type="checkbox" name="work_types" value="ТП"> ТП
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;font-size:.9rem">
+            <input type="checkbox" name="work_types" value="ГНБ"> ГНБ
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;font-size:.9rem">
+            <input type="checkbox" name="work_types" value="ПНР"> ПНР
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;font-size:.9rem">
+            <input type="checkbox" name="work_types" value="Проектирование"> Проектирование
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Источник лида</label>
+        <select class="form-control" name="lead_source">
+          <option value="">— не выбрано —</option>
+          <option value="сайт">Сайт</option>
+          <option value="звонок">Звонок</option>
+          <option value="партнёр">Партнёр</option>
+          <option value="тендер">Тендер</option>
+          <option value="повторный">Повторный клиент</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Адрес объекта</label>
+        <input type="text" class="form-control" name="address">
+      </div>
+
+      <hr style="border-color:var(--border);margin:1rem 0">
+      <div style="color:var(--muted);font-size:.8rem;margin-bottom:.75rem">Контактное лицо заказчика</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label class="form-label">Имя</label>
+          <input type="text" class="form-control" name="contact_name" placeholder="Иван Иванов">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Телефон</label>
+          <input type="tel" class="form-control" name="contact_phone" placeholder="+7 999 000 00 00">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-control" name="contact_email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Организация</label>
+          <input type="text" class="form-control" name="contact_org">
+        </div>
+      </div>
+
+      <hr style="border-color:var(--border);margin:1rem 0">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label class="form-label">Сумма договора (₽)</label>
+          <input type="number" class="form-control" name="contract_value" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Плановое начало</label>
+          <input type="date" class="form-control" name="planned_start">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Плановое окончание</label>
+          <input type="date" class="form-control" name="planned_end">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Описание</label>
+        <textarea class="form-control" name="description" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Примечания</label>
+        <textarea class="form-control" name="notes" rows="2"></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-full mt-2">Создать проект</button>
+    </form>
+  </div>
+</div>
+
+<!-- МОДАЛКА: карточка проекта -->
+<div class="modal-overlay" id="modal-project">
+  <div class="modal" style="max-width:640px">
+    <button class="modal-close" data-close="modal-project">×</button>
+    <div class="modal-title" id="modal-project-title">Проект</div>
+
+    <div class="mb-3" id="modal-project-info"></div>
+
+    <div class="form-group">
+      <label class="form-label">Статус воронки</label>
+      <select class="form-control" id="project-status-select">
+        <option value="lead">Лид</option>
+        <option value="qualification">Квалификация</option>
+        <option value="visit">Выезд</option>
+        <option value="offer">КП</option>
+        <option value="negotiation">Переговоры</option>
+        <option value="contract">Договор</option>
+        <option value="work">В работе</option>
+        <option value="won">Завершён</option>
+        <option value="lost">Отказ</option>
+      </select>
+    </div>
+    <button class="btn btn-outline btn-sm" id="btn-save-status">Сохранить статус</button>
+
+    <hr style="border-color:var(--border);margin:1.5rem 0">
+
+    <div class="modal-title" style="font-size:1.2rem;margin-bottom:1rem">Команда проекта</div>
+    <div id="project-team-list" class="mb-3"></div>
+    <div id="team-add-rows" style="display:flex;flex-direction:column;gap:.5rem">
+      <div style="display:flex;gap:.5rem;align-items:flex-end">
+        <div class="form-group" style="flex:1;margin:0">
+          <label class="form-label">Прораб</label>
+          <select class="form-control" id="select-foreman"></select>
+        </div>
+        <button class="btn btn-primary btn-sm" style="flex-shrink:0" data-add-role="foreman">Добавить</button>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:flex-end">
+        <div class="form-group" style="flex:1;margin:0">
+          <label class="form-label">Инженер ПТО</label>
+          <select class="form-control" id="select-pto"></select>
+        </div>
+        <button class="btn btn-primary btn-sm" style="flex-shrink:0" data-add-role="pto">Добавить</button>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:flex-end">
+        <div class="form-group" style="flex:1;margin:0">
+          <label class="form-label">Специалист МТР</label>
+          <select class="form-control" id="select-supplier"></select>
+        </div>
+        <button class="btn btn-primary btn-sm" style="flex-shrink:0" data-add-role="supplier">Добавить</button>
+      </div>
+    </div>
+
+    <hr style="border-color:var(--border);margin:1.5rem 0">
+
+    <div class="modal-title" style="font-size:1.2rem;margin-bottom:1rem">Документы</div>
+
+    <form id="upload-doc-form" style="margin-bottom:1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Тип документа</label>
+          <select class="form-control" name="doc_type" id="doc-type-select" required>
+            <option value="">— выберите тип —</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Файл (PDF, Word, Excel, фото)</label>
+          <input type="file" class="form-control" name="file" id="doc-file-input"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" required
+            style="padding:.4rem .6rem;font-size:.85rem">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:.5rem">
+        <input type="text" class="form-control" name="description" placeholder="Описание (необязательно)" style="font-size:.85rem">
+      </div>
+      <button type="submit" class="btn btn-outline btn-sm">Загрузить</button>
+    </form>
+
+    <div id="project-docs-list" style="font-size:.875rem"></div>
+
+    <hr style="border-color:var(--border);margin:1.5rem 0">
+
+    <div class="modal-title" style="font-size:1.2rem;margin-bottom:1rem">AI-анализ</div>
+    <button class="btn btn-outline btn-sm" id="btn-analyze">Запустить анализ</button>
+    <div id="analyze-result" class="mt-3" style="color:var(--muted);font-size:.9rem;white-space:pre-wrap;line-height:1.7"></div>
+  </div>
+</div>
+
+<!-- МОДАЛКА: заявка -->
+<div class="modal-overlay" id="modal-request">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-request">×</button>
+    <div class="modal-title">Заявка</div>
+    <div id="modal-request-info" class="mb-3"></div>
+    <div class="form-group">
+      <label class="form-label">Статус</label>
+      <select class="form-control" id="request-status-select">
+        <option value="new">Новая</option>
+        <option value="in_progress">В работе</option>
+        <option value="done">Выполнено</option>
+        <option value="rejected">Отклонено</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem">
+      <button class="btn btn-primary btn-sm" id="btn-save-request">Сохранить</button>
+      <button class="btn btn-outline btn-sm" id="btn-request-to-project">Создать проект из заявки</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА: новое сообщение -->
+<div class="modal-overlay" id="modal-new-message">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-new-message">×</button>
+    <div class="modal-title">Новое сообщение</div>
+    <form id="new-message-form">
+      <div class="form-group">
+        <label class="form-label">Получатель (email)</label>
+        <input type="email" class="form-control" name="receiver_email" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Тема</label>
+        <input type="text" class="form-control" name="subject">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Сообщение</label>
+        <textarea class="form-control" name="body" required></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Отправить</button>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/preloader.js"></script>
+<script src="https://unpkg.com/imask"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/dashboard.js"></script>
+<script src="/js/manager.js"></script>
+</body>
+</html>

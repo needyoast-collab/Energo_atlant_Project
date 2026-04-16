@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Услуги — ЭнергоАтлант</title>
+  <meta property="og:title" content="Услуги — ЭнергоАтлант">
+  <meta property="og:description" content="Электромонтажные работы 0.4–110 кВ: ВЛ, КЛ, подстанции, проектирование, ИД">
+  <meta property="og:url" content="https://energoatlant.ru/services.html">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="/img/logo.png">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/aos.css">
+  <style>
+    .page-hero {
+      padding: 140px 2rem 5rem;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-hero .section-label { margin-bottom: .75rem; }
+    .page-hero h1 { margin-bottom: 1rem; }
+    .page-hero p { color: var(--muted); max-width: 540px; margin: 0 auto; }
+
+    /* Быстрые карточки навигации */
+    .service-nav-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+    .service-nav-card {
+      background: var(--bg2);
+      padding: 2rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+      transition: background .2s, border-left .2s;
+      border-left: 3px solid transparent;
+    }
+    .service-nav-card:hover { background: var(--bg3); }
+    .service-nav-card.active { border-left-color: var(--accent); background: var(--bg3); }
+    .service-nav-card .svc-num { font-family: 'Stolzl', sans-serif; font-size: 2.5rem; color: var(--border); line-height: 1; }
+    .service-nav-card .svc-name { font-weight: 700; font-size: .95rem; }
+    .service-nav-card .svc-arrow { color: var(--accent); font-size: 1.2rem; align-self: flex-end; margin-top: auto; }
+
+    /* Детальные секции */
+    .service-detail {
+      padding: 5rem 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .service-detail:nth-child(even) { background: var(--bg2); }
+    .service-detail-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+    .service-detail:nth-child(even) .service-detail-inner { direction: rtl; }
+    .service-detail:nth-child(even) .service-detail-inner > * { direction: ltr; }
+    .detail-num { font-family: 'Stolzl', sans-serif; font-size: 6rem; color: var(--border); line-height: 1; margin-bottom: -.5rem; }
+    .detail-title { font-size: clamp(1.6rem, 3vw, 2.5rem); margin-bottom: 1rem; }
+    .detail-desc { color: var(--muted); font-size: 1rem; line-height: 1.8; margin-bottom: 1.75rem; }
+    .detail-list { list-style: none; display: flex; flex-direction: column; gap: .75rem; margin-bottom: 2rem; }
+    .detail-list li { display: flex; align-items: center; gap: .75rem; font-size: .95rem; }
+    .detail-list li::before { content: ''; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; flex-shrink: 0; }
+    .detail-visual {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      padding: 2.5rem;
+      min-height: 300px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      position: relative;
+      overflow: hidden;
+    }
+    .detail-visual::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(245,166,35,.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245,166,35,.06) 1px, transparent 1px);
+      background-size: 30px 30px;
+    }
+    .detail-visual-icon {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 5rem;
+      color: rgba(245,166,35,.12);
+      line-height: 1;
+      position: relative;
+    }
+    .detail-visual-label {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.6rem;
+      color: var(--accent);
+      letter-spacing: .1em;
+      position: relative;
+    }
+    .detail-visual-sub {
+      color: var(--muted);
+      font-size: .85rem;
+      position: relative;
+      margin-top: .25rem;
+    }
+
+    .detail-visual-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: .22;
+      z-index: 0;
+    }
+    .detail-visual-ph {
+      position: absolute;
+      inset: 0;
+      background: #1a1a1a;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: #F5A623;
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.25rem;
+      letter-spacing: .12em;
+      z-index: 0;
+    }
+    .detail-visual-icon,
+    .detail-visual-label,
+    .detail-visual-sub { position: relative; z-index: 1; }
+
+    @media (max-width: 900px) {
+      .service-nav-grid { grid-template-columns: repeat(2, 1fr); }
+      .service-detail-inner { grid-template-columns: 1fr; gap: 2rem; }
+      .service-detail:nth-child(even) .service-detail-inner { direction: ltr; }
+    }
+    @media (max-width: 600px) {
+      .service-nav-grid { grid-template-columns: 1fr; }
+      .service-detail { padding: 3rem 1rem; }
+    }
+  </style>
+</head>
+<body class="grid-bg">
+<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+
+<!-- НАВБАР -->
+<nav class="navbar">
+  <a href="/"><img src="/img/logo.png" alt="ЭнергоАтлант" style="height:36px;width:auto"></a>
+  <ul class="navbar-links">
+    <li><a href="/">Главная</a></li>
+    <li><a href="/services.html">Услуги</a></li>
+    <li><a href="/portfolio.html">Объекты</a></li>
+    <li><a href="/partners.html">Партнёрам</a></li>
+    <li><a href="/contact.html">Контакты</a></li>
+  </ul>
+  <div class="navbar-actions">
+    <button class="navbar-burger" aria-label="Меню">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="/login.html" class="btn btn-primary btn-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="navbar-btn-text">Личный кабинет</span>
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="page-hero">
+  <p class="section-label" data-aos="fade-up">Что мы делаем</p>
+  <h1 data-aos="fade-up" data-aos-delay="100">Наши услуги</h1>
+  <p data-aos="fade-up" data-aos-delay="200">Полный цикл электромонтажных работ — от разработки проекта до сдачи объекта в эксплуатацию</p>
+</div>
+
+<!-- НАВИГАЦИЯ ПО УСЛУГАМ -->
+<section class="section" style="padding:3rem 2rem">
+  <div class="container">
+    <div class="service-nav-grid">
+      <div class="service-nav-card active" data-target="svc-1" data-aos="fade-up" data-aos-delay="0">
+        <div class="svc-num">01</div>
+        <div class="svc-name">Воздушные линии электропередачи</div>
+        <div class="svc-arrow">↓</div>
+      </div>
+      <div class="service-nav-card" data-target="svc-2" data-aos="fade-up" data-aos-delay="60">
+        <div class="svc-num">02</div>
+        <div class="svc-name">Кабельные линии</div>
+        <div class="svc-arrow">↓</div>
+      </div>
+      <div class="service-nav-card" data-target="svc-3" data-aos="fade-up" data-aos-delay="120">
+        <div class="svc-num">03</div>
+        <div class="svc-name">Трансформаторные подстанции</div>
+        <div class="svc-arrow">↓</div>
+      </div>
+      <div class="service-nav-card" data-target="svc-4" data-aos="fade-up" data-aos-delay="0">
+        <div class="svc-num">04</div>
+        <div class="svc-name">Электроснабжение объектов</div>
+        <div class="svc-arrow">↓</div>
+      </div>
+      <div class="service-nav-card" data-target="svc-5" data-aos="fade-up" data-aos-delay="60">
+        <div class="svc-num">05</div>
+        <div class="svc-name">Исполнительная документация</div>
+        <div class="svc-arrow">↓</div>
+      </div>
+      <div class="service-nav-card" data-target="svc-6" data-aos="fade-up" data-aos-delay="120">
+        <div class="svc-num">06</div>
+        <div class="svc-name">Проектирование</div>
+        <div class="svc-arrow">↓</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 01. ВОЗДУШНЫЕ ЛИНИИ -->
+<div class="service-detail" id="svc-1">
+  <div class="service-detail-inner">
+    <div data-aos="fade-right">
+      <div class="detail-num">01</div>
+      <h2 class="detail-title">Воздушные линии электропередачи</h2>
+      <p class="detail-desc">Монтаж ВЛ 0.4–110 кВ на деревянных, металлических и железобетонных опорах. Выполняем раскатку и натяжку провода, монтаж защитных тросов, устройство заземляющих контуров. Работаем с линиями любой протяжённости.</p>
+      <ul class="detail-list">
+        <li>Монтаж опор ВЛ 0.4 / 6 / 10 / 35 / 110 кВ</li>
+        <li>Раскатка, натяжка и подвеска провода</li>
+        <li>Монтаж защитных тросов и опасных переходов</li>
+        <li>Устройство заземления и молниезащиты</li>
+        <li>Измерения: изоляция, сопротивление заземления</li>
+      </ul>
+      <a href="#request" class="btn btn-primary">Обсудить проект</a>
+    </div>
+    <div class="detail-visual" data-aos="fade-left">
+      <img class="detail-visual-img" src="/img/services/vl.jpg" alt=""
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="detail-visual-ph">Фото скоро</div>
+      <div class="detail-visual-icon">ВЛ</div>
+      <div class="detail-visual-label">0.4 — 110 кВ</div>
+      <div class="detail-visual-sub">Опоры · Провод · Арматура · ЗУ</div>
+    </div>
+  </div>
+</div>
+
+<!-- 02. КАБЕЛЬНЫЕ ЛИНИИ -->
+<div class="service-detail" id="svc-2">
+  <div class="service-detail-inner">
+    <div data-aos="fade-right">
+      <div class="detail-num">02</div>
+      <h2 class="detail-title">Кабельные линии</h2>
+      <p class="detail-desc">Прокладка кабеля в земле, кабельных лотках, трубах и блочной канализации. Монтаж концевых и соединительных муфт. Испытания кабельных линий повышенным напряжением. Выполняем ГНБ (горизонтально-направленное бурение) под дорогами и водными преградами без вскрытия грунта.</p>
+      <ul class="detail-list">
+        <li>Прокладка КЛ в траншеях и кабельных блоках</li>
+        <li>ГНБ под дорогами, реками, зданиями</li>
+        <li>Монтаж концевых и соединительных муфт</li>
+        <li>Прокладка в лотках, коробах, трубах</li>
+        <li>Испытания ПНН, измерение ЧР</li>
+      </ul>
+      <a href="#request" class="btn btn-primary">Обсудить проект</a>
+    </div>
+    <div class="detail-visual" data-aos="fade-left">
+      <img class="detail-visual-img" src="/img/services/kl.jpg" alt=""
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="detail-visual-ph">Фото скоро</div>
+      <div class="detail-visual-icon">КЛ</div>
+      <div class="detail-visual-label">Кабельные линии</div>
+      <div class="detail-visual-sub">Открытая прокладка · Траншея · ГНБ</div>
+    </div>
+  </div>
+</div>
+
+<!-- 03. ТРАНСФОРМАТОРНЫЕ ПОДСТАНЦИИ -->
+<div class="service-detail" id="svc-3">
+  <div class="service-detail-inner">
+    <div data-aos="fade-right">
+      <div class="detail-num">03</div>
+      <h2 class="detail-title">Трансформаторные подстанции</h2>
+      <p class="detail-desc">Монтаж комплектных трансформаторных подстанций всех типов: КТП, БКТП, ЗТП, РТП, МТП. Подключение силовых трансформаторов, сборка высоковольтных ячеек. Пуско-наладочные работы и испытания оборудования.</p>
+      <ul class="detail-list">
+        <li>Монтаж КТП, БКТП, ЗТП 10/0.4 кВ</li>
+        <li>Подключение силовых трансформаторов 25–1600 кВА</li>
+        <li>Сборка ячеек РУВН и РУНН</li>
+        <li>Монтаж систем учёта и защиты</li>
+        <li>ПНР и испытания оборудования</li>
+      </ul>
+      <a href="#request" class="btn btn-primary">Обсудить проект</a>
+    </div>
+    <div class="detail-visual" data-aos="fade-left">
+      <img class="detail-visual-img" src="/img/services/tp.jpg" alt=""
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="detail-visual-ph">Фото скоро</div>
+      <div class="detail-visual-icon">ТП</div>
+      <div class="detail-visual-label">10 / 0.4 кВ</div>
+      <div class="detail-visual-sub">КТП · БКТП · ЗТП · РТП</div>
+    </div>
+  </div>
+</div>
+
+<!-- 04. ЭЛЕКТРОСНАБЖЕНИЕ -->
+<div class="service-detail" id="svc-4">
+  <div class="service-detail-inner">
+    <div data-aos="fade-right">
+      <div class="detail-num">04</div>
+      <h2 class="detail-title">Электроснабжение объектов</h2>
+      <p class="detail-desc">Монтаж внутренних электрических сетей промышленных, коммерческих и жилых объектов. Установка вводно-распределительных устройств, прокладка кабельных трасс, подключение технологического оборудования.</p>
+      <ul class="detail-list">
+        <li>Монтаж ВРУ, ГРЩ, этажных щитов</li>
+        <li>Прокладка кабельных трасс внутри зданий</li>
+        <li>Подключение промышленного оборудования</li>
+        <li>Монтаж освещения и розеточных групп</li>
+        <li>Замеры: изоляция, петля фаза-ноль</li>
+      </ul>
+      <a href="#request" class="btn btn-primary">Обсудить проект</a>
+    </div>
+    <div class="detail-visual" data-aos="fade-left">
+      <img class="detail-visual-img" src="/img/services/pnr.jpg" alt=""
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="detail-visual-ph">Фото скоро</div>
+      <div class="detail-visual-icon">ЭС</div>
+      <div class="detail-visual-label">Внутренние сети</div>
+      <div class="detail-visual-sub">ВРУ · Щиты · Трассы · Оборудование</div>
+    </div>
+  </div>
+</div>
+
+<!-- 05. ИСПОЛНИТЕЛЬНАЯ ДОКУМЕНТАЦИЯ -->
+<div class="service-detail" id="svc-5">
+  <div class="service-detail-inner">
+    <div data-aos="fade-right">
+      <div class="detail-num">05</div>
+      <h2 class="detail-title">Исполнительная документация</h2>
+      <p class="detail-desc">Подготовка полного комплекта исполнительной документации для сдачи объекта в эксплуатацию. Акты скрытых работ, исполнительные схемы, геодезические съёмки, протоколы испытаний — всё в соответствии с требованиями надзорных органов.</p>
+      <ul class="detail-list">
+        <li>Акты скрытых работ (АСР)</li>
+        <li>Исполнительные схемы и чертежи</li>
+        <li>Геодезическая исполнительная съёмка</li>
+        <li>Протоколы испытаний и измерений</li>
+        <li>Журналы работ, акты промежуточной приёмки</li>
+      </ul>
+      <a href="#request" class="btn btn-primary">Обсудить проект</a>
+    </div>
+    <div class="detail-visual" data-aos="fade-left">
+      <img class="detail-visual-img" src="/img/services/docs.jpg" alt=""
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="detail-visual-ph">Фото скоро</div>
+      <div class="detail-visual-icon">ИД</div>
+      <div class="detail-visual-label">Исполнительная документация</div>
+      <div class="detail-visual-sub">АСР · Схемы · Протоколы · Журналы</div>
+    </div>
+  </div>
+</div>
+
+<!-- 06. ПРОЕКТИРОВАНИЕ -->
+<div class="service-detail" id="svc-6">
+  <div class="service-detail-inner">
+    <div data-aos="fade-right">
+      <div class="detail-num">06</div>
+      <h2 class="detail-title">Проектирование</h2>
+      <p class="detail-desc">Разработка проектной и рабочей документации для объектов электроснабжения любой сложности. Получение технических условий, согласование с Россети / Мосэнерго, сопровождение экспертизы. Авторский надзор в процессе строительства.</p>
+      <ul class="detail-list">
+        <li>Разработка проектной и рабочей документации</li>
+        <li>Получение технических условий на подключение</li>
+        <li>Согласование с сетевыми организациями</li>
+        <li>Прохождение государственной экспертизы</li>
+        <li>Авторский надзор в период СМР</li>
+      </ul>
+      <a href="#request" class="btn btn-primary">Обсудить проект</a>
+    </div>
+    <div class="detail-visual" data-aos="fade-left">
+      <img class="detail-visual-img" src="/img/services/project.jpg" alt=""
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="detail-visual-ph">Фото скоро</div>
+      <div class="detail-visual-icon">ПД</div>
+      <div class="detail-visual-label">Проектирование</div>
+      <div class="detail-visual-sub">ПД · РД · ТУ · Экспертиза</div>
+    </div>
+  </div>
+</div>
+
+<!-- ФОРМА ЗАЯВКИ -->
+<section class="section" id="request" style="background:var(--bg2);border-top:1px solid var(--border)">
+  <div class="container" style="max-width:600px">
+    <div class="section-header" data-aos="fade-up">
+      <p class="section-label">Свяжитесь с нами</p>
+      <h2 class="section-title">Обсудим ваш проект</h2>
+      <p class="section-desc">Оставьте заявку — перезвоним в течение 2 часов в рабочее время</p>
+    </div>
+    <form id="request-form" data-aos="fade-up" data-aos-delay="100">
+      <div class="form-group">
+        <label class="form-label">Имя</label>
+        <input type="text" class="form-control" name="name" placeholder="Ваше имя">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Телефон *</label>
+        <input type="tel" class="form-control" name="phone" placeholder="+7 (___) ___-__-__" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" name="email" placeholder="your@email.ru">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Описание объекта</label>
+        <textarea class="form-control" name="message" placeholder="Расскажите об объекте — тип работ, местоположение, сроки..."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary w-full">Отправить заявку</button>
+    </form>
+  </div>
+</section>
+
+<!-- ФУТЕР -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-col-title">ЭнергоАтлант</div>
+      <p style="color:var(--muted);font-size:.9rem">Электромонтажные работы в Москве и МО. Напряжение 0.4–110 кВ.</p>
+    </div>
+    <div>
+      <div class="footer-col-title">Услуги</div>
+      <ul class="footer-links">
+        <li><a href="/services.html">ВЛ и КЛ</a></li>
+        <li><a href="/services.html">Подстанции</a></li>
+        <li><a href="/services.html">Электроснабжение</a></li>
+        <li><a href="/services.html">ИД и проектирование</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Компания</div>
+      <ul class="footer-links">
+        <li><a href="/portfolio.html">Объекты</a></li>
+        <li><a href="/partners.html">Партнёрам</a></li>
+        <li><a href="/contact.html">Контакты</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Контакты</div>
+      <ul class="footer-links">
+        <li><a href="tel:+74951234567">+7 (495) 123-45-67</a></li>
+        <li><a href="mailto:info@energoatlant.ru">info@energoatlant.ru</a></li>
+        <li style="color:var(--muted);font-size:.85rem">Москва, Пресненская наб. 8с1</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
+    <span><a href="/login.html">Личный кабинет</a></span>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+<script src="/js/preloader.js"></script>
+<script src="https://unpkg.com/imask"></script>
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/float-call.js"></script>
+<script src="/js/aos.js"></script>
+<script>
+AOS.init({ once: true, offset: 60 });
+
+// Навигация по услугам
+document.querySelectorAll('.service-nav-card[data-target]').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.service-nav-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    const target = document.getElementById(card.dataset.target);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+// Форма заявки
+document.getElementById('request-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = { message: fd.get('message') || '' };
+  if (fd.get('name'))  body.name  = fd.get('name');
+  if (fd.get('phone')) body.phone = fd.get('phone');
+  if (fd.get('email')) body.email = fd.get('email');
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true; btn.textContent = 'Отправка...';
+  const { ok, data } = await apiRequest('POST', '/api/public/requests', body);
+  if (ok) {
+    showToast('Заявка отправлена! Перезвоним в течение 2 часов.', 'success');
+    e.target.reset();
+  } else {
+    showToast(data.error || 'Ошибка отправки', 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Отправить заявку';
+});
+</script>
+</body>
+</html>

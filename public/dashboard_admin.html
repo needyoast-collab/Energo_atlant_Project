@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ — ЭнергоАтлант</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="grid-bg">
+<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+<div class="dash-layout">
+
+  <!-- САЙДБАР -->
+  <aside class="sidebar">
+    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-section="metrics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Метрики
+      </button>
+      <button class="nav-item" data-section="users">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Пользователи
+      </button>
+      <button class="nav-item" data-section="payouts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Выплаты партнёрам
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <strong id="user-name">—</strong>
+        <span>Администратор</span>
+      </div>
+      <button class="btn btn-outline btn-sm w-full" id="logout-btn">Выйти</button>
+    </div>
+  </aside>
+
+  <!-- ОСНОВНОЙ КОНТЕНТ -->
+  <main class="dash-main">
+
+    <!-- МЕТРИКИ -->
+    <div class="dash-section active" id="section-metrics">
+      <div class="dash-header">
+        <h1>Метрики</h1>
+      </div>
+      <div class="metrics-grid" id="metrics-grid">
+        <div class="metric-card"><div class="metric-value">—</div><div class="metric-label">Пользователей</div></div>
+        <div class="metric-card"><div class="metric-value">—</div><div class="metric-label">Проектов</div></div>
+        <div class="metric-card"><div class="metric-value">—</div><div class="metric-label">Заявок с сайта</div></div>
+        <div class="metric-card"><div class="metric-value">—</div><div class="metric-label">Запросов выплат</div></div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-title">Проекты по статусам</div>
+        <div class="table-wrap">
+          <table id="projects-stat-table">
+            <thead><tr><th>Статус</th><th>Кол-во</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ПОЛЬЗОВАТЕЛИ -->
+    <div class="dash-section" id="section-users">
+      <div class="dash-header flex-between">
+        <h1>Пользователи</h1>
+        <button class="btn btn-primary btn-sm" id="btn-create-user">+ Создать</button>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table id="users-table">
+            <thead>
+              <tr>
+                <th>Имя</th><th>Email</th><th>Роль</th><th>Статус</th><th>Действия</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ВЫПЛАТЫ -->
+    <div class="dash-section" id="section-payouts">
+      <div class="dash-header">
+        <h1>Выплаты партнёрам</h1>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="payouts-table">
+            <thead>
+              <tr><th>Партнёр</th><th>Сумма</th><th>Реквизиты</th><th>Статус</th><th>Дата</th><th>Действие</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- МОДАЛКА: создать пользователя -->
+<div class="modal-overlay" id="modal-create-user">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-create-user">×</button>
+    <div class="modal-title">Создать пользователя</div>
+    <form id="create-user-form">
+      <div class="form-group">
+        <label class="form-label">Имя</label>
+        <input type="text" class="form-control" name="name" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" name="email" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Пароль</label>
+        <input type="password" class="form-control" name="password" minlength="8" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Роль</label>
+        <select class="form-control" name="role">
+          <option value="admin">Администратор</option>
+          <option value="manager">Менеджер</option>
+          <option value="foreman">Прораб</option>
+          <option value="supplier">Снабженец</option>
+          <option value="pto">ПТО</option>
+          <option value="customer">Заказчик</option>
+          <option value="partner">Партнёр</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Создать</button>
+    </form>
+  </div>
+</div>
+
+<!-- МОДАЛКА: редактировать пользователя -->
+<div class="modal-overlay" id="modal-edit-user">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-edit-user">×</button>
+    <div class="modal-title">Редактировать пользователя</div>
+    <form id="edit-user-form">
+      <input type="hidden" name="id">
+      <div class="form-group">
+        <label class="form-label">Имя</label>
+        <input type="text" class="form-control" name="name" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" name="email" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Роль</label>
+        <select class="form-control" name="role">
+          <option value="admin">Администратор</option>
+          <option value="manager">Менеджер</option>
+          <option value="foreman">Прораб</option>
+          <option value="supplier">Снабженец</option>
+          <option value="pto">ПТО</option>
+          <option value="customer">Заказчик</option>
+          <option value="partner">Партнёр</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Сохранить</button>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/preloader.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/dashboard.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"console.log\\(require\\('crypto'\\).randomBytes\\(32\\).toString\\('hex'\\)\\)\")",
+      "Bash(npm install:*)",
+      "Bash(node -e \"require\\('express'\\)\")",
+      "Bash(node server.js)",
+      "Bash(curl -s http://localhost:3000/api/auth/me)",
+      "Bash(ls /Users/needtoast/Desktop/ЭнергоАтлант/EnergoAtlantPROJECT/public/*.html)",
+      "Bash(curl -sI http://localhost:3000/img/hero.mp4)",
+      "Bash(curl -sL https://unpkg.com/aos@2.3.1/dist/aos.js -o /Users/needtoast/Desktop/ЭнергоАтлант/EnergoAtlantPROJECT/public/js/aos.js)",
+      "Bash(curl -sL https://unpkg.com/aos@2.3.1/dist/aos.css -o /Users/needtoast/Desktop/ЭнергоАтлант/EnergoAtlantPROJECT/public/css/aos.css)",
+      "Bash(kill 32242)",
+      "Bash(grep -l \"<script\" /Users/needtoast/Desktop/ЭнергоАтлант/EnergoAtlantPROJECT/public/dashboard_*.html)",
+      "Bash(psql \"postgresql://neondb_owner:npg_TD54yIjpLoJX@ep-blue-sky-ank3aqfu.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require\" -f \"/Users/needtoast/Desktop/ЭнергоАтлант/EnergoAtlantPROJECT/db/migrations/004_projects_fields.sql\")",
+      "Bash(node -e ':*)",
+      "Bash(grep -v 'Use \\\\`node')",
+      "Bash(node --check routes/supplier.js)",
+      "Bash(node --check routes/foreman.js)",
+      "Bash(node --check controllers/supplierController.js)",
+      "Bash(node --check controllers/foremanController.js)",
+      "Bash(node --check utils/validate.js)",
+      "Bash(ls /Users/needtoast/Desktop/ЭнергоАтлант/EnergoAtlantPROJECT/.env*)",
+      "Bash(python3)"
+    ]
+  }
+}

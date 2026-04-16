@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Партнёр — ЭнергоАтлант</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="grid-bg">
+<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+<div class="dash-layout">
+
+  <!-- САЙДБАР -->
+  <aside class="sidebar">
+    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-section="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Обзор
+      </button>
+      <button class="nav-item" data-section="refs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Рефералы
+      </button>
+      <button class="nav-item" data-section="payouts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Выплаты
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <strong id="user-name">—</strong>
+        <span>Партнёр</span>
+      </div>
+      <button class="btn btn-outline btn-sm w-full" id="logout-btn">Выйти</button>
+    </div>
+  </aside>
+
+  <!-- ОСНОВНОЙ КОНТЕНТ -->
+  <main class="dash-main">
+
+    <!-- ОБЗОР -->
+    <div class="dash-section active" id="section-overview">
+      <div class="dash-header">
+        <h1>Партнёрская программа</h1>
+      </div>
+
+      <!-- Метрики -->
+      <div class="metrics-grid" id="stats-grid">
+        <div class="metric-card"><div class="metric-value" id="stat-refs">—</div><div class="metric-label">Всего рефералов</div></div>
+        <div class="metric-card"><div class="metric-value" id="stat-refs-paid">—</div><div class="metric-label">Оплаченных</div></div>
+        <div class="metric-card"><div class="metric-value" id="stat-earned">—</div><div class="metric-label">Заработано</div></div>
+        <div class="metric-card"><div class="metric-value" id="stat-pending">—</div><div class="metric-label">Ожидает выплаты</div></div>
+      </div>
+
+      <!-- Уровень -->
+      <div class="card" style="margin-bottom:1.5rem" id="level-card">
+        <div class="card-title">Ваш уровень</div>
+        <div id="level-info"></div>
+      </div>
+
+      <!-- Реф. ссылка -->
+      <div class="card" style="margin-bottom:1.5rem">
+        <div class="card-title">Реферальная ссылка</div>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">
+          Отправьте эту ссылку потенциальному заказчику. Когда он зарегистрируется и подпишет договор — вы получите комиссию.
+        </p>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <input type="text" class="form-control" id="ref-link" readonly
+            style="font-size:.85rem;color:var(--accent);font-family:monospace">
+          <button class="btn btn-outline btn-sm" id="btn-copy-link" style="flex-shrink:0">Скопировать</button>
+        </div>
+      </div>
+
+      <!-- Уровни программы -->
+      <div class="card">
+        <div class="card-title">Уровни партнёрства</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-top:.5rem">
+          <div id="level-start"  class="level-tile">
+            <div class="level-name">Старт</div>
+            <div class="level-cond">0–2 клиента</div>
+            <div class="level-pct">5%</div>
+          </div>
+          <div id="level-base" class="level-tile">
+            <div class="level-name">Базовый</div>
+            <div class="level-cond">3–7 клиентов</div>
+            <div class="level-pct">8%</div>
+          </div>
+          <div id="level-pro" class="level-tile">
+            <div class="level-name">Профи</div>
+            <div class="level-cond">8–15 клиентов</div>
+            <div class="level-pct">12%</div>
+          </div>
+          <div id="level-expert" class="level-tile">
+            <div class="level-name">Эксперт</div>
+            <div class="level-cond">15+ клиентов</div>
+            <div class="level-pct">15%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- РЕФЕРАЛЫ -->
+    <div class="dash-section" id="section-refs">
+      <div class="dash-header">
+        <h1>Мои рефералы</h1>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="refs-table">
+            <thead>
+              <tr><th>Имя</th><th>Email</th><th>Роль</th><th>Статус</th><th>Комиссия</th><th>Дата</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ВЫПЛАТЫ -->
+    <div class="dash-section" id="section-payouts">
+      <div class="dash-header flex-between">
+        <h1>Выплаты</h1>
+        <button class="btn btn-primary btn-sm" id="btn-request-payout">Запросить выплату</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="payouts-table">
+            <thead>
+              <tr><th>Сумма</th><th>Реквизиты</th><th>Статус</th><th>Дата запроса</th><th>Дата обработки</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- МОДАЛКА: запрос выплаты -->
+<div class="modal-overlay" id="modal-payout">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-payout">×</button>
+    <div class="modal-title">Запрос выплаты</div>
+    <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.25rem">
+      Укажите сумму и реквизиты. Выплата будет обработана менеджером в течение 3 рабочих дней.
+    </p>
+    <form id="payout-form">
+      <div class="form-group">
+        <label class="form-label">Сумма (₽)</label>
+        <input type="number" class="form-control" name="amount" required min="100" step="1" placeholder="5000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Реквизиты для перевода</label>
+        <textarea class="form-control" name="payment_details" rows="3" required
+          placeholder="Карта Сбер 1234 5678 9012 3456&#10;или&#10;ИП Иванов И.И., р/с 40802810..., БИК..."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary w-full mt-2">Отправить запрос</button>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<style>
+.level-tile {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  transition: border-color .2s;
+}
+.level-tile.active {
+  border-color: var(--accent);
+  background: rgba(245,166,35,.06);
+}
+.level-name { font-family: 'Stolzl', sans-serif; font-size: 1.1rem; margin-bottom: .25rem; }
+.level-cond { color: var(--muted); font-size: .8rem; margin-bottom: .5rem; }
+.level-pct  { font-family: 'Stolzl', sans-serif; font-size: 1.8rem; color: var(--accent); line-height: 1; }
+</style>
+<script src="/js/preloader.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/dashboard.js"></script>
+<script src="/js/partner.js"></script>
+</body>
+</html>

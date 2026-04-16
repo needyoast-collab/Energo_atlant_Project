@@ -1,0 +1,15 @@
+ALTER TABLE projects
+  ADD COLUMN IF NOT EXISTS object_type        VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS voltage_class      VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS work_types         TEXT,
+  ADD COLUMN IF NOT EXISTS kp_sent_at         DATE,
+  ADD COLUMN IF NOT EXISTS visit_scheduled_at DATE,
+  ADD COLUMN IF NOT EXISTS planned_start      DATE,
+  ADD COLUMN IF NOT EXISTS planned_end        DATE,
+  ADD COLUMN IF NOT EXISTS lead_source        VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS partner_id         INTEGER REFERENCES users(id),
+  ADD COLUMN IF NOT EXISTS contact_name       VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS contact_phone      VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS contact_email      VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS contact_org        VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS notes              TEXT;
