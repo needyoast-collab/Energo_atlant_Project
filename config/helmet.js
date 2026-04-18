@@ -8,7 +8,7 @@ const helmetConfig = helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'fonts.googleapis.com', 'unpkg.com'],
       fontSrc: ["'self'", 'fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'storage.yandexcloud.net'],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", 'unpkg.com'],
       mediaSrc: ["'self'"],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],

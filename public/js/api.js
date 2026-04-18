@@ -1,7 +1,7 @@
 // ─── API-клиент ───────────────────────────────────────────────
 
 async function apiRequest(method, url, body = null) {
-  const opts = { method, credentials: 'same-origin', headers: {} };
+  const opts = { method, credentials: 'same-origin', headers: { 'ngrok-skip-browser-warning': '1' } };
 
   if (body instanceof FormData) {
     opts.body = body; // браузер сам выставит Content-Type с boundary

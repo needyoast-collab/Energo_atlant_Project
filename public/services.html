@@ -157,16 +157,16 @@
     <li><a href="/">Главная</a></li>
     <li><a href="/services.html">Услуги</a></li>
     <li><a href="/portfolio.html">Объекты</a></li>
-    <li><a href="/partners.html">Партнёрам</a></li>
+    <li><span class="navbar-link-disabled">Партнёрам</span></li>
     <li><a href="/contact.html">Контакты</a></li>
   </ul>
   <div class="navbar-actions">
     <button class="navbar-burger" aria-label="Меню">
       <span></span><span></span><span></span>
     </button>
-    <a href="/login.html" class="btn btn-primary btn-sm">
+    <button class="btn btn-primary btn-sm lk-disabled" disabled title="Личный кабинет — скоро" style="opacity:0.5;cursor:not-allowed;pointer-events:none">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span class="navbar-btn-text">Личный кабинет</span>
+      <span class="navbar-btn-text">Скоро</span>
     </a>
   </div>
 </nav>
@@ -428,7 +428,7 @@
       <div class="footer-col-title">Компания</div>
       <ul class="footer-links">
         <li><a href="/portfolio.html">Объекты</a></li>
-        <li><a href="/partners.html">Партнёрам</a></li>
+        <li><span class="navbar-link-disabled">Партнёрам</span></li>
         <li><a href="/contact.html">Контакты</a></li>
       </ul>
     </div>
@@ -443,7 +443,8 @@
   </div>
   <div class="footer-bottom">
     <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
-    <span><a href="/login.html">Личный кабинет</a></span>
+    <a href="/privacy.html">Политика конфиденциальности</a>
+    <span style="color:var(--muted);opacity:0.5;cursor:not-allowed">Личный кабинет</span>
   </div>
 </footer>
 

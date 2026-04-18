@@ -564,6 +564,18 @@
     .btn-to-top:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
     .btn-to-top svg { width: 18px; height: 18px; }
 
+    /* ── Мобильное фоновое видео ─────────────────── */
+    .hero-video-mobile {
+      display: none;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.2;
+      z-index: -1;
+    }
+
     /* ── Адаптив ─────────────────────────────────── */
     @media (max-width: 1024px) {
       .how-grid { grid-template-columns: repeat(2, 1fr); }
@@ -573,12 +585,15 @@
     @media (max-width: 900px) {
       .hero { grid-template-columns: 1fr; }
       .hero-right { display: none; }
-      .hero-left { padding: 7rem 2rem 3rem; }
+      .hero-left { padding: 7rem 2rem 3rem; overflow: hidden; }
+      .hero-video-mobile { display: block; }
       .detail-grid { grid-template-columns: 1fr; }
-      .detail-gallery-side { display: none; }
+      .detail-gallery-side { display: flex; }
+      .gallery-frame { min-height: 220px; max-height: 220px; }
       .contact-3col { grid-template-columns: 1fr; }
       .contact-col { border-right: none; border-bottom: 1px solid var(--border); }
       .contact-col:last-child { border-bottom: none; }
+      .contact-3col .contact-col:nth-child(2) { display: none; }
       .btn-to-top { bottom: 86px; right: 20px; }
     }
     @media (max-width: 768px) {
@@ -588,8 +603,9 @@
         padding: 5.5rem 1.5rem 3rem;
         background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 60%, #0a1830 100%);
         min-height: 100vh;
+        overflow: hidden;
       }
-      .hero-title { font-size: 3rem; }
+      .hero-title { font-size: 3rem; word-break: break-word; overflow-wrap: break-word; }
       .hero-actions {
         flex-direction: column;
         align-items: stretch;
@@ -599,6 +615,12 @@
     @media (max-width: 600px) {
       .how-grid { grid-template-columns: 1fr; }
       .hero-stats { gap: 1.5rem; }
+    }
+    @media (max-width: 480px) {
+      .hero-title { font-size: 2.2rem; word-break: break-word; overflow-wrap: break-word; }
+    }
+    @media (max-width: 320px) {
+      .hero-title { font-size: 2rem; }
     }
   </style>
 </head>
@@ -612,17 +634,17 @@
     <li><a href="/">Главная</a></li>
     <li><a href="/services.html">Услуги</a></li>
     <li><a href="/portfolio.html">Объекты</a></li>
-    <li><a href="/partners.html">Партнёрам</a></li>
+    <li><span class="navbar-link-disabled">Партнёрам</span></li>
     <li><a href="/contact.html">Контакты</a></li>
   </ul>
   <div class="navbar-actions">
     <button class="navbar-burger" aria-label="Меню">
       <span></span><span></span><span></span>
     </button>
-    <a href="/login.html" class="btn btn-primary btn-sm">
+    <button class="btn btn-primary btn-sm lk-disabled" disabled title="Личный кабинет — скоро" style="opacity:0.5;cursor:not-allowed;pointer-events:none">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span class="navbar-btn-text">Личный кабинет</span>
-    </a>
+      <span class="navbar-btn-text">Скоро</span>
+    </button>
   </div>
 </nav>
 
@@ -630,6 +652,9 @@
 <section class="hero">
   <!-- Текст слева -->
   <div class="hero-left">
+    <video class="hero-video-mobile" autoplay muted loop playsinline>
+      <source src="/img/hero.mp4" type="video/mp4">
+    </video>
     <p class="hero-subtitle">Электромонтаж · 110 кВ · Москва и МО</p>
     <h1 class="hero-title">
       СТРОИМ<br>
@@ -820,7 +845,7 @@
 </section>
 
 <!-- ══ МОКАП ЛИЧНОГО КАБИНЕТА ═════════════════════════════ -->
-<section class="section" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+<section class="section" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);position:relative;overflow:hidden">
   <div class="container">
     <div class="dash-mockup-grid">
       <div data-aos="fade-right">
@@ -833,7 +858,7 @@
           <li>Исполнительная документация онлайн</li>
           <li>Чат с менеджером проекта</li>
         </ul>
-        <a href="/login.html" class="btn btn-primary">Войти в кабинет</a>
+        <a href="/login.html" class="btn btn-primary" style="pointer-events:none;opacity:0.4">Войти в кабинет</a>
       </div>
       <div data-aos="fade-left">
         <div class="dash-card-mock">
@@ -870,6 +895,12 @@
         </div>
       </div>
     </div>
+  </div>
+  <!-- Blur-оверлей -->
+  <div class="mockup-blur-overlay">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <div class="mockup-blur-title">Личный кабинет</div>
+    <div class="mockup-blur-sub">Раздел в разработке — скоро откроется</div>
   </div>
 </section>
 
@@ -980,8 +1011,8 @@
               <input type="tel" class="form-control" name="phone" placeholder="+7 (___) ___-__-__" required>
             </div>
             <div class="consent-row">
-              <input type="checkbox" id="consent" required>
-              <label for="consent">Нажимая кнопку, даю согласие на обработку персональных данных в соответствии с&nbsp;152-ФЗ</label>
+              <input type="checkbox" id="consent" name="consent" required>
+              <label for="consent">Даю согласие на обработку персональных данных в соответствии с <a href="/privacy.html" target="_blank">Политикой конфиденциальности</a></label>
             </div>
             <button type="submit" class="btn btn-primary w-full">Получить расчёт бесплатно</button>
           </form>
@@ -1011,7 +1042,7 @@
       <div class="footer-col-title">Компания</div>
       <ul class="footer-links">
         <li><a href="/portfolio.html">Объекты</a></li>
-        <li><a href="/partners.html">Партнёрам</a></li>
+        <li><span class="navbar-link-disabled">Партнёрам</span></li>
         <li><a href="/contact.html">Контакты</a></li>
       </ul>
     </div>
@@ -1026,7 +1057,8 @@
   </div>
   <div class="footer-bottom">
     <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
-    <span><a href="/login.html">Личный кабинет</a></span>
+    <a href="/privacy.html">Политика конфиденциальности</a>
+    <span style="color:var(--muted);opacity:0.5;cursor:not-allowed">Личный кабинет</span>
   </div>
 </footer>
 
@@ -1048,11 +1080,10 @@
 AOS.init({ once: true, offset: 60 });
 
 // Явный запуск видео (обход политики autoplay)
-const heroVideo = document.querySelector('.hero-video');
-if (heroVideo) {
-  heroVideo.muted = true;
-  heroVideo.play().catch(() => {});
-}
+document.querySelectorAll('.hero-video, .hero-video-mobile').forEach(v => {
+  v.muted = true;
+  v.play().catch(() => {});
+});
 
 // ─── Данные услуг ─────────────────────────────────────────
 const SERVICES = {
@@ -1196,13 +1227,13 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
   const btn = e.target.querySelector('button[type=submit]');
   btn.disabled = true; btn.textContent = 'Отправка...';
 
-  const { ok, data } = await apiRequest('POST', '/api/public/requests', body);
+  const { ok, data } = await apiRequest('POST', '/api/contact', body);
 
   if (ok) {
-    showToast('Заявка отправлена! Перезвоним в течение 2 часов.', 'success');
+    showToast('Заявка отправлена, мы свяжемся с вами!', 'success');
     e.target.reset();
   } else {
-    showToast(data.error || 'Ошибка отправки', 'error');
+    showToast('Ошибка отправки, позвоните нам', 'error');
   }
   btn.disabled = false; btn.textContent = 'Получить расчёт бесплатно';
 });

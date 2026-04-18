@@ -40,6 +40,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Роуты (подключаются по мере готовности)
 app.use('/api/auth',          require('./routes/auth'));
 app.use('/api/public',        require('./routes/public'));
+app.use('/api/contact',       require('./routes/contact'));
 app.use('/api/admin',         require('./routes/admin'));
 app.use('/api/manager',       require('./routes/manager'));
 app.use('/api/foreman',       require('./routes/foreman'));

@@ -183,17 +183,17 @@
     <li><a href="/">Главная</a></li>
     <li><a href="/services.html">Услуги</a></li>
     <li><a href="/portfolio.html">Объекты</a></li>
-    <li><a href="/partners.html">Партнёрам</a></li>
+    <li><span class="navbar-link-disabled">Партнёрам</span></li>
     <li><a href="/contact.html">Контакты</a></li>
   </ul>
   <div class="navbar-actions">
     <button class="navbar-burger" aria-label="Меню">
       <span></span><span></span><span></span>
     </button>
-    <a href="/login.html" class="btn btn-primary btn-sm">
+    <button class="btn btn-primary btn-sm lk-disabled" disabled title="Личный кабинет — скоро" style="opacity:0.5;cursor:not-allowed;pointer-events:none">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span class="navbar-btn-text">Личный кабинет</span>
-    </a>
+      <span class="navbar-btn-text">Скоро</span>
+    </button>
   </div>
 </nav>
 
@@ -306,6 +306,10 @@
               <label class="form-label">Сообщение</label>
               <textarea class="form-control" name="message" placeholder="Расскажите об объекте — тип работ, местоположение, объём..."></textarea>
             </div>
+            <div class="consent-row">
+              <input type="checkbox" id="consent" name="consent" required>
+              <label for="consent">Даю согласие на обработку персональных данных в соответствии с <a href="/privacy.html" target="_blank">Политикой конфиденциальности</a></label>
+            </div>
             <button type="submit" class="btn btn-primary w-full">Отправить заявку</button>
           </form>
 
@@ -354,7 +358,7 @@
       <div class="footer-col-title">Компания</div>
       <ul class="footer-links">
         <li><a href="/portfolio.html">Объекты</a></li>
-        <li><a href="/partners.html">Партнёрам</a></li>
+        <li><span class="navbar-link-disabled">Партнёрам</span></li>
         <li><a href="/contact.html">Контакты</a></li>
       </ul>
     </div>
@@ -369,7 +373,8 @@
   </div>
   <div class="footer-bottom">
     <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
-    <span><a href="/login.html">Личный кабинет</a></span>
+    <a href="/privacy.html">Политика конфиденциальности</a>
+    <span style="color:var(--muted);opacity:0.5;cursor:not-allowed">Личный кабинет</span>
   </div>
 </footer>
 
@@ -393,13 +398,13 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
   const btn = e.target.querySelector('button[type=submit]');
   btn.disabled = true; btn.textContent = 'Отправка...';
 
-  const { ok, data } = await apiRequest('POST', '/api/public/requests', body);
+  const { ok } = await apiRequest('POST', '/api/contact', body);
 
   if (ok) {
     e.target.style.display = 'none';
     document.getElementById('form-success').style.display = 'block';
   } else {
-    showToast(data.error || 'Ошибка отправки', 'error');
+    showToast('Ошибка отправки, позвоните нам', 'error');
     btn.disabled = false; btn.textContent = 'Отправить заявку';
   }
 });
