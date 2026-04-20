@@ -199,6 +199,7 @@ async function openProject(id) {
       <div><span class="text-muted">Адрес:</span> ${escHtml(project.address || '—')}</div>
       <div><span class="text-muted">Тип объекта:</span> ${escHtml(project.object_type || '—')}</div>
       <div><span class="text-muted">Класс напряжения:</span> ${escHtml(project.voltage_class || '—')}</div>
+      <div><span class="text-muted">Закупка материалов (ВОМ):</span> <strong>${project.include_materials ? 'Требуется' : 'Не требуется'}</strong></div>
       <div style="grid-column:1/-1"><span class="text-muted">Виды работ:</span> ${workTypes}</div>
       <div><span class="text-muted">Контакт:</span> ${escHtml(project.contact_name || '—')}</div>
       <div><span class="text-muted">Телефон:</span> ${escHtml(project.contact_phone || '—')}</div>
@@ -217,6 +218,11 @@ async function openProject(id) {
   const generated = !!project.stages_generated;
   generateBtn.disabled = generated;
   generateBtn.style.display = generated ? 'none' : '';
+
+  // Проверка готовности ВОР/ВОМ (простая логика: если они есть, можно строить КП)
+  const kpBtn = document.getElementById('btn-open-kp');
+  // Мы можем запрашивать кол-во, но покажем кнопку всегда, а при клике сделаем проверки
+  kpBtn.style.display = ['offer', 'negotiation', 'contract', 'lead', 'visit', 'qualification'].includes(project.status) ? '' : 'none';
 
   await loadStaff();
   switchProjectTab('main');
@@ -639,6 +645,216 @@ document.getElementById('upload-doc-form').addEventListener('submit', async (e) 
   else showToast(data.error, 'error');
 });
 
+// ─── ФУНКЦИЯ СУММЫ ПРОПИСЬЮ ──────────────────────────────────────
+function numberToWordsRu(num) {
+  if (num === 0) return 'ноль';
+  const units = ['','один','два','три','четыре','пять','шесть','семь','восемь','девять'];
+  const units_f = ['','одна','две','три','четыре','пять','шесть','семь','восемь','девять'];
+  const teens = ['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
+  const tens = ['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
+  const hundreds = ['','сто','двести','триста','четыреста','пятьсот','шестьсот','семьсот','восемьсот','девятьсот'];
+  const forms = [
+      ['','',''],
+      ['тысяча','тысячи','тысяч'], 
+      ['миллион','миллиона','миллионов'],
+      ['миллиард','миллиарда','миллиардов']
+  ];
+  let n = Math.floor(num);
+  let words = [];
+  let group = 0;
+
+  function getPlural(n, formArr) {
+      let n10 = n % 10;
+      let n100 = n % 100;
+      if (n100 > 10 && n100 < 20) return formArr[2];
+      if (n10 > 1 && n10 < 5) return formArr[1];
+      if (n10 === 1) return formArr[0];
+      return formArr[2];
+  }
+
+  while (n > 0) {
+      let chunk = n % 1000;
+      if (chunk !== 0) {
+          let chunkWords = [];
+          let h = Math.floor(chunk / 100);
+          let t = Math.floor((chunk % 100) / 10);
+          let u = chunk % 10;
+
+          if (h > 0) chunkWords.push(hundreds[h]);
+          if (t === 1) {
+              chunkWords.push(teens[u]);
+          } else {
+              if (t > 1) chunkWords.push(tens[t]);
+              if (u > 0) chunkWords.push(group === 1 ? units_f[u] : units[u]);
+          }
+          let form = getPlural(chunk, forms[group]);
+          if (form) chunkWords.push(form);
+          words = chunkWords.concat(words);
+      }
+      n = Math.floor(n / 1000);
+      group++;
+  }
+  return words.join(' ').trim();
+}
+
+// ─── ФОРМИРОВАНИЕ И ОТПРАВКА КП ────────────────────────────────
+let currentKpData = null;
+
+document.getElementById('btn-open-kp').addEventListener('click', async () => {
+  const container = document.getElementById('kp-preview-content');
+  container.innerHTML = '<span style="color:var(--muted)">Сбор данных для КП...</span>';
+  document.getElementById('kp-markup-input').value = '0';
+  document.getElementById('kp-final-sum-label').textContent = '0';
+  document.getElementById('kp-manual-file').value = '';
+  
+  openModal('modal-generate-kp');
+
+  const { ok, data } = await apiRequest('GET', `/api/manager/projects/${activeProjectId}/kp-data`);
+  if (!ok) { container.innerHTML = `<span style="color:red">Ошибка: ${data.error}</span>`; return; }
+  
+  const payload = data.data;
+  if (!payload.works.length && payload.project.include_materials && !payload.materials.length) {
+    container.innerHTML = '<strong>ВОР и ВОМ пусты. Сначала заполните их.</strong>';
+    return;
+  }
+  if (!payload.works.length && !payload.project.include_materials) {
+    container.innerHTML = '<strong>ВОР пустой. Заполните работы перед формированием КП.</strong>';
+    return;
+  }
+
+  // Считаем суммы
+  let worksTotal = 0;
+  payload.works.forEach(w => { 
+    w.total = parseFloat((w.quantity * w.base_price).toFixed(2));
+    worksTotal += w.total; 
+  });
+  
+  let materialsTotal = 0;
+  payload.materials.forEach(m => { 
+    m.total = parseFloat((m.quantity * m.base_price).toFixed(2));
+    materialsTotal += m.total; 
+  });
+
+  const baseSum = parseFloat((worksTotal + materialsTotal).toFixed(2));
+  
+  currentKpData = {
+    date: new Date().toLocaleDateString('ru-RU'),
+    customerName: payload.project.contact_name || payload.project.customer_name || 'Не указан',
+    projectName: payload.project.name,
+    projectAddress: payload.project.address || 'Не указан',
+    projectCode: payload.project.code,
+    include_materials: payload.project.include_materials,
+    works: payload.works,
+    materials: payload.materials,
+    worksTotal,
+    materialsTotal,
+    baseSum,
+    baseSumWords: numberToWordsRu(baseSum),
+    finalSum: baseSum,
+    finalSumWords: numberToWordsRu(baseSum)
+  };
+
+  renderKpPreview();
+});
+
+function renderKpPreview() {
+  if (!currentKpData) return;
+  const markup = parseFloat(document.getElementById('kp-markup-input').value) || 0;
+  currentKpData.finalSum = parseFloat((currentKpData.baseSum + markup).toFixed(2));
+  currentKpData.finalSumWords = numberToWordsRu(currentKpData.finalSum);
+  
+  document.getElementById('kp-final-sum-label').textContent = formatMoney(currentKpData.finalSum);
+
+  const container = document.getElementById('kp-preview-content');
+  container.innerHTML = `
+    <div style="font-family: serif; font-size: 1rem; line-height: 1.5; color: #000; padding: 1.5rem; background: #fff; border: 1px solid var(--border); border-radius: 8px;">
+      <div style="text-align:right; font-size: 0.9rem; margin-bottom: 2rem;">
+        Дата: <strong>${currentKpData.date}</strong>
+      </div>
+      <h2 style="text-align:center; margin-bottom:1.5rem; font-size:1.2rem; text-transform:uppercase;">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</h2>
+      
+      <p style="text-indent: 1.5rem; text-align: justify; margin-bottom: 1rem;">
+        ИП Большакова Е.Ф. рассмотрело техническое задание на выполнение строительно-монтажных работ по <strong>"${escHtml(currentKpData.projectName)}"</strong> по адресу <strong>${escHtml(currentKpData.projectAddress)}</strong> и готово принять данный объём в работу в полном соответствии с предъявленными требованиями.
+      </p>
+
+      <p style="margin-bottom: 0.5rem;"><strong>Стоимость и условия:</strong></p>
+      <p style="margin-bottom: 0.5rem; text-indent: 1.5rem; text-align: justify;">
+        Общая стоимость работ составляет <strong>${formatMoney(currentKpData.finalSum)}</strong> (<strong>${currentKpData.finalSumWords}</strong>) руб., включая НДС 20%.
+      </p>
+      <p style="text-indent: 1.5rem; margin-bottom: 2rem;">
+        Детальная ведомость объемов работ ${currentKpData.materials.length > 0 || currentKpData.include_materials ? 'и материалов ' : ''}с разбивкой по позициям прилагается.
+      </p>
+      
+      <div style="font-size: 0.85rem; color: var(--muted); border-top: 1px dashed #ccc; padding-top: 1rem;">
+        <em>* Предпросмотр текста. Итоговый файл будет сформирован в вашем официальном оформлении из Word-шаблона. Таблицы ВОР также будут добавлены в виде приложения на следующие страницы.</em>
+      </div>
+    </div>
+  `;
+}
+
+document.getElementById('kp-markup-input').addEventListener('input', renderKpPreview);
+
+document.getElementById('btn-kp-download').addEventListener('click', async () => {
+  if (!currentKpData) return;
+  const btn = document.getElementById('btn-kp-download');
+  btn.disabled = true; btn.textContent = 'Подготовка...';
+  
+  try {
+     const res = await fetch(`/api/manager/projects/${activeProjectId}/kp-generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentKpData)
+     });
+     if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeName = currentKpData.projectName.replace(/[/\\?%*:|"<>]/g, '_');
+        a.download = `КП_${safeName}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+     } else {
+        const data = await res.json();
+        showToast(data.error || 'Ошибка скачивания', 'error');
+     }
+  } catch(e) {
+     console.error(e);
+     showToast('Сетевая ошибка', 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Изменить (Скачать в Word)';
+});
+
+document.getElementById('btn-kp-send').addEventListener('click', async () => {
+  if (!currentKpData) return;
+  const btn = document.getElementById('btn-kp-send');
+  btn.disabled = true; btn.textContent = 'Отправка...';
+  
+  const fd = new FormData();
+  const fileInput = document.getElementById('kp-manual-file');
+  if (fileInput.files.length > 0) {
+     fd.append('file', fileInput.files[0]);
+  } else {
+     fd.append('kpData', JSON.stringify(currentKpData));
+  }
+  
+  const { ok, data } = await apiRequest('POST', `/api/manager/projects/${activeProjectId}/kp-send`, fd);
+  
+  btn.disabled = false; btn.textContent = 'Отправить Заказчику';
+  
+  if (ok) {
+     showToast('Коммерческое предложение отправлено!', 'success');
+     closeModal('modal-generate-kp');
+     loadProjectDocs(activeProjectId);
+     loadFunnel();
+     loadProjects();
+  } else {
+     showToast(data.error || 'Ошибка при отправке', 'error');
+  }
+});
+
 // ─── AI-анализ ───────────────────────────────────────────────
 document.getElementById('btn-analyze').addEventListener('click', async () => {
   const btn = document.getElementById('btn-analyze');
@@ -667,6 +883,7 @@ document.getElementById('create-project-form').addEventListener('submit', async 
   if (workTypes.length) body.work_types = workTypes;
   if (body.contract_value) body.contract_value = parseFloat(body.contract_value);
   else delete body.contract_value;
+  body.include_materials = e.target.querySelector('[name=include_materials]').checked;
   for (const key of Object.keys(body)) { if (body[key] === '') delete body[key]; }
 
   const btn = e.target.querySelector('button[type=submit]');

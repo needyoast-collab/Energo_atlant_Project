@@ -34,8 +34,8 @@
       <h2 style="margin-bottom:1.5rem;font-size:1.8rem">Вход</h2>
       <form id="login-form">
         <div class="form-group">
-          <label class="form-label">Email</label>
-          <input type="email" class="form-control" name="email" placeholder="your@email.ru" required autofocus>
+          <label class="form-label">Email, Логин или Телефон</label>
+          <input type="text" class="form-control" name="identifier" placeholder="your@email.ru" required autofocus>
         </div>
         <div class="form-group">
           <label class="form-label">Пароль</label>
@@ -49,6 +49,44 @@
       <a href="#" id="link-forgot" style="color:var(--muted);font-size:.85rem">Забыли пароль?</a><br>
       <a href="/" style="color:var(--muted);font-size:.85rem">← На главную</a>
     </div>
+  </div>
+</div>
+
+<!-- Модалка: Сброс пароля Шаг 1 -->
+<div class="modal-overlay" id="modal-forgot-1">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" data-close="modal-forgot-1">×</button>
+    <div class="modal-title">Восстановление пароля</div>
+    <form id="forgot-form">
+      <div class="form-group">
+        <label class="form-label">Введите Email, Логин или Телефон</label>
+        <input type="text" class="form-control" id="forgot-identifier" placeholder="your@email.ru" required>
+      </div>
+      <button type="submit" class="btn btn-primary w-full">Отправить код</button>
+    </form>
+  </div>
+</div>
+
+<!-- Модалка: Сброс пароля Шаг 2 -->
+<div class="modal-overlay" id="modal-forgot-2">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" data-close="modal-forgot-2">×</button>
+    <div class="modal-title">Сброс пароля</div>
+    <form id="reset-form">
+      <div class="form-group">
+        <label class="form-label">6-значный код из СМС или письма</label>
+        <input type="text" class="form-control" id="reset-code" placeholder="123456" required minlength="6" maxlength="6">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Новый пароль</label>
+        <input type="password" class="form-control" id="reset-password" placeholder="Минимум 8 символов" required minlength="8">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Повторите пароль</label>
+        <input type="password" class="form-control" id="reset-password-confirm" placeholder="Точно такой же пароль" required minlength="8">
+      </div>
+      <button type="submit" class="btn btn-primary w-full">Сохранить пароль</button>
+    </form>
   </div>
 </div>
 <div id="toast-container"></div>
@@ -70,9 +108,69 @@
     if (ok) window.location.href = ROLE_DASHBOARD[data.data.role] || '/';
   });
 
+  let resetIdentifier = '';
+
   document.getElementById('link-forgot').addEventListener('click', (e) => {
     e.preventDefault();
-    showToast('Для сброса пароля обратитесь к администратору: energoatlant@yandex.ru', 'info');
+    console.log('Forgot password clicked'); // Оставляем для дебага
+    const modal = document.getElementById('modal-forgot-1');
+    modal.classList.add('active');
+    modal.style.display = 'flex'; // На случай если CSS не применяет flex
+  });
+
+  document.querySelectorAll('.modal-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+       const modal = document.getElementById(btn.dataset.close);
+       modal.classList.remove('active');
+       modal.style.display = '';
+    });
+  });
+
+  document.getElementById('forgot-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true; btn.textContent = 'Отправка...';
+    
+    resetIdentifier = document.getElementById('forgot-identifier').value.trim();
+    const { ok, data } = await apiRequest('POST', '/api/auth/forgot-password', { identifier: resetIdentifier });
+    
+    btn.disabled = false; btn.textContent = 'Отправить код';
+    if (ok) {
+       document.getElementById('modal-forgot-1').classList.remove('active');
+       document.getElementById('modal-forgot-2').classList.add('active');
+       document.getElementById('modal-forgot-2').style.display = 'flex';
+       showToast('Код отправлен. Проверьте почту или телефон', 'success');
+    } else {
+       showToast(data.error || 'Ошибка', 'error');
+    }
+  });
+
+  document.getElementById('reset-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true; btn.textContent = 'Сохранение...';
+
+    const newPassword = document.getElementById('reset-password').value;
+    const confirmPassword = document.getElementById('reset-password-confirm').value;
+
+    if (newPassword !== confirmPassword) {
+       btn.disabled = false; btn.textContent = 'Сохранить пароль';
+       return showToast('Пароли не совпадают!', 'error');
+    }
+    
+    const code = document.getElementById('reset-code').value.trim();
+    
+    const { ok, data } = await apiRequest('POST', '/api/auth/reset-password', {
+       identifier: resetIdentifier, code, newPassword
+    });
+    
+    btn.disabled = false; btn.textContent = 'Сохранить пароль';
+    if (ok) {
+       document.getElementById('modal-forgot-2').classList.remove('active');
+       showToast('Пароль изменён. Войдите в систему', 'success');
+    } else {
+       showToast(data.error || 'Ошибка', 'error');
+    }
   });
 
   document.getElementById('login-form').addEventListener('submit', async (e) => {

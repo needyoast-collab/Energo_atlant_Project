@@ -540,6 +540,25 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
   }
 });
 
+// Чекбокс «Использовать мой телефон»
+document.getElementById('req-use-my-phone').addEventListener('change', (e) => {
+  const phoneInput = document.getElementById('req-phone-input');
+  if (e.target.checked && currentUser && currentUser.phone) {
+    phoneInput.value = currentUser.phone;
+    phoneInput.readOnly = true;
+    phoneInput.style.backgroundColor = 'var(--bg3)';
+  } else {
+    if (e.target.checked && (!currentUser || !currentUser.phone)) {
+       showToast('У вас не указан номер телефона в профиле', 'info');
+       e.target.checked = false;
+    } else {
+       phoneInput.value = '';
+       phoneInput.readOnly = false;
+       phoneInput.style.backgroundColor = '';
+    }
+  }
+});
+
 // ─── Войти по коду ───────────────────────────────────────────
 document.getElementById('btn-join-project').addEventListener('click', () => {
   document.getElementById('join-form').reset();

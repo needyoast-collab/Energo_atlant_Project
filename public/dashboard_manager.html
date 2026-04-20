@@ -203,6 +203,14 @@
         <input type="text" class="form-control" name="address">
       </div>
 
+      <div class="form-group">
+         <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:500">
+           <input type="checkbox" name="include_materials" value="true" checked>
+           Требуется закупка материалов (ВОМ)
+         </label>
+         <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem;margin-left:1.5rem">Снимите галочку, если материалы поставляет заказчик (для КП нужен будет только ВОР)</div>
+      </div>
+
       <hr style="border-color:var(--border);margin:1rem 0">
       <div style="color:var(--muted);font-size:.8rem;margin-bottom:.75rem">Контактное лицо заказчика</div>
 
@@ -292,7 +300,10 @@
             <option value="lost">Отказ</option>
           </select>
         </div>
-        <button class="btn btn-outline btn-sm" id="btn-save-status">Сохранить статус</button>
+        <div style="display:flex;gap:.5rem;margin-bottom:1.5rem">
+           <button class="btn btn-outline btn-sm" id="btn-save-status">Сохранить статус</button>
+           <button class="btn btn-primary btn-sm" id="btn-open-kp" style="display:none">Сформировать КП</button>
+        </div>
         <hr style="border-color:var(--border);margin:1.5rem 0">
         <div class="modal-title" style="font-size:1.2rem;margin-bottom:1rem">Команда проекта</div>
         <div id="project-team-list" class="mb-3"></div>
@@ -495,6 +506,37 @@
       </div>
       <button type="submit" class="btn btn-primary w-full mt-2">Отправить</button>
     </form>
+  </div>
+</div>
+
+<!-- МОДАЛКА: Сформировать КП -->
+<div class="modal-overlay" id="modal-generate-kp">
+  <div class="modal" style="max-width:800px;max-height:90vh;display:flex;flex-direction:column">
+    <button class="modal-close" data-close="modal-generate-kp">×</button>
+    <div class="modal-title">Коммерческое предложение (Предпросмотр)</div>
+    <div style="flex:1;overflow-y:auto;padding:.5rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:.375rem;margin-bottom:1rem;font-family:serif;color:#000">
+      <div id="kp-preview-content" style="padding:1rem;background:#fff;border:1px solid #ccc;min-height:500px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)">
+         <!-- Вставляется через JS -->
+         Загрузка...
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem;align-items:end">
+      <div class="form-group" style="margin:0">
+        <label class="form-label" style="font-weight:600;font-size:.85rem">Общая скидка / Наценка, ₽ (со знаком минус или плюс)</label>
+        <input type="number" id="kp-markup-input" class="form-control" value="0" style="font-weight:bold">
+      </div>
+      <div style="font-weight:bold;font-size:1.1rem;text-align:right;color:var(--accent)">
+        ИТОГО: <span id="kp-final-sum-label">0</span> ₽
+      </div>
+    </div>
+    
+    <div style="color:var(--muted);font-size:.8rem;margin-bottom:.5rem;">Если вы правили скачанный Word вручную, то прикрепите его ниже перед отправкой (иначе сгенерируется из черновика):</div>
+    <input type="file" id="kp-manual-file" accept=".doc,.docx,.pdf" style="margin-bottom:1rem;font-size:.85rem;padding:.4rem;border:1px dashed var(--border);border-radius:.375rem;width:100%" />
+
+    <div style="display:flex;gap:1rem;justify-content:flex-end">
+      <button class="btn btn-outline" id="btn-kp-download">Изменить (Скачать в Word)</button>
+      <button class="btn btn-primary" id="btn-kp-send">Отправить Заказчику</button>
+    </div>
   </div>
 </div>
 

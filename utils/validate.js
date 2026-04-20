@@ -3,13 +3,25 @@ const { z } = require('zod');
 const registerSchema = z.object({
   name:     z.string().min(2).max(100),
   email:    z.string().email(),
+  login:    z.string().min(3).max(100),
+  phone:    z.string().min(5).max(20),
   password: z.string().min(8).max(100),
   role:     z.enum(['customer', 'partner']),
 });
 
 const loginSchema = z.object({
-  email:    z.string().email(),
-  password: z.string().min(1),
+  identifier: z.string().min(1), // email or login or phone
+  password:   z.string().min(1),
+});
+
+const forgotPasswordSchema = z.object({
+  identifier: z.string().min(1),
+});
+
+const resetPasswordSchema = z.object({
+  identifier:  z.string().min(1),
+  code:        z.string().length(6),
+  newPassword: z.string().min(8).max(100),
 });
 
 // --- foreman ---
@@ -260,4 +272,6 @@ module.exports = {
   updateProjectSchema,
   updateRequestSchema,
   addTeamSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 };

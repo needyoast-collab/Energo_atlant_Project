@@ -30,6 +30,12 @@ const {
   getDocTypes,
 } = require('../controllers/managerController');
 
+const {
+  getKpData,
+  generateWord,
+  sendKp,
+} = require('../controllers/kpController');
+
 const router = Router();
 
 const ALLOWED_MIME = [
@@ -81,6 +87,11 @@ router.delete('/work-specs/:id',                           deleteWorkSpec);
 
 router.get('/projects/:id/warehouse',                      getProjectWarehouse);
 router.get('/projects/:id/specs',                          getProjectSpecs);
+
+// Формирование КП
+router.get('/projects/:id/kp-data',                        getKpData);
+router.post('/projects/:id/kp-generate',                   generateWord);
+router.post('/projects/:id/kp-send',                       upload.single('file'), sendKp);
 
 router.delete('/documents/:id',                            deleteDocument);
 router.get('/doc-types',                                   getDocTypes);
