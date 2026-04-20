@@ -20,19 +20,19 @@ const {
 } = require('../utils/validate');
 
 const MANAGER_DOC_LABELS = {
-  rd:           'Рабочая документация (РД)',
-  pd:           'Проектная документация (ПД)',
-  tz:           'Техническое задание (ТЗ)',
-  tu:           'Технические условия (ТУ)',
-  kp:           'Коммерческое предложение (КП)',
-  estimate:     'Смета / локальный сметный расчёт',
-  contract:     'Договор подряда',
-  addendum:     'Дополнительное соглашение',
-  ks2:          'Акт выполненных работ (КС-2)',
-  ks3:          'Справка о стоимости (КС-3)',
-  permit:       'Разрешение на строительство',
+  rd: 'Рабочая документация (РД)',
+  pd: 'Проектная документация (ПД)',
+  tz: 'Техническое задание (ТЗ)',
+  tu: 'Технические условия (ТУ)',
+  kp: 'Коммерческое предложение (КП)',
+  estimate: 'Смета / локальный сметный расчёт',
+  contract: 'Договор подряда',
+  addendum: 'Дополнительное соглашение',
+  ks2: 'Акт выполненных работ (КС-2)',
+  ks3: 'Справка о стоимости (КС-3)',
+  permit: 'Разрешение на строительство',
   boundary_act: 'Акт разграничения балансовой принадлежности',
-  other:        'Прочее',
+  other: 'Прочее',
 };
 
 function isAdminSession(req) {
@@ -130,7 +130,7 @@ async function updateRequest(req, res, next) {
     const values = [];
     let idx = 1;
 
-    if (status)      { fields.push(`status = $${idx++}`);      values.push(status); }
+    if (status) { fields.push(`status = $${idx++}`); values.push(status); }
     if (assigned_to) { fields.push(`assigned_to = $${idx++}`); values.push(assigned_to); }
 
     if (fields.length === 0) {
@@ -361,10 +361,10 @@ async function updateProject(req, res, next) {
       );
       await Promise.all(members.rows.map(m =>
         sendNotification({
-          userId:    m.user_id,
+          userId: m.user_id,
           projectId: parseInt(id),
-          type:      'status',
-          message:   `Статус проекта изменён на «${parsed.data.status}»`,
+          type: 'status',
+          message: `Статус проекта изменён на «${parsed.data.status}»`,
         })
       ));
     }
@@ -411,10 +411,10 @@ async function addTeamMember(req, res, next) {
     );
 
     await sendNotification({
-      userId:    user_id,
+      userId: user_id,
       projectId: parseInt(id),
-      type:      'status',
-      message:   `Вас добавили в проект`,
+      type: 'status',
+      message: `Вас добавили в проект`,
     });
 
     await logProjectHistory({
@@ -515,9 +515,9 @@ async function uploadDocument(req, res, next) {
     const fileKey = `documents/${id}/manager/${doc_type}/${randomUUID()}.${ext}`;
 
     await s3.send(new PutObjectCommand({
-      Bucket:      BUCKET,
-      Key:         fileKey,
-      Body:        req.file.buffer,
+      Bucket: BUCKET,
+      Key: fileKey,
+      Body: req.file.buffer,
       ContentType: req.file.mimetype,
     }));
 
@@ -645,7 +645,7 @@ async function copyRequestFiles(req, res, next) {
       return res.status(400).json({ success: false, error: 'request_id обязателен' });
     }
 
-    const VALID_DOC_TYPES = ['rd','pd','tz','tu','kp','estimate','contract','addendum','ks2','ks3','permit','boundary_act','other'];
+    const VALID_DOC_TYPES = ['rd', 'pd', 'tz', 'tu', 'kp', 'estimate', 'contract', 'addendum', 'ks2', 'ks3', 'permit', 'boundary_act', 'other'];
 
     const files = await pool.query(
       `SELECT file_key, file_name, doc_type FROM public_request_files WHERE request_id = $1`,

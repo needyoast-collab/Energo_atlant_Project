@@ -40,24 +40,19 @@ app.use(session(sessionConfig));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Роуты (подключаются по мере готовности)
-app.use('/api/auth',          require('./routes/auth'));
-app.use('/api/public',        require('./routes/public'));
-app.use('/api/contact',       require('./routes/contact'));
-app.use('/api/admin',         require('./routes/admin'));
-app.use('/api/manager',       require('./routes/manager'));
-app.use('/api/foreman',       require('./routes/foreman'));
-app.use('/api/supplier',      require('./routes/supplier'));
-app.use('/api/pto',           require('./routes/pto'));
-app.use('/api/customer',      require('./routes/customer'));
-app.use('/api/partner',       require('./routes/partner'));
-app.use('/api/messages',      require('./routes/messages'));
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/public', require('./routes/public'));
+app.use('/api/contact', require('./routes/contact'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/manager', require('./routes/manager'));
+app.use('/api/foreman', require('./routes/foreman'));
+app.use('/api/supplier', require('./routes/supplier'));
+app.use('/api/pto', require('./routes/pto'));
+app.use('/api/customer', require('./routes/customer'));
+app.use('/api/partner', require('./routes/partner'));
+app.use('/api/messages', require('./routes/messages'));
 app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/documents',     require('./routes/documents'));
-
-// 404 для неизвестных API-маршрутов (чтобы не возвращать HTML)
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ success: false, error: 'API маршрут не найден' });
-});
+app.use('/api/documents', require('./routes/documents'));
 
 // SPA-фолбэк: все неизвестные GET → index.html
 app.get('*', (req, res) => {

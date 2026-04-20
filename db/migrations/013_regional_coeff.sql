@@ -1,0 +1,1 @@
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS regional_coeff NUMERIC(4,2) DEFAULT 1.0;

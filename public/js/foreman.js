@@ -18,6 +18,7 @@ async function init() {
   currentUser = await requireAuth('foreman');
   if (!currentUser) return;
   document.getElementById('user-name').textContent = currentUser.name;
+  initCatalogAutocomplete('foreman');
   loadProjects();
 }
 
@@ -798,5 +799,58 @@ document.getElementById('join-form').addEventListener('submit', async (e) => {
     loadProjects();
   } else showToast(data.error, 'error');
 });
+
+// ─── Автодополнение Справочника ──────────────────────────────
+let catalogData = [];
+async function initCatalogAutocomplete(role) {
+  const { ok, data } = await apiRequest('GET', `/api/${role}/catalog`);
+  if (!ok) return;
+  catalogData = data.data;
+
+  const datalist = document.getElementById('catalog-datalist');
+  if (datalist) {
+    datalist.innerHTML = catalogData.map(c => `<option value="${escHtml(c.item_name)}"></option>`).join('');
+  }
+
+  const singleInput = document.getElementById('single-work-name-input');
+  if (singleInput) {
+    singleInput.addEventListener('input', (e) => {
+      const val = e.target.value.trim().toLowerCase();
+      const match = catalogData.find(c => c.item_name.toLowerCase() === val);
+      if (match) {
+        const form = e.target.closest('form');
+        if (form && form.elements['unit']) form.elements['unit'].value = match.unit;
+      }
+    });
+  }
+
+  const batchBody = document.getElementById('batch-tbody');
+  if (batchBody) {
+    batchBody.addEventListener('input', (e) => {
+      if (e.target.classList.contains('batch-name')) {
+         const val = e.target.value.trim().toLowerCase();
+         const match = catalogData.find(c => c.item_name.toLowerCase() === val);
+         if (match) {
+           const tr = e.target.closest('tr');
+           if (tr) {
+             const unitSel = tr.querySelector('.batch-unit');
+             if (unitSel && !Array.from(unitSel.options).find(o => o.value === match.unit)) {
+               unitSel.add(new Option(match.unit, match.unit));
+             }
+             if (unitSel) unitSel.value = match.unit;
+           }
+         }
+      }
+      if (e.target.classList.contains('batch-name') && !e.target.hasAttribute('list')) {
+         e.target.setAttribute('list', 'catalog-datalist');
+      }
+    });
+    batchBody.addEventListener('focusin', (e) => {
+      if (e.target.classList.contains('batch-name') && !e.target.hasAttribute('list')) {
+         e.target.setAttribute('list', 'catalog-datalist');
+      }
+    });
+  }
+}
 
 init();

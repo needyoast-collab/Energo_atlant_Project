@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,10 +16,12 @@
       cursor: pointer;
       transition: border-color .2s, transform .15s;
     }
+
     .project-card-customer:hover {
       border-color: var(--accent);
       transform: translateY(-2px);
     }
+
     .pcc-header {
       display: flex;
       align-items: flex-start;
@@ -27,11 +30,13 @@
       padding: 1.25rem 1.25rem .75rem;
       border-bottom: 1px solid var(--border);
     }
+
     .pcc-title {
       font-weight: 700;
       font-size: .95rem;
       line-height: 1.3;
     }
+
     .pcc-meta {
       padding: .75rem 1.25rem .5rem;
       color: var(--muted);
@@ -40,9 +45,11 @@
       flex-wrap: wrap;
       gap: .3rem;
     }
+
     .pcc-progress-wrap {
       padding: .25rem 1.25rem .75rem;
     }
+
     .pcc-progress-label {
       display: flex;
       justify-content: space-between;
@@ -50,40 +57,47 @@
       color: var(--muted);
       margin-bottom: .35rem;
     }
+
     .pcc-progress-bar {
       height: 6px;
       background: var(--border);
       border-radius: 9999px;
       overflow: hidden;
     }
+
     .pcc-progress-fill {
       height: 100%;
       background: var(--accent);
       border-radius: 9999px;
       transition: width .5s;
     }
+
     .pcc-stats-row {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 1px;
       background: var(--border);
     }
+
     .pcc-stat {
       background: var(--bg3);
       padding: .75rem;
       text-align: center;
     }
+
     .pcc-stat-val {
       font-family: 'Stolzl', sans-serif;
       font-size: 1.5rem;
       color: var(--accent);
       line-height: 1;
     }
+
     .pcc-stat-lbl {
       color: var(--muted);
       font-size: .7rem;
       margin-top: .15rem;
     }
+
     .stage-photo-thumb {
       display: block;
       border-radius: 6px;
@@ -91,6 +105,7 @@
       aspect-ratio: 1;
       background: var(--bg3);
     }
+
     .stage-photo-thumb img {
       width: 100%;
       height: 100%;
@@ -98,7 +113,11 @@
       filter: grayscale(60%);
       transition: filter .3s;
     }
-    .stage-photo-thumb:hover img { filter: grayscale(0%); }
+
+    .stage-photo-thumb:hover img {
+      filter: grayscale(0%);
+    }
+
     .pcc-footer {
       display: flex;
       justify-content: space-between;
@@ -109,234 +128,254 @@
     }
   </style>
 </head>
+
 <body class="grid-bg">
-<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
-<div class="dash-layout">
+  <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+  <div class="dash-layout">
 
-  <!-- САЙДБАР -->
-  <aside class="sidebar">
-    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
-    <nav class="sidebar-nav">
-      <button class="nav-item active" data-section="projects">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        Мои объекты
-      </button>
-      <button class="nav-item" data-section="messages">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Сообщения
-      </button>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="sidebar-user">
-        <strong id="user-name">—</strong>
-        <span>Заказчик</span>
-      </div>
-      <div class="notif-wrap">
-        <button class="notif-bell-btn" id="notif-bell-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          Уведомления
-          <span class="notif-badge hidden" id="notif-count">0</span>
+    <!-- САЙДБАР -->
+    <aside class="sidebar">
+      <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-section="projects">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+          </svg>
+          Мои объекты
         </button>
-        <div class="notif-dropdown" id="notif-dropdown">
-          <div class="notif-dropdown-header">
-            <span>Уведомления</span>
-            <button id="notif-read-all">Прочитать все</button>
+        <button class="nav-item" data-section="messages">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          Сообщения
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <strong id="user-name">—</strong>
+          <span>Заказчик</span>
+        </div>
+        <div class="notif-wrap">
+          <button class="notif-bell-btn" id="notif-bell-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            Уведомления
+            <span class="notif-badge hidden" id="notif-count">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-dropdown-header">
+              <span>Уведомления</span>
+              <button id="notif-read-all">Прочитать все</button>
+            </div>
+            <div id="notif-list">
+              <div class="notif-empty">Загрузка...</div>
+            </div>
           </div>
-          <div id="notif-list"><div class="notif-empty">Загрузка...</div></div>
+        </div>
+        <button class="btn btn-outline btn-sm w-full" id="logout-btn">Выйти</button>
+      </div>
+    </aside>
+
+    <!-- ОСНОВНОЙ КОНТЕНТ -->
+    <main class="dash-main">
+
+      <!-- ПРОЕКТЫ -->
+      <div class="dash-section active" id="section-projects">
+        <div class="dash-header flex-between">
+          <h1>Мои объекты</h1>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-outline btn-sm" id="btn-join-project">+ Войти по коду</button>
+            <button class="btn btn-primary btn-sm" id="btn-new-request">Оставить заявку</button>
+          </div>
+        </div>
+        <div id="projects-list"
+          style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.25rem"></div>
+      </div>
+
+      <!-- СООБЩЕНИЯ -->
+      <div class="dash-section" id="section-messages">
+        <div class="dash-header flex-between">
+          <h1>Сообщения</h1>
+          <button class="btn btn-primary btn-sm" id="btn-new-message">+ Написать</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table id="messages-table">
+              <thead>
+                <tr>
+                  <th>От / Кому</th>
+                  <th>Тема</th>
+                  <th>Дата</th>
+                  <th>Статус</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </div>
-      <button class="btn btn-outline btn-sm w-full" id="logout-btn">Выйти</button>
-    </div>
-  </aside>
 
-  <!-- ОСНОВНОЙ КОНТЕНТ -->
-  <main class="dash-main">
-
-    <!-- ПРОЕКТЫ -->
-    <div class="dash-section active" id="section-projects">
-      <div class="dash-header flex-between">
-        <h1>Мои объекты</h1>
-        <div style="display:flex;gap:.5rem">
-          <button class="btn btn-outline btn-sm" id="btn-join-project">+ Войти по коду</button>
-          <button class="btn btn-primary btn-sm" id="btn-new-request">Оставить заявку</button>
-        </div>
-      </div>
-      <div id="projects-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.25rem"></div>
-    </div>
-
-    <!-- СООБЩЕНИЯ -->
-    <div class="dash-section" id="section-messages">
-      <div class="dash-header flex-between">
-        <h1>Сообщения</h1>
-        <button class="btn btn-primary btn-sm" id="btn-new-message">+ Написать</button>
-      </div>
-      <div class="card">
-        <div class="table-wrap">
-          <table id="messages-table">
-            <thead>
-              <tr><th>От / Кому</th><th>Тема</th><th>Дата</th><th>Статус</th></tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-  </main>
-</div>
-
-<!-- МОДАЛКА: оставить заявку -->
-<div class="modal-overlay" id="modal-request">
-  <div class="modal">
-    <button class="modal-close" data-close="modal-request">×</button>
-    <div class="modal-title">Новая заявка</div>
-    <form id="request-form">
-      <div class="form-group">
-        <label class="form-label">Телефон для связи</label>
-        <div style="display:flex; flex-direction: column; gap:.5rem;">
-          <input type="tel" class="form-control" name="phone" id="req-phone-input" placeholder="+7 999 000 00 00">
-          <label style="font-size: .85rem; display: flex; align-items: center; gap: .4rem; cursor: pointer; color: var(--muted)">
-            <input type="checkbox" id="req-use-my-phone"> Использовать мой телефон из аккаунта
-          </label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Сообщение</label>
-        <textarea class="form-control" name="message" rows="4"
-          placeholder="Опишите объект, вид работ, сроки..."></textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Документы <span style="color:var(--muted);font-weight:400;font-size:.8rem">(необязательно)</span></label>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-          <select class="form-control" id="req-doc-type" style="flex:1;min-width:160px">
-            <option value="">— Тип документа —</option>
-            <option value="tu">Технические условия (ТУ)</option>
-            <option value="rd">Рабочая документация (РД)</option>
-            <option value="pd">Проектная документация (ПД)</option>
-            <option value="tz">Техническое задание (ТЗ)</option>
-            <option value="situation_plan">Ситуационный план</option>
-            <option value="other">Прочее</option>
-          </select>
-          <label class="btn btn-outline btn-sm" for="req-file-input" style="cursor:pointer;white-space:nowrap;margin:0">Выбрать файл</label>
-          <input type="file" id="req-file-input" accept=".pdf,.dwg,.doc,.docx,.xls,.xlsx" style="display:none">
-          <button type="button" class="btn btn-outline btn-sm" id="btn-add-file">Добавить</button>
-        </div>
-        <div id="req-selected-filename" style="font-size:.8rem;color:var(--muted);margin-top:.3rem;display:none"></div>
-        <div id="req-file-error" style="color:var(--danger);font-size:.8rem;margin-top:.3rem;display:none"></div>
-        <div id="req-files-list" style="margin-top:.5rem"></div>
-      </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Отправить</button>
-    </form>
+    </main>
   </div>
-</div>
 
-<!-- МОДАЛКА: войти по коду -->
-<div class="modal-overlay" id="modal-join">
-  <div class="modal">
-    <button class="modal-close" data-close="modal-join">×</button>
-    <div class="modal-title">Войти в проект</div>
-    <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.25rem">Введите код проекта, который дал вам менеджер</p>
-    <form id="join-form">
-      <div class="form-group">
-        <label class="form-label">Код проекта</label>
-        <input type="text" class="form-control" name="code" placeholder="PRJ-2026-XXXX" required style="text-transform:uppercase">
-      </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Подключиться</button>
-    </form>
-  </div>
-</div>
-
-<!-- МОДАЛКА: детали проекта -->
-<div class="modal-overlay" id="modal-project">
-  <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto">
-    <button class="modal-close" data-close="modal-project">×</button>
-    <div class="modal-title" id="modal-project-title">Проект</div>
-    <div id="modal-project-meta" class="mb-3"></div>
-
-    <!-- Вкладки -->
-    <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:.75rem">
-      <button class="btn btn-sm btn-primary" data-tab="stages">Ход работ</button>
-      <button class="btn btn-sm btn-outline" data-tab="documents">Документы</button>
-      <button class="btn btn-sm btn-outline" data-tab="warehouse">Материалы</button>
-    </div>
-
-    <!-- Ход работ -->
-    <div id="tab-stages">
-      <div id="stages-progress" style="margin-bottom:1.25rem"></div>
-      <div id="stages-list" class="stage-list"></div>
-    </div>
-
-    <!-- Документы -->
-    <div id="tab-documents" style="display:none">
-      <div id="documents-list" style="color:var(--muted);font-size:.9rem">Загрузка...</div>
-    </div>
-
-    <!-- Материалы -->
-    <div id="tab-warehouse" style="display:none">
-      <div id="warehouse-list"></div>
+  <!-- МОДАЛКА: оставить заявку -->
+  <div class="modal-overlay" id="modal-request">
+    <div class="modal">
+      <button class="modal-close" data-close="modal-request">×</button>
+      <div class="modal-title">Новая заявка</div>
+      <form id="request-form">
+        <div class="form-group">
+          <label class="form-label">Телефон для связи</label>
+          <input type="tel" class="form-control" name="phone" placeholder="+7 999 000 00 00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Сообщение</label>
+          <textarea class="form-control" name="message" rows="4"
+            placeholder="Опишите объект, вид работ, сроки..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Документы <span
+              style="color:var(--muted);font-weight:400;font-size:.8rem">(необязательно)</span></label>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+            <select class="form-control" id="req-doc-type" style="flex:1;min-width:160px">
+              <option value="">— Тип документа —</option>
+              <option value="tu">Технические условия (ТУ)</option>
+              <option value="rd">Рабочая документация (РД)</option>
+              <option value="pd">Проектная документация (ПД)</option>
+              <option value="tz">Техническое задание (ТЗ)</option>
+              <option value="situation_plan">Ситуационный план</option>
+              <option value="other">Прочее</option>
+            </select>
+            <label class="btn btn-outline btn-sm" for="req-file-input"
+              style="cursor:pointer;white-space:nowrap;margin:0">Выбрать файл</label>
+            <input type="file" id="req-file-input" accept=".pdf,.dwg,.doc,.docx,.xls,.xlsx" style="display:none">
+            <button type="button" class="btn btn-outline btn-sm" id="btn-add-file">Добавить</button>
+          </div>
+          <div id="req-selected-filename" style="font-size:.8rem;color:var(--muted);margin-top:.3rem;display:none">
+          </div>
+          <div id="req-file-error" style="color:var(--danger);font-size:.8rem;margin-top:.3rem;display:none"></div>
+          <div id="req-files-list" style="margin-top:.5rem"></div>
+        </div>
+        <button type="submit" class="btn btn-primary w-full mt-2">Отправить</button>
+      </form>
     </div>
   </div>
-</div>
 
-<!-- МОДАЛКА: детали этапа -->
-<div class="modal-overlay" id="modal-stage-detail">
-  <div class="modal" style="max-width:580px;max-height:90vh;overflow-y:auto">
-    <button class="modal-close" data-close="modal-stage-detail">×</button>
-    <div id="stage-detail-body"></div>
+  <!-- МОДАЛКА: войти по коду -->
+  <div class="modal-overlay" id="modal-join">
+    <div class="modal">
+      <button class="modal-close" data-close="modal-join">×</button>
+      <div class="modal-title">Войти в проект</div>
+      <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.25rem">Введите код проекта, который дал вам менеджер
+      </p>
+      <form id="join-form">
+        <div class="form-group">
+          <label class="form-label">Код проекта</label>
+          <input type="text" class="form-control" name="code" placeholder="PRJ-2026-XXXX" required
+            style="text-transform:uppercase">
+        </div>
+        <button type="submit" class="btn btn-primary w-full mt-2">Подключиться</button>
+      </form>
+    </div>
   </div>
-</div>
 
-<!-- МОДАЛКА: согласование этапа не_выполнено -->
-<div class="modal-overlay" id="modal-approve-stage">
-  <div class="modal">
-    <button class="modal-close" data-close="modal-approve-stage">×</button>
-    <div class="modal-title">Согласование этапа</div>
-    <div id="approve-stage-name" style="font-weight:600;margin-bottom:.75rem"></div>
-    <div style="margin-bottom:1rem">
-      <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem">Примечание прораба:</div>
-      <div id="approve-stage-note"
-        style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem;
+  <!-- МОДАЛКА: детали проекта -->
+  <div class="modal-overlay" id="modal-project">
+    <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto">
+      <button class="modal-close" data-close="modal-project">×</button>
+      <div class="modal-title" id="modal-project-title">Проект</div>
+      <div id="modal-project-meta" class="mb-3"></div>
+
+      <!-- Вкладки -->
+      <div
+        style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:.75rem">
+        <button class="btn btn-sm btn-primary" data-tab="stages">Ход работ</button>
+        <button class="btn btn-sm btn-outline" data-tab="documents">Документы</button>
+        <button class="btn btn-sm btn-outline" data-tab="warehouse">Материалы</button>
+      </div>
+
+      <!-- Ход работ -->
+      <div id="tab-stages">
+        <div id="stages-progress" style="margin-bottom:1.25rem"></div>
+        <div id="stages-list" class="stage-list"></div>
+      </div>
+
+      <!-- Документы -->
+      <div id="tab-documents" style="display:none">
+        <div id="documents-list" style="color:var(--muted);font-size:.9rem">Загрузка...</div>
+      </div>
+
+      <!-- Материалы -->
+      <div id="tab-warehouse" style="display:none">
+        <div id="warehouse-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА: детали этапа -->
+  <div class="modal-overlay" id="modal-stage-detail">
+    <div class="modal" style="max-width:580px;max-height:90vh;overflow-y:auto">
+      <button class="modal-close" data-close="modal-stage-detail">×</button>
+      <div id="stage-detail-body"></div>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА: согласование этапа не_выполнено -->
+  <div class="modal-overlay" id="modal-approve-stage">
+    <div class="modal">
+      <button class="modal-close" data-close="modal-approve-stage">×</button>
+      <div class="modal-title">Согласование этапа</div>
+      <div id="approve-stage-name" style="font-weight:600;margin-bottom:.75rem"></div>
+      <div style="margin-bottom:1rem">
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem">Примечание прораба:</div>
+        <div id="approve-stage-note" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem;
                font-size:.88rem;color:var(--text);line-height:1.5"></div>
-    </div>
-    <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem">
-      Нажимая «Согласовать», вы подтверждаете, что ознакомлены с причиной невыполнения этапа.
-    </p>
-    <div style="display:flex;gap:.5rem">
-      <button class="btn btn-outline" style="flex:1" data-close="modal-approve-stage">Отмена</button>
-      <button class="btn btn-primary" style="flex:1" id="btn-confirm-approve">Согласовать</button>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem">
+        Нажимая «Согласовать», вы подтверждаете, что ознакомлены с причиной невыполнения этапа.
+      </p>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-outline" style="flex:1" data-close="modal-approve-stage">Отмена</button>
+        <button class="btn btn-primary" style="flex:1" id="btn-confirm-approve">Согласовать</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- МОДАЛКА: новое сообщение -->
-<div class="modal-overlay" id="modal-new-message">
-  <div class="modal">
-    <button class="modal-close" data-close="modal-new-message">×</button>
-    <div class="modal-title">Новое сообщение</div>
-    <form id="new-message-form">
-      <div class="form-group">
-        <label class="form-label">Email получателя</label>
-        <input type="email" class="form-control" name="receiver_email" required placeholder="manager@energoatlant.ru">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Тема</label>
-        <input type="text" class="form-control" name="subject" placeholder="По объекту...">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Сообщение</label>
-        <textarea class="form-control" name="body" rows="4" required></textarea>
-      </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Отправить</button>
-    </form>
+  <!-- МОДАЛКА: новое сообщение -->
+  <div class="modal-overlay" id="modal-new-message">
+    <div class="modal">
+      <button class="modal-close" data-close="modal-new-message">×</button>
+      <div class="modal-title">Новое сообщение</div>
+      <form id="new-message-form">
+        <div class="form-group">
+          <label class="form-label">Email получателя</label>
+          <input type="email" class="form-control" name="receiver_email" required placeholder="manager@energoatlant.ru">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Тема</label>
+          <input type="text" class="form-control" name="subject" placeholder="По объекту...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Сообщение</label>
+          <textarea class="form-control" name="body" rows="4" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary w-full mt-2">Отправить</button>
+      </form>
+    </div>
   </div>
-</div>
 
-<div id="toast-container"></div>
-<script src="/js/preloader.js"></script>
-<script src="https://unpkg.com/imask"></script>
-<script src="/js/api.js"></script>
-<script src="/js/auth.js"></script>
-<script src="/js/dashboard.js"></script>
-<script src="/js/customer.js"></script>
+  <div id="toast-container"></div>
+  <script src="/js/preloader.js"></script>
+  <script src="https://unpkg.com/imask"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/dashboard.js"></script>
+  <script src="/js/customer.js"></script>
 </body>
+
 </html>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <script>const COMING_SOON = false; if (COMING_SOON) window.location.href = '/';</script>
@@ -7,106 +8,146 @@
   <title>Регистрация — ЭнергоАтлант</title>
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
-    .auth-box  { width: 100%; max-width: 440px; }
-    .auth-logo { font-family: 'Stolzl', sans-serif; font-size: 2rem; color: var(--accent); margin-bottom: .25rem; }
-    .auth-sub  { color: var(--muted); font-size: .9rem; margin-bottom: 2rem; }
-    .auth-card { background: var(--bg2); border: 1px solid var(--border); padding: 2rem;
-      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%); }
-    .auth-footer { text-align: center; margin-top: 1.5rem; color: var(--muted); font-size: .9rem; }
-    .role-tabs { display: flex; gap: .5rem; margin-bottom: 1.5rem; }
-    .role-tab  { flex: 1; padding: .6rem; text-align: center; cursor: pointer; font-weight: 600; font-size: .85rem;
-      border: 1px solid var(--border); color: var(--muted); transition: all .2s;
-      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); }
-    .role-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(245,166,35,.08); }
+    .auth-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .auth-box {
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .auth-logo {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 2rem;
+      color: var(--accent);
+      margin-bottom: .25rem;
+    }
+
+    .auth-sub {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-bottom: 2rem;
+    }
+
+    .auth-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 2rem;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .role-tabs {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .role-tab {
+      flex: 1;
+      padding: .6rem;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: .85rem;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      transition: all .2s;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+    }
+
+    .role-tab.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(245, 166, 35, .08);
+    }
   </style>
 </head>
+
 <body class="grid-bg">
-<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
-<div class="auth-wrap">
-  <div class="auth-box">
-    <div class="auth-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:180px;height:auto"></div>
-    <div class="auth-sub">Регистрация личного кабинета</div>
-    <div class="auth-card">
-      <h2 style="margin-bottom:1.25rem;font-size:1.8rem">Регистрация</h2>
+  <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <div class="auth-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:180px;height:auto"></div>
+      <div class="auth-sub">Регистрация личного кабинета</div>
+      <div class="auth-card">
+        <h2 style="margin-bottom:1.25rem;font-size:1.8rem">Регистрация</h2>
 
-      <div class="role-tabs">
-        <div class="role-tab active" data-role="customer">Заказчик</div>
-        <div class="role-tab" data-role="partner">Партнёр</div>
+        <div class="role-tabs">
+          <div class="role-tab active" data-role="customer">Заказчик</div>
+          <div class="role-tab" data-role="partner">Партнёр</div>
+        </div>
+
+        <form id="register-form">
+          <input type="hidden" name="role" value="customer">
+          <div class="form-group">
+            <label class="form-label">Имя и фамилия</label>
+            <input type="text" class="form-control" name="name" placeholder="Иван Иванов" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" placeholder="your@email.ru" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Пароль</label>
+            <input type="password" class="form-control" name="password" placeholder="Минимум 8 символов" minlength="8"
+              required>
+          </div>
+          <p class="text-muted mt-2" style="font-size:.85rem">После регистрации аккаунт будет активирован
+            администратором.</p>
+          <button type="submit" class="btn btn-primary w-full mt-3">Зарегистрироваться</button>
+        </form>
       </div>
-
-      <form id="register-form">
-        <input type="hidden" name="role" value="customer">
-        <div class="form-group">
-          <label class="form-label">Имя и фамилия</label>
-          <input type="text" class="form-control" name="name" placeholder="Иван Иванов" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email</label>
-          <input type="email" class="form-control" name="email" placeholder="your@email.ru" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Логин (для входа)</label>
-          <input type="text" class="form-control" name="login" placeholder="Ваш уникальный логин" required minlength="3">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Телефон для СМС</label>
-          <input type="tel" class="form-control" name="phone" placeholder="+7 (999) 000-00-00" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Пароль</label>
-          <input type="password" class="form-control" name="password" placeholder="Минимум 8 символов" minlength="8" required>
-        </div>
-        <p class="text-muted mt-2" style="font-size:.85rem">После регистрации аккаунт будет активирован администратором.</p>
-        <button type="submit" class="btn btn-primary w-full mt-3">Зарегистрироваться</button>
-      </form>
-    </div>
-    <div class="auth-footer">
-      Уже есть аккаунт? <a href="/login.html">Войти</a><br>
-      <a href="/" style="color:var(--muted);font-size:.85rem">← На главную</a>
+      <div class="auth-footer">
+        Уже есть аккаунт? <a href="/login.html">Войти</a><br>
+        <a href="/" style="color:var(--muted);font-size:.85rem">← На главную</a>
+      </div>
     </div>
   </div>
-</div>
-<div id="toast-container"></div>
-<script src="/js/preloader.js"></script>
-<script src="/js/api.js"></script>
-<script src="https://unpkg.com/imask"></script>
-<script>
-  // Маска для телефона
-  const phoneInput = document.querySelector('[name=phone]');
-  if (phoneInput) {
-    IMask(phoneInput, { mask: '+{7} (000) 000-00-00' });
-  }
-
-  // Переключение роли
-  document.querySelectorAll('.role-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      document.querySelector('[name=role]').value = tab.dataset.role;
+  <div id="toast-container"></div>
+  <script src="/js/preloader.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    // Переключение роли
+    document.querySelectorAll('.role-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelector('[name=role]').value = tab.dataset.role;
+      });
     });
-  });
 
-  document.getElementById('register-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const btn = e.target.querySelector('button[type=submit]');
-    btn.disabled = true;
-    btn.textContent = 'Отправка...';
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      btn.textContent = 'Отправка...';
 
-    const { ok, data } = await apiRequest('POST', '/api/auth/register', Object.fromEntries(fd.entries()));
+      const { ok, data } = await apiRequest('POST', '/api/auth/register', Object.fromEntries(fd.entries()));
 
-    if (ok) {
-      showToast('Заявка на регистрацию отправлена! Ожидайте активации аккаунта.', 'success');
-      e.target.reset();
-      document.querySelectorAll('.role-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
-      document.querySelector('[name=role]').value = 'customer';
-    } else {
-      showToast(data.error || 'Ошибка регистрации', 'error');
-    }
-    btn.disabled = false;
-    btn.textContent = 'Зарегистрироваться';
-  });
-</script>
+      if (ok) {
+        showToast('Заявка на регистрацию отправлена! Ожидайте активации аккаунта.', 'success');
+        e.target.reset();
+        document.querySelectorAll('.role-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+        document.querySelector('[name=role]').value = 'customer';
+      } else {
+        showToast(data.error || 'Ошибка регистрации', 'error');
+      }
+      btn.disabled = false;
+      btn.textContent = 'Зарегистрироваться';
+    });
+  </script>
 </body>
 </html>

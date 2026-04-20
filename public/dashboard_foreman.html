@@ -373,7 +373,7 @@
     <form id="add-work-spec-form">
       <div class="form-group">
         <label class="form-label">Наименование работы <span style="color:var(--accent)">*</span></label>
-        <input type="text" class="form-control" name="work_name" required maxlength="200" placeholder="Монтаж кабельной линии">
+        <input type="text" class="form-control" name="work_name" required maxlength="200" placeholder="Монтаж кабельной линии" list="catalog-datalist" id="single-work-name-input">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
         <div class="form-group">
@@ -437,6 +437,8 @@
     </div>
   </div>
 </div>
+
+<datalist id="catalog-datalist"></datalist>
 
 <div id="toast-container"></div>
 <script src="/js/preloader.js"></script>

@@ -37,36 +37,38 @@ const upload = multer({
 router.use(requireRole([ROLES.FOREMAN, ROLES.ADMIN]));
 
 // Проекты
-router.get('/projects',                       getProjects);
-router.post('/projects/join',                 joinProject);
-router.get('/projects/:id',                   getProject);
+router.get('/projects', getProjects);
+router.post('/projects/join', joinProject);
+router.get('/projects/:id', getProject);
 
 // Этапы (generate-from-vor до createStage — конкретный маршрут выше параметрического)
-router.get('/projects/:id/stages',                    getStages);
+router.get('/projects/:id/stages', getStages);
 router.post('/projects/:id/stages/generate-from-vor', generateStagesFromVOR);
-router.post('/projects/:id/stages',                   createStage);
-router.put('/stages/:id',                             updateStage);
-router.post('/stages/:id/photos',                     upload.single('photo'), uploadPhoto);
+router.post('/projects/:id/stages', createStage);
+router.put('/stages/:id', updateStage);
+router.post('/stages/:id/photos', upload.single('photo'), uploadPhoto);
 
 // Склад объекта
-router.get('/projects/:id/warehouse',         getWarehouse);
-router.post('/warehouse/:id/writeoff',        writeoffWarehouse);
+router.get('/projects/:id/warehouse', getWarehouse);
+router.post('/warehouse/:id/writeoff', writeoffWarehouse);
 
 // Заявки МТР
-router.get('/projects/:id/mtr-requests',      getMtrRequests);
-router.post('/projects/:id/mtr-requests',     createMtrRequest);
+router.get('/projects/:id/mtr-requests', getMtrRequests);
+router.post('/projects/:id/mtr-requests', createMtrRequest);
 
 // Ведомость материалов
-router.get('/projects/:id/specs',             getSpecs);
-router.put('/specs/:id/approve',              approveSpec);
-router.put('/specs/:id/reject',               rejectSpec);
+router.get('/projects/:id/specs', getSpecs);
+router.put('/specs/:id/approve', approveSpec);
+router.put('/specs/:id/reject', rejectSpec);
 
 // ВОР (ведомость объёмов работ)
-router.get('/projects/:id/work-specs',        getWorkSpecs);
-router.post('/projects/:id/work-specs',       addWorkSpec);
+router.get('/projects/:id/work-specs', getWorkSpecs);
+router.post('/projects/:id/work-specs', addWorkSpec);
 router.post('/projects/:id/work-specs/batch', batchAddWorkSpecs);
 
 // Документы
-router.get('/projects/:id/documents',         getProjectDocuments);
+router.get('/projects/:id/documents', getProjectDocuments);
+
+router.get('/catalog', require('../controllers/adminController').getCatalog);
 
 module.exports = router;

@@ -153,10 +153,10 @@ async function updateStage(req, res, next) {
       );
       await Promise.all(customers.rows.map(c =>
         sendNotification({
-          userId:    c.user_id,
+          userId: c.user_id,
           projectId: stage.rows[0].project_id,
-          type:      'status',
-          message:   `Требуется согласование по этапу: ${result.rows[0].name}`,
+          type: 'status',
+          message: `Требуется согласование по этапу: ${result.rows[0].name}`,
         })
       ));
     }
@@ -168,10 +168,10 @@ async function updateStage(req, res, next) {
       );
       await Promise.all(members.rows.map(m =>
         sendNotification({
-          userId:    m.user_id,
+          userId: m.user_id,
           projectId: stage.rows[0].project_id,
-          type:      'status',
-          message:   `Этап «${result.rows[0].name}» завершён`,
+          type: 'status',
+          message: `Этап «${result.rows[0].name}» завершён`,
         })
       ));
     }
@@ -201,9 +201,9 @@ async function uploadPhoto(req, res, next) {
     const fileKey = `photos/${stage.rows[0].project_id}/${id}/${randomUUID()}.${ext}`;
 
     await s3.send(new PutObjectCommand({
-      Bucket:      BUCKET,
-      Key:         fileKey,
-      Body:        req.file.buffer,
+      Bucket: BUCKET,
+      Key: fileKey,
+      Body: req.file.buffer,
       ContentType: req.file.mimetype,
     }));
 
@@ -220,10 +220,10 @@ async function uploadPhoto(req, res, next) {
     );
     if (project.rows[0]?.manager_id) {
       await sendNotification({
-        userId:    project.rows[0].manager_id,
+        userId: project.rows[0].manager_id,
         projectId: stage.rows[0].project_id,
-        type:      'photo',
-        message:   'Прораб загрузил новое фото этапа',
+        type: 'photo',
+        message: 'Прораб загрузил новое фото этапа',
       });
     }
 
@@ -386,10 +386,10 @@ async function createMtrRequest(req, res, next) {
     );
     await Promise.all(suppliers.rows.map(s =>
       sendNotification({
-        userId:    s.user_id,
+        userId: s.user_id,
         projectId: parseInt(id),
-        type:      'mtr',
-        message:   `Новая заявка МТР: ${material_name}`,
+        type: 'mtr',
+        message: `Новая заявка МТР: ${material_name}`,
       })
     ));
 
@@ -474,10 +474,10 @@ async function approveSpec(req, res, next) {
     );
 
     await sendNotification({
-      userId:    spec.rows[0].supplier_id,
+      userId: spec.rows[0].supplier_id,
       projectId: spec.rows[0].project_id,
-      type:      'mtr',
-      message:   `Позиция ведомости «${spec.rows[0].material_name}» согласована`,
+      type: 'mtr',
+      message: `Позиция ведомости «${spec.rows[0].material_name}» согласована`,
     });
 
     return res.json({ success: true, data: result.rows[0] });
@@ -518,10 +518,10 @@ async function rejectSpec(req, res, next) {
     );
 
     await sendNotification({
-      userId:    spec.rows[0].supplier_id,
+      userId: spec.rows[0].supplier_id,
       projectId: spec.rows[0].project_id,
-      type:      'mtr',
-      message:   `Позиция ведомости «${spec.rows[0].material_name}» отклонена: ${rejection_note}`,
+      type: 'mtr',
+      message: `Позиция ведомости «${spec.rows[0].material_name}» отклонена: ${rejection_note}`,
     });
 
     return res.json({ success: true, data: result.rows[0] });

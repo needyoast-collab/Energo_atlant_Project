@@ -1,47 +1,47 @@
-let currentUser     = null;
-let projectsList    = [];
+let currentUser = null;
+let projectsList = [];
 let activeProjectId = null;
-let stagesCache     = [];
+let stagesCache = [];
 
 const VOR_STATUS_LABELS = { planned: 'Запланировано', done: 'Выполнено', not_done: 'Не выполнено' };
 
 // ─── Маппинг статусов для заказчика ──────────────────────────
 const CUSTOMER_STATUS_MAP = {
-  lead:          'Рассматривается',
+  lead: 'Рассматривается',
   qualification: 'Рассматривается',
-  visit:         'Рассматривается',
-  offer:         'Согласование',
-  negotiation:   'Согласование',
-  contract:      'Договор подписан',
-  work:          'В работе',
-  won:           'Завершён',
-  lost:          'Отменён',
+  visit: 'Рассматривается',
+  offer: 'Согласование',
+  negotiation: 'Согласование',
+  contract: 'Договор подписан',
+  work: 'В работе',
+  won: 'Завершён',
+  lost: 'Отменён',
 };
 
 const CUSTOMER_STATUS_CLASS = {
   'Рассматривается': 'badge-gray',
-  'Согласование':    'badge-yellow',
-  'Договор подписан':'badge-blue',
-  'В работе':        'badge-green',
-  'Завершён':        'badge-gray',
-  'Отменён':         'badge-red',
+  'Согласование': 'badge-yellow',
+  'Договор подписан': 'badge-blue',
+  'В работе': 'badge-green',
+  'Завершён': 'badge-gray',
+  'Отменён': 'badge-red',
 };
 
 function customerBadge(status) {
   const label = CUSTOMER_STATUS_MAP[status] || status;
-  const cls   = CUSTOMER_STATUS_CLASS[label] || 'badge-gray';
+  const cls = CUSTOMER_STATUS_CLASS[label] || 'badge-gray';
   return `<span class="badge ${cls}">${label}</span>`;
 }
 
 const DOC_LABELS = {
-  hidden_works_act:    'Акт скрытых работ',
-  exec_scheme:         'Исполнительная схема',
-  geodetic_survey:     'Геодезическая съёмка',
-  general_works_log:   'Общий журнал работ',
-  author_supervision:  'Журнал авторского надзора',
-  interim_acceptance:  'Акт промежуточной приёмки',
-  cable_test_act:      'Акт испытания КЛ',
-  measurement_protocol:'Протокол измерений',
+  hidden_works_act: 'Акт скрытых работ',
+  exec_scheme: 'Исполнительная схема',
+  geodetic_survey: 'Геодезическая съёмка',
+  general_works_log: 'Общий журнал работ',
+  author_supervision: 'Журнал авторского надзора',
+  interim_acceptance: 'Акт промежуточной приёмки',
+  cable_test_act: 'Акт испытания КЛ',
+  measurement_protocol: 'Протокол измерений',
   rd: 'Рабочая документация (РД)', pd: 'Проектная документация (ПД)',
   tz: 'Техническое задание (ТЗ)', tu: 'Технические условия (ТУ)',
   kp: 'Коммерческое предложение (КП)', estimate: 'Смета',
@@ -84,10 +84,10 @@ async function loadProjects() {
 
   container.innerHTML = projectsList.map(p => {
     const stageTotal = parseInt(p.stage_total) || 0;
-    const stageDone  = parseInt(p.stage_done)  || 0;
-    const pct        = stageTotal ? Math.round(stageDone / stageTotal * 100) : 0;
+    const stageDone = parseInt(p.stage_done) || 0;
+    const pct = stageTotal ? Math.round(stageDone / stageTotal * 100) : 0;
     const managerName = p.manager_name || 'Менеджер назначен';
-    const isActive   = p.status === 'work';
+    const isActive = p.status === 'work';
 
     return `
     <div class="project-card-customer" data-action="open-project" data-id="${p.id}">
@@ -163,7 +163,7 @@ document.querySelectorAll('[data-tab]').forEach(btn => {
 });
 
 function switchTab(tab) {
-  document.getElementById('tab-stages').style.display    = tab === 'stages'    ? '' : 'none';
+  document.getElementById('tab-stages').style.display = tab === 'stages' ? '' : 'none';
   document.getElementById('tab-documents').style.display = tab === 'documents' ? '' : 'none';
   document.getElementById('tab-warehouse').style.display = tab === 'warehouse' ? '' : 'none';
   document.querySelectorAll('[data-tab]').forEach(b => {
@@ -177,12 +177,12 @@ async function loadStages(id) {
   if (!ok) return;
 
   const stages = data.data;
-  const total  = stages.length;
+  const total = stages.length;
 
   const vorStages = stages.filter(s => s.is_from_vor && Number(s.planned_value) > 0);
   let pct, progressSub;
   if (vorStages.length) {
-    const sumPlan   = vorStages.reduce((a, s) => a + Number(s.planned_value), 0);
+    const sumPlan = vorStages.reduce((a, s) => a + Number(s.planned_value), 0);
     const sumActual = vorStages.reduce((a, s) => a + Number(s.actual_value || 0), 0);
     pct = sumPlan > 0 ? Math.min(100, Math.round(sumActual / sumPlan * 100)) : 0;
     progressSub = `Выполнено: ${sumActual.toFixed(2)} из ${sumPlan.toFixed(2)} (объём работ)`;
@@ -215,16 +215,16 @@ async function loadStages(id) {
 
   list.innerHTML = stages.map(s => {
     const isNotDone = s.status === 'not_done';
-    const isAgreed  = s.customer_agreed;
+    const isAgreed = s.customer_agreed;
 
     let subInfo = '';
     if (s.is_from_vor) {
       subInfo = `${s.actual_value != null ? s.actual_value : 0} / ${s.planned_value} ${escHtml(s.unit || '')}`;
       if (s.planned_date) subInfo += ` · план: ${formatDate(s.planned_date)}`;
-      if (s.actual_date)  subInfo += ` · факт: ${formatDate(s.actual_date)}`;
+      if (s.actual_date) subInfo += ` · факт: ${formatDate(s.actual_date)}`;
     } else {
       if (s.planned_start) subInfo += `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}`;
-      if (s.actual_end)    subInfo += ` · Сдан: ${formatDate(s.actual_end)}`;
+      if (s.actual_end) subInfo += ` · Сдан: ${formatDate(s.actual_end)}`;
       if (s.photo_count > 0) subInfo += ` · 📷 ${s.photo_count} фото`;
     }
 
@@ -258,8 +258,8 @@ document.getElementById('stages-list').addEventListener('click', (e) => {
 function openStageDetailModal(s) {
   approveStageId = s.id;
 
-  const isNotDone  = s.status === 'not_done';
-  const isAgreed   = s.customer_agreed;
+  const isNotDone = s.status === 'not_done';
+  const isAgreed = s.customer_agreed;
   const statusLabel = s.is_from_vor
     ? (VOR_STATUS_LABELS[s.status] || s.status)
     : (s.status === 'pending' ? 'Не начат' : s.status === 'in_progress' ? 'В работе' : s.status === 'done' ? 'Завершён' : s.status);
@@ -270,10 +270,10 @@ function openStageDetailModal(s) {
     detailRows += row('Объём (план)', `${s.planned_value} ${escHtml(s.unit || '')}`);
     detailRows += row('Объём (факт)', `${s.actual_value != null ? s.actual_value : 0} ${escHtml(s.unit || '')}`);
     if (s.planned_date) detailRows += row('Плановая дата', formatDate(s.planned_date));
-    if (s.actual_date)  detailRows += row('Фактическая дата', formatDate(s.actual_date));
+    if (s.actual_date) detailRows += row('Фактическая дата', formatDate(s.actual_date));
   } else {
     if (s.planned_start) detailRows += row('Период', `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}`);
-    if (s.actual_end)    detailRows += row('Сдан', formatDate(s.actual_end));
+    if (s.actual_end) detailRows += row('Сдан', formatDate(s.actual_end));
   }
 
   const noteBlock = s.note
@@ -293,8 +293,8 @@ function openStageDetailModal(s) {
          <button class="btn btn-primary btn-sm" id="btn-approve-in-modal">Согласовать</button>
        </div>`
     : isAgreed && isNotDone
-    ? `<div style="margin-top:1rem;color:var(--muted);font-size:.85rem">✓ Вы согласовали этот этап</div>`
-    : '';
+      ? `<div style="margin-top:1rem;color:var(--muted);font-size:.85rem">✓ Вы согласовали этот этап</div>`
+      : '';
 
   const photosBlock = Number(s.photo_count) > 0
     ? `<div style="margin-top:1.25rem">
@@ -418,12 +418,12 @@ async function loadWarehouse(id) {
 let attachedFiles = [];
 
 const REQUEST_DOC_LABELS = {
-  tu:             'Технические условия',
-  rd:             'Рабочая документация',
-  pd:             'Проектная документация',
-  tz:             'Техническое задание',
+  tu: 'Технические условия',
+  rd: 'Рабочая документация',
+  pd: 'Проектная документация',
+  tz: 'Техническое задание',
   situation_plan: 'Ситуационный план',
-  other:          'Прочее',
+  other: 'Прочее',
 };
 
 function truncateFilename(name, maxLen = 40) {
@@ -449,11 +449,11 @@ function renderFilesList() {
 }
 
 (function () {
-  const fileInput  = document.getElementById('req-file-input');
+  const fileInput = document.getElementById('req-file-input');
   const fileNameEl = document.getElementById('req-selected-filename');
-  const errorEl    = document.getElementById('req-file-error');
-  const ALLOWED    = ['pdf','dwg','doc','docx','xls','xlsx'];
-  const MAX        = 130 * 1024 * 1024;
+  const errorEl = document.getElementById('req-file-error');
+  const ALLOWED = ['pdf', 'dwg', 'doc', 'docx', 'xls', 'xlsx'];
+  const MAX = 130 * 1024 * 1024;
 
   fileInput.addEventListener('change', () => {
     errorEl.style.display = 'none';
@@ -518,9 +518,9 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
 
   const formData = new FormData(e.target);
   const fd = new FormData();
-  const phone   = formData.get('phone') || '';
+  const phone = formData.get('phone') || '';
   const message = formData.get('message') || '';
-  if (phone)   fd.append('phone', phone);
+  if (phone) fd.append('phone', phone);
   if (message) fd.append('message', message);
   for (const af of attachedFiles) {
     fd.append('files', af.file);
@@ -537,25 +537,6 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
     resetRequestForm();
   } else {
     showToast(data?.error || 'Ошибка при отправке', 'error');
-  }
-});
-
-// Чекбокс «Использовать мой телефон»
-document.getElementById('req-use-my-phone').addEventListener('change', (e) => {
-  const phoneInput = document.getElementById('req-phone-input');
-  if (e.target.checked && currentUser && currentUser.phone) {
-    phoneInput.value = currentUser.phone;
-    phoneInput.readOnly = true;
-    phoneInput.style.backgroundColor = 'var(--bg3)';
-  } else {
-    if (e.target.checked && (!currentUser || !currentUser.phone)) {
-       showToast('У вас не указан номер телефона в профиле', 'info');
-       e.target.checked = false;
-    } else {
-       phoneInput.value = '';
-       phoneInput.readOnly = false;
-       phoneInput.style.backgroundColor = '';
-    }
   }
 });
 

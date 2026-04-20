@@ -23,10 +23,11 @@ async function init() {
 
 // ─── Навигация ────────────────────────────────────────────────
 initNav(section => {
-  if (section === 'users')   loadUsers();
+  if (section === 'users') loadUsers();
   if (section === 'projects') loadProjects();
   if (section === 'project-history') loadProjectHistory();
   if (section === 'payouts') loadPayouts();
+  if (section === 'catalog') loadCatalog();
 });
 
 // ─── Метрики ─────────────────────────────────────────────────
@@ -35,10 +36,10 @@ async function loadMetrics() {
   if (!ok) return;
 
   const m = data.data;
-  const totalUsers    = m.users.reduce((s, r) => s + parseInt(r.count), 0);
+  const totalUsers = m.users.reduce((s, r) => s + parseInt(r.count), 0);
   const totalProjects = m.projects.reduce((s, r) => s + parseInt(r.count), 0);
   const totalRequests = m.requests.reduce((s, r) => s + parseInt(r.count), 0);
-  const totalPayouts  = m.payouts.reduce((s, r) => s + parseInt(r.count), 0);
+  const totalPayouts = m.payouts.reduce((s, r) => s + parseInt(r.count), 0);
 
   const grid = document.getElementById('metrics-grid');
   grid.innerHTML = `
@@ -135,8 +136,10 @@ async function loadUsers() {
   const { ok, data } = await apiRequest('GET', '/api/admin/users');
   if (!ok) return;
 
-  const ROLE_LABELS = { admin:'Администратор', manager:'Менеджер', foreman:'Прораб',
-    supplier:'Снабженец', pto:'ПТО', customer:'Заказчик', partner:'Партнёр' };
+  const ROLE_LABELS = {
+    admin: 'Администратор', manager: 'Менеджер', foreman: 'Прораб',
+    supplier: 'Снабженец', pto: 'ПТО', customer: 'Заказчик', partner: 'Партнёр'
+  };
 
   const tbody = document.querySelector('#users-table tbody');
   tbody.innerHTML = data.data.map(u => `
@@ -146,8 +149,8 @@ async function loadUsers() {
       <td>${ROLE_LABELS[u.role] || u.role}</td>
       <td>
         ${u.is_deleted ? '<span class="badge badge-red">Удалён</span>' :
-          u.is_verified ? '<span class="badge badge-green">Активен</span>' :
-          '<span class="badge badge-yellow">Ожидает верификации</span>'}
+      u.is_verified ? '<span class="badge badge-green">Активен</span>' :
+        '<span class="badge badge-yellow">Ожидает верификации</span>'}
       </td>
       <td>
         <div class="flex gap-1">
@@ -186,9 +189,9 @@ document.getElementById('users-table').addEventListener('click', async (e) => {
   if (action === 'edit') {
     const form = document.getElementById('edit-user-form');
     form.dataset.editId = id;
-    form.querySelector('[name=name]').value  = name;
+    form.querySelector('[name=name]').value = name;
     form.querySelector('[name=email]').value = email;
-    form.querySelector('[name=role]').value  = role;
+    form.querySelector('[name=role]').value = role;
     openModal('modal-edit-user');
   }
 });
@@ -276,3 +279,107 @@ document.getElementById('btn-history-filter-reset').addEventListener('click', as
 });
 
 init();
+
+// ─── Справочник ──────────────────────────────────────────────
+async function loadCatalog() {
+  const tbody = document.querySelector('#catalog-table tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="text-muted">Загрузка...</td></tr>';
+  
+  const { ok, data } = await apiRequest('GET', '/api/admin/catalog');
+  if (!ok) return;
+
+  tbody.innerHTML = data.data.map(c => `
+    <tr>
+      <td>
+        ${!c.is_approved ? '<span style="color:var(--accent);margin-right:4px" title="Ожидает утверждения">❗</span>' : ''}
+        ${escHtml(c.item_name)}
+      </td>
+      <td>${escHtml(c.unit)}</td>
+      <td>${Number(c.base_price).toLocaleString('ru-RU')} ₽</td>
+      <td>${c.is_approved ? '<span class="badge badge-green">Утверждено</span>' : '<span class="badge badge-yellow">Модерация</span>'}</td>
+      <td>
+        <div class="flex gap-1">
+          ${!c.is_approved ? `<button class="btn btn-sm btn-primary" data-action="catalog-approve" data-id="${c.id}">Утвердить</button>` : ''}
+          <button class="btn btn-sm btn-outline" data-action="catalog-edit" 
+            data-id="${c.id}" 
+            data-name="${escHtml(c.item_name)}" 
+            data-unit="${escHtml(c.unit)}" 
+            data-price="${c.base_price}">✎</button>
+          <button class="btn btn-sm btn-danger" data-action="catalog-delete" data-id="${c.id}">✕</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" class="text-muted">Справочник пуст</td></tr>';
+}
+
+document.getElementById('catalog-table').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const { action, id, name, unit, price } = btn.dataset;
+
+  if (action === 'catalog-approve') {
+    const { ok } = await apiRequest('POST', `/api/admin/catalog/${id}/approve`);
+    if (ok) { showToast('Утверждено', 'success'); loadCatalog(); }
+  }
+  if (action === 'catalog-delete') {
+    if (!confirm('Удалить позицию из справочника?')) return;
+    const { ok } = await apiRequest('DELETE', `/api/admin/catalog/${id}`);
+    if (ok) { showToast('Удалено', 'success'); loadCatalog(); }
+  }
+  if (action === 'catalog-edit') {
+    const form = document.getElementById('edit-catalog-form');
+    form.dataset.id = id;
+    form.querySelector('[name=item_name]').value = name;
+    form.querySelector('[name=unit]').value = unit;
+    form.querySelector('[name=base_price]').value = price;
+    openModal('modal-edit-catalog');
+  }
+});
+
+document.getElementById('edit-catalog-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = e.target.dataset.id;
+  const fd = new FormData(e.target);
+  const body = Object.fromEntries(fd.entries());
+  const { ok } = await apiRequest('PUT', `/api/admin/catalog/${id}`, body);
+  if (ok) { showToast('Сохранено', 'success'); closeModal('modal-edit-catalog'); loadCatalog(); }
+});
+
+// Кнопка открытия окна импорта (теперь одна главная)
+document.getElementById('btn-catalog-bulk-open').addEventListener('click', () => {
+  document.getElementById('catalog-bulk-input').value = '';
+  document.getElementById('bulk-preview-count').textContent = 'Строк распознано: 0';
+  openModal('modal-catalog-bulk');
+});
+
+// Парсинг текста из textarea (Excel copy-paste)
+document.getElementById('catalog-bulk-input').addEventListener('input', (e) => {
+  const lines = e.target.value.split('\n').filter(l => l.trim());
+  document.getElementById('bulk-preview-count').textContent = `Строк распознано: ${lines.length}`;
+});
+
+document.getElementById('catalog-bulk-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = document.getElementById('catalog-bulk-input').value;
+  const lines = text.split('\n').filter(l => l.trim());
+  
+  const items = lines.map(line => {
+    const parts = line.split('\t'); // Excel разделяет табы
+    return {
+      item_name: (parts[0] || '').trim(),
+      unit: (parts[1] || '').trim(),
+      base_price: (parts[2] || '0').replace(',', '.').replace(/\s/g, '')
+    };
+  }).filter(i => i.item_name && i.unit);
+
+  if (!items.length) return showToast('Не удалось распознать формат (название [таб] ед [таб] цена)', 'error');
+
+  const { ok, data } = await apiRequest('POST', '/api/admin/catalog/bulk', { items });
+  if (ok) {
+    showToast(data.message || 'Импорт завершён', 'success');
+    closeModal('modal-catalog-bulk');
+    loadCatalog();
+  } else {
+    showToast(data.error || 'Ошибка импорта', 'error');
+  }
+});

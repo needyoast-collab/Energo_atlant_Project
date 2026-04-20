@@ -1,11 +1,13 @@
-const FUNNEL_COLS = ['lead','qualification','visit','offer','negotiation','contract','work','won','lost'];
-const FUNNEL_NAMES = { lead:'Лид', qualification:'Квалификация', visit:'Выезд', offer:'КП',
-  negotiation:'Переговоры', contract:'Договор', work:'В работе', won:'Завершён', lost:'Отказ' };
+const FUNNEL_COLS = ['lead', 'qualification', 'visit', 'offer', 'negotiation', 'contract', 'work', 'won', 'lost'];
+const FUNNEL_NAMES = {
+  lead: 'Лид', qualification: 'Квалификация', visit: 'Выезд', offer: 'КП',
+  negotiation: 'Переговоры', contract: 'Договор', work: 'В работе', won: 'Завершён', lost: 'Отказ'
+};
 
 const STATUS_COLORS = {
-  lead:'#6b7280', qualification:'#6b7280', visit:'#3b82f6',
-  offer:'#f59e0b', negotiation:'#f97316', contract:'#8b5cf6',
-  work:'#3b82f6', won:'#22c55e', lost:'#ef4444',
+  lead: '#6b7280', qualification: '#6b7280', visit: '#3b82f6',
+  offer: '#f59e0b', negotiation: '#f97316', contract: '#8b5cf6',
+  work: '#3b82f6', won: '#22c55e', lost: '#ef4444',
 };
 
 const PROGRESS_COLORS = {
@@ -50,6 +52,7 @@ async function init() {
   if (!currentUser) return;
   document.getElementById('user-name').textContent = currentUser.name;
   initNotificationBell();
+  initCatalogAutocomplete('manager');
   await loadDocTypes();
   loadRequests();
 }
@@ -65,7 +68,7 @@ async function loadDocTypes() {
 
 // ─── Навигация ────────────────────────────────────────────────
 initNav(section => {
-  if (section === 'funnel')   loadFunnel();
+  if (section === 'funnel') loadFunnel();
   if (section === 'projects') loadProjects();
   if (section === 'requests') loadRequests();
   if (section === 'messages') loadMessages();
@@ -158,7 +161,7 @@ async function loadProjects() {
       <td style="font-size:.82rem;color:var(--muted)">${escHtml(p.code)}</td>
       <td style="font-weight:600">${escHtml(p.name)}</td>
       <td>${badge(p.status)}</td>
-      <td style="font-size:.83rem;color:var(--muted)">${escHtml(p.address||'—')}</td>
+      <td style="font-size:.83rem;color:var(--muted)">${escHtml(p.address || '—')}</td>
     </tr>
   `).join('') || '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted)">Проектов нет</td></tr>';
 }
@@ -208,6 +211,7 @@ async function openProject(id) {
     </div>
   `;
   document.getElementById('project-status-select').value = project.status;
+  document.getElementById('project-regional-coeff').value = project.regional_coeff || 1.0;
   document.getElementById('analyze-result').textContent = '';
   document.getElementById('upload-doc-form').reset();
   document.getElementById('vor-add-form').reset();
@@ -236,9 +240,9 @@ function switchProjectTab(tab) {
   document.querySelectorAll('.project-tab-panel').forEach(panel => {
     panel.style.display = panel.id === `ptab-${tab}` ? '' : 'none';
   });
-  if (tab === 'stages')    loadManagerStages(activeProjectId);
-  if (tab === 'vor')       loadManagerVOR(activeProjectId);
-  if (tab === 'vom')       loadManagerSpecs(activeProjectId);
+  if (tab === 'stages') loadManagerStages(activeProjectId);
+  if (tab === 'vor') loadManagerVOR(activeProjectId);
+  if (tab === 'vom') loadManagerSpecs(activeProjectId);
   if (tab === 'warehouse') loadManagerWarehouse(activeProjectId);
   if (tab === 'documents') loadProjectDocs(activeProjectId);
 }
@@ -268,7 +272,7 @@ async function loadStaff() {
     const { ok, data } = await apiRequest('GET', '/api/manager/staff');
     if (ok) staffList = data.data;
   }
-  for (const [role, selId] of [['foreman','select-foreman'],['pto','select-pto'],['supplier','select-supplier']]) {
+  for (const [role, selId] of [['foreman', 'select-foreman'], ['pto', 'select-pto'], ['supplier', 'select-supplier']]) {
     const filtered = staffList.filter(u => u.role === role);
     document.getElementById(selId).innerHTML = filtered.length
       ? filtered.map(u => `<option value="${u.id}">${escHtml(u.name)}</option>`).join('')
@@ -288,6 +292,19 @@ document.getElementById('team-add-rows').addEventListener('click', async (e) => 
   });
   if (ok) showToast('Участник добавлен', 'success');
   else showToast(data.error, 'error');
+});
+
+document.getElementById('project-regional-coeff').addEventListener('change', async (e) => {
+  const val = parseFloat(e.target.value);
+  if (isNaN(val) || val <= 0) return;
+  const { ok, data } = await apiRequest('PUT', `/api/manager/projects/${activeProjectId}`, { regional_coeff: val });
+  if (ok) {
+    showToast('Коэффициент обновлён', 'success');
+    activeProject.regional_coeff = val;
+    if (document.getElementById('project-status-select').value) {
+      loadManagerVOR(activeProjectId); // перерисуем ВОР чтобы обновить суммы
+    }
+  } else showToast(data.error, 'error');
 });
 
 // ─── Этапы ───────────────────────────────────────────────────
@@ -328,12 +345,12 @@ async function loadManagerStages(id) {
                   data-action="edit-stage" data-id="${s.id}"
                   data-name="${escHtml(s.name)}" data-status="${s.status}"
                   data-order="${s.order_num ?? ''}"
-                  data-start="${s.planned_start||''}" data-end="${s.planned_end||''}"
+                  data-start="${s.planned_start || ''}" data-end="${s.planned_end || ''}"
                   data-planned-value="${s.planned_value ?? ''}"
                   data-actual-value="${s.actual_value ?? ''}"
-                  data-planned-date="${s.planned_date||''}"
-                  data-actual-date="${s.actual_date||''}"
-                  data-note="${escHtml(s.note||'')}">Ред.</button>
+                  data-planned-date="${s.planned_date || ''}"
+                  data-actual-date="${s.actual_date || ''}"
+                  data-note="${escHtml(s.note || '')}">Ред.</button>
                 <button class="btn btn-sm" style="font-size:.75rem;color:var(--muted);border:1px solid var(--border);background:transparent;margin-left:.25rem"
                   data-action="delete-stage" data-id="${s.id}">✕</button>
               </td>
@@ -388,38 +405,54 @@ document.getElementById('stage-form').addEventListener('submit', async (e) => {
     name: document.getElementById('stage-form-name').value,
     status: document.getElementById('stage-form-status').value,
     order_num: document.getElementById('stage-form-order').value ? parseInt(document.getElementById('stage-form-order').value, 10) : undefined,
-    planned_start: document.getElementById('stage-form-start').value || undefined,
-    planned_end: document.getElementById('stage-form-end').value || undefined,
-    planned_value: document.getElementById('stage-form-planned-value').value ? parseFloat(document.getElementById('stage-form-planned-value').value) : undefined,
-    actual_value: document.getElementById('stage-form-actual-value').value ? parseFloat(document.getElementById('stage-form-actual-value').value) : undefined,
-    planned_date: document.getElementById('stage-form-planned-date').value || undefined,
-    actual_date: document.getElementById('stage-form-actual-date').value || undefined,
-    note: document.getElementById('stage-form-note').value || undefined,
+    planned_start: document.getElementById('stage-form-planned-start').value || null,
+    planned_end: document.getElementById('stage-form-planned-end').value || null,
+    actual_date: document.getElementById('stage-form-actual-date').value || null,
+    note: document.getElementById('stage-form-note').value || ''
   };
 
-  let ok, data;
-  if (stageId) {
-    ({ ok, data } = await apiRequest('PUT', `/api/manager/stages/${stageId}`, body));
-  } else {
-    ({ ok, data } = await apiRequest('POST', `/api/manager/projects/${activeProjectId}/stages`, {
-      name: body.name,
-      order_num: body.order_num,
-      planned_start: body.planned_start,
-      planned_end: body.planned_end,
-    }));
-    if (ok && (body.status !== 'planned' || body.planned_value !== undefined || body.actual_value !== undefined || body.planned_date || body.actual_date || body.note)) {
-      ({ ok, data } = await apiRequest('PUT', `/api/manager/stages/${data.data.id}`, body));
-    }
-  }
+  const method = stageId ? 'PUT' : 'POST';
+  const url = stageId ? `/api/manager/stages/${stageId}` : `/api/manager/projects/${activeProjectId}/stages`;
 
+  const { ok, data } = await apiRequest(method, url, body);
   if (ok) {
     showToast(stageId ? 'Этап обновлён' : 'Этап создан', 'success');
     closeModal('modal-manager-stage');
     loadManagerStages(activeProjectId);
-  } else showToast(data.error, 'error');
+  } else {
+    showToast(data.error, 'error');
+  }
 });
 
 // ─── ВОР ─────────────────────────────────────────────────────
+function renderVorRow(ws) {
+  const price = ws.manager_price ? Number(ws.manager_price) : 0;
+  const rCoeff = Number(activeProject.regional_coeff || 1.0);
+  const sum = price * Number(ws.quantity) * rCoeff;
+  const sumStr = sum ? sum.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽' : '—';
+
+  return `
+    <tr>
+      <td>${escHtml(ws.work_name)}</td>
+      <td style="text-align:right">${ws.quantity}</td>
+      <td style="color:var(--muted)">${escHtml(ws.unit || '—')}</td>
+      <td style="text-align:right;font-weight:500">${price ? price.toLocaleString('ru-RU') + ' ₽' : '<span style="color:red">Не задана</span>'}</td>
+      <td style="text-align:right;font-weight:600">${sumStr}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" style="font-size:.75rem;margin-right:.25rem"
+          data-action="edit-vor"
+          data-id="${ws.id}"
+          data-work-name="${escHtml(ws.work_name)}"
+          data-unit="${escHtml(ws.unit || '')}"
+          data-quantity="${ws.quantity}"
+          data-price="${ws.manager_price || ''}">Ред.</button>
+        <button class="btn btn-sm" style="font-size:.75rem;color:var(--muted);border:1px solid var(--border);background:transparent"
+          data-action="delete-vor" data-id="${ws.id}">✕</button>
+      </td>
+    </tr>
+  `;
+}
+
 async function loadManagerVOR(id) {
   const container = document.getElementById('vor-list');
   container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
@@ -434,26 +467,12 @@ async function loadManagerVOR(id) {
           <th style="color:var(--muted);font-weight:500">Вид работ</th>
           <th style="color:var(--muted);font-weight:500;text-align:right">Количество</th>
           <th style="color:var(--muted);font-weight:500">Ед.</th>
+          <th style="color:var(--muted);font-weight:500;text-align:right">Цена за ед.</th>
+          <th style="color:var(--muted);font-weight:500;text-align:right">Сумма</th>
           <th></th>
         </tr></thead>
         <tbody>
-          ${data.data.map(ws => `
-            <tr>
-              <td>${escHtml(ws.work_name)}</td>
-              <td style="text-align:right">${ws.quantity}</td>
-              <td style="color:var(--muted)">${escHtml(ws.unit||'—')}</td>
-              <td>
-                <button class="btn btn-outline btn-sm" style="font-size:.75rem;margin-right:.25rem"
-                  data-action="edit-vor"
-                  data-id="${ws.id}"
-                  data-work-name="${escHtml(ws.work_name)}"
-                  data-unit="${escHtml(ws.unit||'')}"
-                  data-quantity="${ws.quantity}">Ред.</button>
-                <button class="btn btn-sm" style="font-size:.75rem;color:var(--muted);border:1px solid var(--border);background:transparent"
-                  data-action="delete-vor" data-id="${ws.id}">✕</button>
-              </td>
-            </tr>
-          `).join('')}
+          ${data.data.map(renderVorRow).join('')}
         </tbody>
       </table>
     </div>
@@ -468,6 +487,7 @@ document.getElementById('vor-list').addEventListener('click', async (e) => {
     form.querySelector('[name="work_name"]').value = editBtn.dataset.workName || '';
     form.querySelector('[name="quantity"]').value = editBtn.dataset.quantity || '';
     form.querySelector('[name="unit"]').value = editBtn.dataset.unit || '';
+    form.querySelector('[name="manager_price"]').value = editBtn.dataset.price || '';
     activeWorkSpecEditId = editBtn.dataset.id;
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.textContent = 'Сохранить';
@@ -477,7 +497,7 @@ document.getElementById('vor-list').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-action="delete-vor"]');
   if (!btn) return;
   if (!confirm('Удалить позицию ВОР?')) return;
-  const { ok, data } = await apiRequest('DELETE', `/api/manager/work-specs/${btn.dataset.id}`);
+  const { ok, data } = await apiRequest('DELETE', `/ api / manager / work - specs / ${btn.dataset.id} `);
   if (ok) { showToast('Позиция удалена', 'success'); loadManagerVOR(activeProjectId); }
   else showToast(data.error, 'error');
 });
@@ -503,13 +523,15 @@ document.getElementById('vor-add-form').addEventListener('submit', async (e) => 
   const fd = new FormData(e.target);
   const body = {
     work_name: fd.get('work_name'),
-    unit: fd.get('unit') || undefined,
     quantity: parseFloat(fd.get('quantity')),
   };
+  if (fd.get('unit')) body.unit = fd.get('unit');
+  if (fd.get('manager_price')) body.manager_price = parseFloat(fd.get('manager_price'));
+
   const isEdit = !!activeWorkSpecEditId;
   const { ok, data } = isEdit
-    ? await apiRequest('PUT', `/api/manager/work-specs/${activeWorkSpecEditId}`, body)
-    : await apiRequest('POST', `/api/manager/projects/${activeProjectId}/work-specs`, body);
+    ? await apiRequest('PUT', `/ api / manager / work - specs / ${activeWorkSpecEditId} `, body)
+    : await apiRequest('POST', `/ api / manager / projects / ${activeProjectId}/work-specs`, body);
   if (ok) {
     showToast(isEdit ? 'Позиция обновлена' : 'Позиция добавлена', 'success');
     e.target.reset();
@@ -553,9 +575,9 @@ async function loadManagerSpecs(id) {
             <tr>
               <td>${escHtml(s.material_name)}</td>
               <td style="text-align:right">${s.quantity}</td>
-              <td style="color:var(--muted)">${escHtml(s.unit||'—')}</td>
+              <td style="color:var(--muted)">${escHtml(s.unit || '—')}</td>
               <td>${badge(s.status)}</td>
-              <td style="color:var(--muted);font-size:.8rem">${escHtml(s.supplier_name||'—')}</td>
+              <td style="color:var(--muted);font-size:.8rem">${escHtml(s.supplier_name || '—')}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -590,7 +612,7 @@ async function loadManagerWarehouse(id) {
               <td style="text-align:right">${item.qty_total}</td>
               <td style="text-align:right">${item.qty_used}</td>
               <td style="text-align:right;font-weight:600">${item.qty_balance}</td>
-              <td style="color:var(--muted)">${escHtml(item.unit||'—')}</td>
+              <td style="color:var(--muted)">${escHtml(item.unit || '—')}</td>
               <td style="color:var(--muted);font-size:.8rem">${escHtml(item.source)}</td>
             </tr>
           `).join('')}
@@ -611,14 +633,14 @@ async function loadProjectDocs(id) {
   container.innerHTML = data.data.map(doc => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border)">
       <div>
-        <div style="font-weight:600">${escHtml(docTypes[doc.doc_type]||doc.doc_type)}</div>
-        <div style="color:var(--muted);font-size:.8rem">${escHtml(doc.file_name)}${doc.description ? ' — '+escHtml(doc.description) : ''}</div>
+        <div style="font-weight:600">${escHtml(docTypes[doc.doc_type] || doc.doc_type)}</div>
+        <div style="color:var(--muted);font-size:.8rem">${escHtml(doc.file_name)}${doc.description ? ' — ' + escHtml(doc.description) : ''}</div>
         <div style="color:var(--muted);font-size:.78rem">${formatDate(doc.uploaded_at)} · ${escHtml(doc.uploaded_by_name)}</div>
       </div>
       <div style="display:flex;gap:.4rem;flex-shrink:0;margin-left:.75rem">
         <a href="${doc.url}" target="_blank" class="btn btn-outline btn-sm" style="font-size:.78rem">Скачать</a>
         ${doc.uploaded_by_id === currentUser.id
-          ? `<button class="btn btn-sm" style="font-size:.78rem;color:var(--muted);border:1px solid var(--border);background:transparent"
+      ? `<button class="btn btn-sm" style="font-size:.78rem;color:var(--muted);border:1px solid var(--border);background:transparent"
                data-action="delete-doc" data-id="${doc.id}">✕</button>` : ''}
       </div>
     </div>
@@ -648,51 +670,51 @@ document.getElementById('upload-doc-form').addEventListener('submit', async (e) 
 // ─── ФУНКЦИЯ СУММЫ ПРОПИСЬЮ ──────────────────────────────────────
 function numberToWordsRu(num) {
   if (num === 0) return 'ноль';
-  const units = ['','один','два','три','четыре','пять','шесть','семь','восемь','девять'];
-  const units_f = ['','одна','две','три','четыре','пять','шесть','семь','восемь','девять'];
-  const teens = ['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
-  const tens = ['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
-  const hundreds = ['','сто','двести','триста','четыреста','пятьсот','шестьсот','семьсот','восемьсот','девятьсот'];
+  const units = ['', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
+  const units_f = ['', 'одна', 'две', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
+  const teens = ['десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать', 'пятнадцать', 'шестнадцать', 'семнадцать', 'восемнадцать', 'девятнадцать'];
+  const tens = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят', 'шестьдесят', 'семьдесят', 'восемьдесят', 'девяносто'];
+  const hundreds = ['', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот', 'шестьсот', 'семьсот', 'восемьсот', 'девятьсот'];
   const forms = [
-      ['','',''],
-      ['тысяча','тысячи','тысяч'], 
-      ['миллион','миллиона','миллионов'],
-      ['миллиард','миллиарда','миллиардов']
+    ['', '', ''],
+    ['тысяча', 'тысячи', 'тысяч'],
+    ['миллион', 'миллиона', 'миллионов'],
+    ['миллиард', 'миллиарда', 'миллиардов']
   ];
   let n = Math.floor(num);
   let words = [];
   let group = 0;
 
   function getPlural(n, formArr) {
-      let n10 = n % 10;
-      let n100 = n % 100;
-      if (n100 > 10 && n100 < 20) return formArr[2];
-      if (n10 > 1 && n10 < 5) return formArr[1];
-      if (n10 === 1) return formArr[0];
-      return formArr[2];
+    let n10 = n % 10;
+    let n100 = n % 100;
+    if (n100 > 10 && n100 < 20) return formArr[2];
+    if (n10 > 1 && n10 < 5) return formArr[1];
+    if (n10 === 1) return formArr[0];
+    return formArr[2];
   }
 
   while (n > 0) {
-      let chunk = n % 1000;
-      if (chunk !== 0) {
-          let chunkWords = [];
-          let h = Math.floor(chunk / 100);
-          let t = Math.floor((chunk % 100) / 10);
-          let u = chunk % 10;
+    let chunk = n % 1000;
+    if (chunk !== 0) {
+      let chunkWords = [];
+      let h = Math.floor(chunk / 100);
+      let t = Math.floor((chunk % 100) / 10);
+      let u = chunk % 10;
 
-          if (h > 0) chunkWords.push(hundreds[h]);
-          if (t === 1) {
-              chunkWords.push(teens[u]);
-          } else {
-              if (t > 1) chunkWords.push(tens[t]);
-              if (u > 0) chunkWords.push(group === 1 ? units_f[u] : units[u]);
-          }
-          let form = getPlural(chunk, forms[group]);
-          if (form) chunkWords.push(form);
-          words = chunkWords.concat(words);
+      if (h > 0) chunkWords.push(hundreds[h]);
+      if (t === 1) {
+        chunkWords.push(teens[u]);
+      } else {
+        if (t > 1) chunkWords.push(tens[t]);
+        if (u > 0) chunkWords.push(group === 1 ? units_f[u] : units[u]);
       }
-      n = Math.floor(n / 1000);
-      group++;
+      let form = getPlural(chunk, forms[group]);
+      if (form) chunkWords.push(form);
+      words = chunkWords.concat(words);
+    }
+    n = Math.floor(n / 1000);
+    group++;
   }
   return words.join(' ').trim();
 }
@@ -706,12 +728,12 @@ document.getElementById('btn-open-kp').addEventListener('click', async () => {
   document.getElementById('kp-markup-input').value = '0';
   document.getElementById('kp-final-sum-label').textContent = '0';
   document.getElementById('kp-manual-file').value = '';
-  
+
   openModal('modal-generate-kp');
 
   const { ok, data } = await apiRequest('GET', `/api/manager/projects/${activeProjectId}/kp-data`);
   if (!ok) { container.innerHTML = `<span style="color:red">Ошибка: ${data.error}</span>`; return; }
-  
+
   const payload = data.data;
   if (!payload.works.length && payload.project.include_materials && !payload.materials.length) {
     container.innerHTML = '<strong>ВОР и ВОМ пусты. Сначала заполните их.</strong>';
@@ -724,19 +746,19 @@ document.getElementById('btn-open-kp').addEventListener('click', async () => {
 
   // Считаем суммы
   let worksTotal = 0;
-  payload.works.forEach(w => { 
+  payload.works.forEach(w => {
     w.total = parseFloat((w.quantity * w.base_price).toFixed(2));
-    worksTotal += w.total; 
+    worksTotal += w.total;
   });
-  
+
   let materialsTotal = 0;
-  payload.materials.forEach(m => { 
+  payload.materials.forEach(m => {
     m.total = parseFloat((m.quantity * m.base_price).toFixed(2));
-    materialsTotal += m.total; 
+    materialsTotal += m.total;
   });
 
   const baseSum = parseFloat((worksTotal + materialsTotal).toFixed(2));
-  
+
   currentKpData = {
     date: new Date().toLocaleDateString('ru-RU'),
     customerName: payload.project.contact_name || payload.project.customer_name || 'Не указан',
@@ -762,7 +784,7 @@ function renderKpPreview() {
   const markup = parseFloat(document.getElementById('kp-markup-input').value) || 0;
   currentKpData.finalSum = parseFloat((currentKpData.baseSum + markup).toFixed(2));
   currentKpData.finalSumWords = numberToWordsRu(currentKpData.finalSum);
-  
+
   document.getElementById('kp-final-sum-label').textContent = formatMoney(currentKpData.finalSum);
 
   const container = document.getElementById('kp-preview-content');
@@ -798,31 +820,31 @@ document.getElementById('btn-kp-download').addEventListener('click', async () =>
   if (!currentKpData) return;
   const btn = document.getElementById('btn-kp-download');
   btn.disabled = true; btn.textContent = 'Подготовка...';
-  
+
   try {
-     const res = await fetch(`/api/manager/projects/${activeProjectId}/kp-generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentKpData)
-     });
-     if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const safeName = currentKpData.projectName.replace(/[/\\?%*:|"<>]/g, '_');
-        a.download = `КП_${safeName}.docx`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-     } else {
-        const data = await res.json();
-        showToast(data.error || 'Ошибка скачивания', 'error');
-     }
-  } catch(e) {
-     console.error(e);
-     showToast('Сетевая ошибка', 'error');
+    const res = await fetch(`/api/manager/projects/${activeProjectId}/kp-generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(currentKpData)
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = currentKpData.projectName.replace(/[/\\?%*:|"<>]/g, '_');
+      a.download = `КП_${safeName}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } else {
+      const data = await res.json();
+      showToast(data.error || 'Ошибка скачивания', 'error');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('Сетевая ошибка', 'error');
   }
   btn.disabled = false; btn.textContent = 'Изменить (Скачать в Word)';
 });
@@ -831,27 +853,27 @@ document.getElementById('btn-kp-send').addEventListener('click', async () => {
   if (!currentKpData) return;
   const btn = document.getElementById('btn-kp-send');
   btn.disabled = true; btn.textContent = 'Отправка...';
-  
+
   const fd = new FormData();
   const fileInput = document.getElementById('kp-manual-file');
   if (fileInput.files.length > 0) {
-     fd.append('file', fileInput.files[0]);
+    fd.append('file', fileInput.files[0]);
   } else {
-     fd.append('kpData', JSON.stringify(currentKpData));
+    fd.append('kpData', JSON.stringify(currentKpData));
   }
-  
+
   const { ok, data } = await apiRequest('POST', `/api/manager/projects/${activeProjectId}/kp-send`, fd);
-  
+
   btn.disabled = false; btn.textContent = 'Отправить Заказчику';
-  
+
   if (ok) {
-     showToast('Коммерческое предложение отправлено!', 'success');
-     closeModal('modal-generate-kp');
-     loadProjectDocs(activeProjectId);
-     loadFunnel();
-     loadProjects();
+    showToast('Коммерческое предложение отправлено!', 'success');
+    closeModal('modal-generate-kp');
+    loadProjectDocs(activeProjectId);
+    loadFunnel();
+    loadProjects();
   } else {
-     showToast(data.error || 'Ошибка при отправке', 'error');
+    showToast(data.error || 'Ошибка при отправке', 'error');
   }
 });
 
@@ -914,15 +936,15 @@ async function loadRequests() {
   const tbody = document.querySelector('#requests-table tbody');
   tbody.innerHTML = data.data.map(r => `
     <tr>
-      <td>${escHtml(r.name||'—')}</td>
-      <td>${escHtml(r.phone||'')} ${escHtml(r.email||'')}</td>
-      <td style="max-width:200px;font-size:.85rem">${escHtml((r.message||'').slice(0,80))}${r.message?.length>80?'...':''}</td>
+      <td>${escHtml(r.name || '—')}</td>
+      <td>${escHtml(r.phone || '')} ${escHtml(r.email || '')}</td>
+      <td style="max-width:200px;font-size:.85rem">${escHtml((r.message || '').slice(0, 80))}${r.message?.length > 80 ? '...' : ''}</td>
       <td>${badge(r.status)}</td>
       <td>${formatDate(r.created_at)}</td>
       <td><button class="btn btn-sm btn-outline" data-action="open-request"
           data-id="${r.id}" data-status="${r.status}"
-          data-name="${escHtml(r.name||'')}" data-phone="${escHtml(r.phone||'')}"
-          data-email="${escHtml(r.email||'')}" data-message="${escHtml(r.message||'')}">Открыть</button></td>
+          data-name="${escHtml(r.name || '')}" data-phone="${escHtml(r.phone || '')}"
+          data-email="${escHtml(r.email || '')}" data-message="${escHtml(r.message || '')}">Открыть</button></td>
     </tr>
   `).join('') || '<tr><td colspan="6" class="text-muted">Заявок нет</td></tr>';
 }
@@ -934,11 +956,11 @@ document.getElementById('requests-table').addEventListener('click', (e) => {
   activeRequestId = id;
   activeRequestData = { name, phone, email, message };
   document.getElementById('modal-request-info').innerHTML = `
-    <p><strong>Имя:</strong> ${escHtml(name||'—')}</p>
-    <p><strong>Телефон:</strong> ${escHtml(phone||'—')}</p>
-    <p><strong>Email:</strong> ${escHtml(email||'—')}</p>
+    <p><strong>Имя:</strong> ${escHtml(name || '—')}</p>
+    <p><strong>Телефон:</strong> ${escHtml(phone || '—')}</p>
+    <p><strong>Email:</strong> ${escHtml(email || '—')}</p>
     ${badge(status)}
-    <p class="mt-2" style="font-size:.9rem;color:var(--muted)">${escHtml(message||'—')}</p>
+    <p class="mt-2" style="font-size:.9rem;color:var(--muted)">${escHtml(message || '—')}</p>
   `;
   document.getElementById('modal-request-files').innerHTML = '';
   loadRequestFiles(id);
@@ -953,7 +975,7 @@ async function loadRequestFiles(id) {
     <div style="font-size:.82rem;color:var(--muted);margin-bottom:.35rem">Файлы из заявки</div>
     ${data.data.map(f => `
       <div style="display:flex;align-items:center;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border);font-size:.83rem">
-        <span style="color:var(--muted);flex-shrink:0;white-space:nowrap">${escHtml(REQUEST_DOC_LABELS[f.doc_type]||f.doc_type||'—')}</span>
+        <span style="color:var(--muted);flex-shrink:0;white-space:nowrap">${escHtml(REQUEST_DOC_LABELS[f.doc_type] || f.doc_type || '—')}</span>
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.file_name)}</span>
         <a href="${f.url}" target="_blank" class="btn btn-outline btn-sm" style="font-size:.75rem;flex-shrink:0">Скачать</a>
       </div>`).join('')}
@@ -987,7 +1009,7 @@ async function loadMessages() {
     return `
       <tr>
         <td>${isOutbox ? `→ ${escHtml(m.receiver_name)}` : `← ${escHtml(m.sender_name)}`}</td>
-        <td>${escHtml(m.subject||'(без темы)')}</td>
+        <td>${escHtml(m.subject || '(без темы)')}</td>
         <td>${formatDate(m.created_at)}</td>
         <td>${!isOutbox && !m.is_read ? '<span class="badge badge-blue">Новое</span>' : '<span class="badge badge-gray">Прочитано</span>'}</td>
       </tr>
@@ -1018,5 +1040,58 @@ document.getElementById('new-message-form').addEventListener('submit', async (e)
   if (ok) { showToast('Отправлено', 'success'); closeModal('modal-new-message'); loadMessages(); }
   else showToast(data.error, 'error');
 });
+
+// ─── Автодополнение Справочника ──────────────────────────────
+let catalogData = [];
+async function initCatalogAutocomplete(role) {
+  const { ok, data } = await apiRequest('GET', `/api/${role}/catalog`);
+  if (!ok) return;
+  catalogData = data.data;
+
+  const datalist = document.getElementById('catalog-datalist');
+  if (datalist) {
+    datalist.innerHTML = catalogData.map(c => `<option value="${escHtml(c.item_name)}"></option>`).join('');
+  }
+
+  const singleInput = document.getElementById('single-work-name-input');
+  if (singleInput) {
+    singleInput.addEventListener('input', (e) => {
+      const val = e.target.value.trim().toLowerCase();
+      const match = catalogData.find(c => c.item_name.toLowerCase() === val);
+      if (match) {
+        const form = e.target.closest('form');
+        if (form && form.elements['unit']) form.elements['unit'].value = match.unit;
+      }
+    });
+  }
+
+  const batchBody = document.getElementById('batch-tbody');
+  if (batchBody) {
+    batchBody.addEventListener('input', (e) => {
+      if (e.target.classList.contains('batch-name')) {
+        const val = e.target.value.trim().toLowerCase();
+        const match = catalogData.find(c => c.item_name.toLowerCase() === val);
+        if (match) {
+          const tr = e.target.closest('tr');
+          if (tr) {
+            const unitSel = tr.querySelector('.batch-unit');
+            if (unitSel && !Array.from(unitSel.options).find(o => o.value === match.unit)) {
+              unitSel.add(new Option(match.unit, match.unit));
+            }
+            if (unitSel) unitSel.value = match.unit;
+          }
+        }
+      }
+      if (e.target.classList.contains('batch-name') && !e.target.hasAttribute('list')) {
+        e.target.setAttribute('list', 'catalog-datalist');
+      }
+    });
+    batchBody.addEventListener('focusin', (e) => {
+      if (e.target.classList.contains('batch-name') && !e.target.hasAttribute('list')) {
+        e.target.setAttribute('list', 'catalog-datalist');
+      }
+    });
+  }
+}
 
 init();

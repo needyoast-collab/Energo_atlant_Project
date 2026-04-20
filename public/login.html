@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <script>const COMING_SOON = false; if (COMING_SOON) window.location.href = '/';</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Войти в личный кабинет | ЭнергоАтлант</title>
-  <meta name="description" content="Личный кабинет заказчика ЭнергоАтлант: контролируйте ход работ, смотрите фотоотчёты и документы онлайн.">
+  <meta name="description"
+    content="Личный кабинет заказчика ЭнергоАтлант: контролируйте ход работ, смотрите фотоотчёты и документы онлайн.">
   <meta name="robots" content="noindex, nofollow">
   <meta name="author" content="ЭнергоАтлант">
   <meta name="geo.region" content="RU-MOS">
@@ -13,183 +15,120 @@
   <link rel="canonical" href="https://energoatlant.ru/login.html">
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
-    .auth-box  { width: 100%; max-width: 420px; }
-    .auth-logo { font-family: 'Stolzl', sans-serif; font-size: 2rem; color: var(--accent); margin-bottom: .25rem; }
-    .auth-sub  { color: var(--muted); font-size: .9rem; margin-bottom: 2rem; }
-    .auth-card { background: var(--bg2); border: 1px solid var(--border); padding: 2rem;
-      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%); }
-    .auth-footer { text-align: center; margin-top: 1.5rem; color: var(--muted); font-size: .9rem; }
+    .auth-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .auth-box {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .auth-logo {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 2rem;
+      color: var(--accent);
+      margin-bottom: .25rem;
+    }
+
+    .auth-sub {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-bottom: 2rem;
+    }
+
+    .auth-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 2rem;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: var(--muted);
+      font-size: .9rem;
+    }
   </style>
 </head>
+
 <body class="grid-bg">
-<div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
-<div class="auth-wrap">
-  <div class="auth-box">
-    <div class="auth-card">
-      <div style="text-align:center;margin-bottom:1.75rem">
-        <img src="/img/logo.png" alt="ЭнергоАтлант" style="width:100%;object-fit:contain;max-height:90px;display:block;margin:0 auto">
-        <div class="auth-sub" style="margin-top:.75rem;margin-bottom:0">Система управления проектами</div>
-      </div>
-      <h2 style="margin-bottom:1.5rem;font-size:1.8rem">Вход</h2>
-      <form id="login-form">
-        <div class="form-group">
-          <label class="form-label">Email, Логин или Телефон</label>
-          <input type="text" class="form-control" name="identifier" placeholder="your@email.ru" required autofocus>
+  <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <div class="auth-card">
+        <div style="text-align:center;margin-bottom:1.75rem">
+          <img src="/img/logo.png" alt="ЭнергоАтлант"
+            style="width:100%;object-fit:contain;max-height:90px;display:block;margin:0 auto">
+          <div class="auth-sub" style="margin-top:.75rem;margin-bottom:0">Система управления проектами</div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Пароль</label>
-          <input type="password" class="form-control" name="password" placeholder="••••••••" required>
-        </div>
-        <button type="submit" class="btn btn-primary w-full mt-2">Войти</button>
-      </form>
+        <h2 style="margin-bottom:1.5rem;font-size:1.8rem">Вход</h2>
+        <form id="login-form">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" placeholder="your@email.ru" required autofocus>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Пароль</label>
+            <input type="password" class="form-control" name="password" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-full mt-2">Войти</button>
+        </form>
+      </div>
+      <div class="auth-footer">
+        Нет аккаунта? <a href="/register.html">Зарегистрироваться</a><br>
+        <a href="#" id="link-forgot" style="color:var(--muted);font-size:.85rem">Забыли пароль?</a><br>
+        <a href="/" style="color:var(--muted);font-size:.85rem">← На главную</a>
+      </div>
     </div>
-    <div class="auth-footer">
-      Нет аккаунта? <a href="/register.html">Зарегистрироваться</a><br>
-      <a href="#" id="link-forgot" style="color:var(--muted);font-size:.85rem">Забыли пароль?</a><br>
-      <a href="/" style="color:var(--muted);font-size:.85rem">← На главную</a>
-    </div>
   </div>
-</div>
+  <div id="toast-container"></div>
+  <script src="/js/preloader.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    const ROLE_DASHBOARD = {
+      admin: '/dashboard_admin.html',
+      manager: '/dashboard_manager.html',
+      foreman: '/dashboard_foreman.html',
+      supplier: '/dashboard_supplier.html',
+      pto: '/dashboard_pto.html',
+      customer: '/dashboard_customer.html',
+      partner: '/dashboard_partner.html',
+    };
 
-<!-- Модалка: Сброс пароля Шаг 1 -->
-<div class="modal-overlay" id="modal-forgot-1">
-  <div class="modal" style="max-width:400px">
-    <button class="modal-close" data-close="modal-forgot-1">×</button>
-    <div class="modal-title">Восстановление пароля</div>
-    <form id="forgot-form">
-      <div class="form-group">
-        <label class="form-label">Введите Email, Логин или Телефон</label>
-        <input type="text" class="form-control" id="forgot-identifier" placeholder="your@email.ru" required>
-      </div>
-      <button type="submit" class="btn btn-primary w-full">Отправить код</button>
-    </form>
-  </div>
-</div>
-
-<!-- Модалка: Сброс пароля Шаг 2 -->
-<div class="modal-overlay" id="modal-forgot-2">
-  <div class="modal" style="max-width:400px">
-    <button class="modal-close" data-close="modal-forgot-2">×</button>
-    <div class="modal-title">Сброс пароля</div>
-    <form id="reset-form">
-      <div class="form-group">
-        <label class="form-label">6-значный код из СМС или письма</label>
-        <input type="text" class="form-control" id="reset-code" placeholder="123456" required minlength="6" maxlength="6">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Новый пароль</label>
-        <input type="password" class="form-control" id="reset-password" placeholder="Минимум 8 символов" required minlength="8">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Повторите пароль</label>
-        <input type="password" class="form-control" id="reset-password-confirm" placeholder="Точно такой же пароль" required minlength="8">
-      </div>
-      <button type="submit" class="btn btn-primary w-full">Сохранить пароль</button>
-    </form>
-  </div>
-</div>
-<div id="toast-container"></div>
-<script src="/js/preloader.js"></script>
-<script src="/js/api.js"></script>
-<script>
-  const ROLE_DASHBOARD = {
-    admin:    '/dashboard_admin.html',
-    manager:  '/dashboard_manager.html',
-    foreman:  '/dashboard_foreman.html',
-    supplier: '/dashboard_supplier.html',
-    pto:      '/dashboard_pto.html',
-    customer: '/dashboard_customer.html',
-    partner:  '/dashboard_partner.html',
-  };
-
-  // Если уже залогинен — редирект
-  apiRequest('GET', '/api/auth/me').then(({ ok, data }) => {
-    if (ok) window.location.href = ROLE_DASHBOARD[data.data.role] || '/';
-  });
-
-  let resetIdentifier = '';
-
-  document.getElementById('link-forgot').addEventListener('click', (e) => {
-    e.preventDefault();
-    console.log('Forgot password clicked'); // Оставляем для дебага
-    const modal = document.getElementById('modal-forgot-1');
-    modal.classList.add('active');
-    modal.style.display = 'flex'; // На случай если CSS не применяет flex
-  });
-
-  document.querySelectorAll('.modal-close').forEach(btn => {
-    btn.addEventListener('click', () => {
-       const modal = document.getElementById(btn.dataset.close);
-       modal.classList.remove('active');
-       modal.style.display = '';
+    // Если уже залогинен — редирект
+    apiRequest('GET', '/api/auth/me').then(({ ok, data }) => {
+      if (ok) window.location.href = ROLE_DASHBOARD[data.data.role] || '/';
     });
-  });
 
-  document.getElementById('forgot-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = e.target.querySelector('button');
-    btn.disabled = true; btn.textContent = 'Отправка...';
-    
-    resetIdentifier = document.getElementById('forgot-identifier').value.trim();
-    const { ok, data } = await apiRequest('POST', '/api/auth/forgot-password', { identifier: resetIdentifier });
-    
-    btn.disabled = false; btn.textContent = 'Отправить код';
-    if (ok) {
-       document.getElementById('modal-forgot-1').classList.remove('active');
-       document.getElementById('modal-forgot-2').classList.add('active');
-       document.getElementById('modal-forgot-2').style.display = 'flex';
-       showToast('Код отправлен. Проверьте почту или телефон', 'success');
-    } else {
-       showToast(data.error || 'Ошибка', 'error');
-    }
-  });
-
-  document.getElementById('reset-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = e.target.querySelector('button');
-    btn.disabled = true; btn.textContent = 'Сохранение...';
-
-    const newPassword = document.getElementById('reset-password').value;
-    const confirmPassword = document.getElementById('reset-password-confirm').value;
-
-    if (newPassword !== confirmPassword) {
-       btn.disabled = false; btn.textContent = 'Сохранить пароль';
-       return showToast('Пароли не совпадают!', 'error');
-    }
-    
-    const code = document.getElementById('reset-code').value.trim();
-    
-    const { ok, data } = await apiRequest('POST', '/api/auth/reset-password', {
-       identifier: resetIdentifier, code, newPassword
+    document.getElementById('link-forgot').addEventListener('click', (e) => {
+      e.preventDefault();
+      showToast('Для сброса пароля обратитесь к администратору: energoatlant@yandex.ru', 'info');
     });
-    
-    btn.disabled = false; btn.textContent = 'Сохранить пароль';
-    if (ok) {
-       document.getElementById('modal-forgot-2').classList.remove('active');
-       showToast('Пароль изменён. Войдите в систему', 'success');
-    } else {
-       showToast(data.error || 'Ошибка', 'error');
-    }
-  });
 
-  document.getElementById('login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const btn = e.target.querySelector('button[type=submit]');
-    btn.disabled = true;
-    btn.textContent = 'Вход...';
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      btn.textContent = 'Вход...';
 
-    const { ok, data } = await apiRequest('POST', '/api/auth/login', Object.fromEntries(fd.entries()));
+      const { ok, data } = await apiRequest('POST', '/api/auth/login', Object.fromEntries(fd.entries()));
 
-    if (ok) {
-      window.location.href = ROLE_DASHBOARD[data.data.role] || '/';
-    } else {
-      showToast(data.error || 'Ошибка входа', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Войти';
-    }
-  });
-</script>
+      if (ok) {
+        window.location.href = ROLE_DASHBOARD[data.data.role] || '/';
+      } else {
+        showToast(data.error || 'Ошибка входа', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Войти';
+      }
+    });
+  </script>
 </body>
+
 </html>

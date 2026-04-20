@@ -11,12 +11,7 @@ async function apiRequest(method, url, body = null) {
   }
 
   const res = await fetch(url, opts);
-  let data;
-  try {
-    data = await res.json();
-  } catch (err) {
-    data = { error: 'Сбой парсинга ответа (не JSON)' };
-  }
+  const data = await res.json();
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -79,12 +74,12 @@ const STATUS_BADGE = {
 
 function badge(status) {
   const label = STATUS_LABELS[status] || status;
-  const cls   = STATUS_BADGE[status] || 'badge-gray';
+  const cls = STATUS_BADGE[status] || 'badge-gray';
   return `<span class="badge ${cls}">${label}</span>`;
 }
 
 function escHtml(str) {
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ─── Маска телефона +7 (___) ___-__-__ ───────────────────────

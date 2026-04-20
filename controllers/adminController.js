@@ -387,6 +387,101 @@ async function getProjectHistory(req, res, next) {
   }
 }
 
+// ─── Справочник расценок ───
+
+// GET /api/admin/catalog
+async function getCatalog(req, res, next) {
+  try {
+    const result = await pool.query(
+      `SELECT c.*, u.name as added_by_name 
+       FROM price_catalog c
+       LEFT JOIN users u ON c.added_by = u.id
+       ORDER BY c.item_name ASC`
+    );
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/admin/catalog/bulk
+// Принимает { items: [{ item_name, unit, base_price }, ...] }
+async function addCatalogBulk(req, res, next) {
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Пустой список' });
+    }
+
+    let added = 0;
+    for (const item of items) {
+      if (!item.item_name || !item.unit) continue;
+      
+      const price = parseFloat(item.base_price) || 0;
+      await pool.query(
+        `INSERT INTO price_catalog (item_type, item_name, unit, base_price, is_approved, added_by)
+         VALUES ('work', $1, $2, $3, TRUE, $4)
+         ON CONFLICT (item_name) DO UPDATE 
+         SET unit = EXCLUDED.unit, base_price = EXCLUDED.base_price, is_approved = TRUE, updated_at = NOW()`,
+        [item.item_name.trim(), item.unit.trim(), price, req.session.userId]
+      );
+      added++;
+    }
+    
+    return res.json({ success: true, message: `Добавлено/обновлено: ${added}` });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// PUT /api/admin/catalog/:id
+async function updateCatalogItem(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { item_name, unit, base_price } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE price_catalog 
+       SET item_name = $1, unit = $2, base_price = $3, updated_at = NOW()
+       WHERE id = $4 RETURNING *`,
+      [item_name, unit, base_price, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Не найдено' });
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/admin/catalog/:id/approve
+async function approveCatalogItem(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { base_price } = req.body;
+    const result = await pool.query(
+      `UPDATE price_catalog 
+       SET base_price = COALESCE($1, base_price), is_approved = TRUE, approved_at = NOW(), approved_by = $2, updated_at = NOW()
+       WHERE id = $3 RETURNING *`,
+      [base_price, req.session.userId, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Не найдено' });
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// DELETE /api/admin/catalog/:id
+async function deleteCatalogItem(req, res, next) {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM price_catalog WHERE id = $1', [id]);
+    return res.json({ success: true });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getUsers,
   createUser,
@@ -399,4 +494,9 @@ module.exports = {
   getProjectHistory,
   getPartnerPayouts,
   updatePartnerPayout,
+  getCatalog,
+  addCatalogBulk,
+  updateCatalogItem,
+  approveCatalogItem,
+  deleteCatalogItem
 };
