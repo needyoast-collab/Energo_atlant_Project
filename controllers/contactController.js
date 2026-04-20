@@ -11,6 +11,7 @@ const contactSchema = z.object({
 let transporter = null;
 
 function getTransporter() {
+  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) return null;
   if (!transporter) {
     transporter = nodemailer.createTransport({
       host:   'smtp.yandex.ru',
@@ -35,19 +36,20 @@ async function sendContact(req, res, next) {
 
     const { name, phone, email, message } = parsed.data;
 
-    if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-      console.warn('[contact] MAIL_USER/MAIL_PASS не заданы — письмо не отправлено');
+    const tp = getTransporter();
+    if (!tp) {
+      console.warn('[MAIL] Transporter не настроен, письмо не будет отправлено');
       return res.json({ success: true });
     }
 
     const lines = [
       `Имя: ${name}`,
       `Телефон: ${phone}`,
-      email   ? `Email: ${email}`     : null,
+      email   ? `Email: ${email}`       : null,
       message ? `Сообщение: ${message}` : null,
     ].filter(Boolean);
 
-    await getTransporter().sendMail({
+    await tp.sendMail({
       from:    `"ЭнергоАтлант сайт" <${process.env.MAIL_USER}>`,
       to:      'energoatlant@yandex.ru',
       subject: 'Новая заявка с сайта',

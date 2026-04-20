@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Закрываем технические страницы от индексации
+Disallow: /login.html
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /admin/
+
+# Яндекс-бот
+User-agent: Yandexbot
+Allow: /
+Disallow: /login.html
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /admin/
+
+Sitemap: https://energoatlant.ru/sitemap.xml
+Host: https://energoatlant.ru

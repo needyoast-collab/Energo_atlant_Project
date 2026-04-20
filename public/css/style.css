@@ -284,9 +284,10 @@ tr:hover td { background: rgba(245,166,35,.03); }
 }
 .notif-badge.hidden { display: none; }
 .notif-dropdown {
-  display: none; position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
+  display: none; position: absolute; bottom: calc(100% + 8px); left: 0;
+  width: min(380px, calc(100vw - 2rem));
   background: var(--bg3); border: 1px solid var(--border); border-radius: 12px;
-  z-index: 100; max-height: 320px; overflow-y: auto;
+  z-index: 100; max-height: 560px; overflow-y: auto;
   box-shadow: 0 8px 24px rgba(0,0,0,.4);
 }
 .notif-dropdown.open { display: block; }
@@ -331,9 +332,20 @@ tr:hover td { background: rgba(245,166,35,.03); }
   background: var(--bg2); border: 1px solid var(--border);
   padding: 2rem; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
   border-radius: 16px;
+  position: relative;
 }
 .modal-title { font-family: 'Stolzl', sans-serif; font-size: 1.6rem; color: var(--accent); margin-bottom: 1.5rem; }
-.modal-close { float: right; background: none; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; }
+.modal-close {
+  position: absolute;
+  top: .7rem;
+  right: .9rem;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
 
 /* ─── Канбан (воронка) ─── */
 .kanban { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem; }

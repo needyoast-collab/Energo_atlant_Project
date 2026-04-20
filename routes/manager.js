@@ -4,12 +4,26 @@ const { requireRole, ROLES } = require('../middleware/auth');
 const {
   getRequests,
   updateRequest,
+  getRequestFiles,
   getProjects,
+  getProject,
   createProject,
   updateProject,
+  copyRequestFiles,
   addTeamMember,
   analyzeProject,
   getStaff,
+  getStages,
+  createStage,
+  updateStage,
+  deleteStage,
+  getWorkSpecs,
+  addWorkSpec,
+  updateWorkSpec,
+  deleteWorkSpec,
+  generateStagesFromVOR,
+  getProjectWarehouse,
+  getProjectSpecs,
   uploadDocument,
   getDocuments,
   deleteDocument,
@@ -38,17 +52,38 @@ const upload = multer({
 
 router.use(requireRole([ROLES.MANAGER, ROLES.ADMIN]));
 
-router.get('/requests',                          getRequests);
-router.put('/requests/:id',                      updateRequest);
-router.get('/projects',                          getProjects);
-router.post('/projects',                         createProject);
-router.put('/projects/:id',                      updateProject);
-router.post('/projects/:id/team',                addTeamMember);
-router.post('/projects/:id/analyze',             analyzeProject);
-router.post('/projects/:id/documents',           upload.single('file'), uploadDocument);
-router.get('/projects/:id/documents',            getDocuments);
-router.delete('/documents/:id',                  deleteDocument);
-router.get('/doc-types',                         getDocTypes);
-router.get('/staff',                             getStaff);
+router.get('/requests',                                    getRequests);
+router.put('/requests/:id',                                updateRequest);
+router.get('/requests/:id/files',                          getRequestFiles);
+
+router.get('/projects',                                    getProjects);
+router.post('/projects',                                   createProject);
+router.get('/projects/:id',                                getProject);
+router.put('/projects/:id',                                updateProject);
+router.post('/projects/:id/team',                          addTeamMember);
+router.post('/projects/:id/copy-request-files',            copyRequestFiles);
+router.post('/projects/:id/analyze',                       analyzeProject);
+router.post('/projects/:id/documents',                     upload.single('file'), uploadDocument);
+router.get('/projects/:id/documents',                      getDocuments);
+
+// specific before parametric
+router.post('/projects/:id/stages/generate-from-vor',      generateStagesFromVOR);
+router.get('/projects/:id/stages',                         getStages);
+router.post('/projects/:id/stages',                        createStage);
+
+router.put('/stages/:stageId',                             updateStage);
+router.delete('/stages/:stageId',                          deleteStage);
+
+router.get('/projects/:id/work-specs',                     getWorkSpecs);
+router.post('/projects/:id/work-specs',                    addWorkSpec);
+router.put('/work-specs/:id',                              updateWorkSpec);
+router.delete('/work-specs/:id',                           deleteWorkSpec);
+
+router.get('/projects/:id/warehouse',                      getProjectWarehouse);
+router.get('/projects/:id/specs',                          getProjectSpecs);
+
+router.delete('/documents/:id',                            deleteDocument);
+router.get('/doc-types',                                   getDocTypes);
+router.get('/staff',                                       getStaff);
 
 module.exports = router;

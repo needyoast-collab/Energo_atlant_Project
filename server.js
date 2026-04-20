@@ -22,7 +22,9 @@ if (process.env.NODE_ENV === 'development') {
 // Таймаут запроса — 30 сек (защита от зависших AI-запросов и т.п.)
 app.use((req, res, next) => {
   res.setTimeout(30000, () => {
-    res.status(503).json({ success: false, error: 'Request timeout' });
+    if (!res.headersSent) {
+      res.status(503).json({ success: false, error: 'Request timeout' });
+    }
   });
   next();
 });
@@ -51,6 +53,11 @@ app.use('/api/partner',       require('./routes/partner'));
 app.use('/api/messages',      require('./routes/messages'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/documents',     require('./routes/documents'));
+
+// 404 для неизвестных API-маршрутов (чтобы не возвращать HTML)
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ success: false, error: 'API маршрут не найден' });
+});
 
 // SPA-фолбэк: все неизвестные GET → index.html
 app.get('*', (req, res) => {

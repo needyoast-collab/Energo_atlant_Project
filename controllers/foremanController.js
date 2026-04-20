@@ -22,7 +22,7 @@ const {
 async function getProjects(req, res, next) {
   try {
     const result = await pool.query(
-      `SELECT p.id, p.code, p.name, p.status, p.address, p.created_at,
+      `SELECT p.id, p.code, p.name, p.status, p.address, p.stages_generated, p.created_at,
               u.name as manager_name
        FROM projects p
        JOIN project_members pm ON pm.project_id = p.id
@@ -48,7 +48,8 @@ async function getProject(req, res, next) {
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
     const result = await pool.query(
-      `SELECT p.id, p.code, p.name, p.status, p.description, p.address, p.contract_value, p.created_at,
+      `SELECT p.id, p.code, p.name, p.status, p.description, p.address, p.contract_value,
+              p.stages_generated, p.created_at,
               u.name as manager_name
        FROM projects p
        LEFT JOIN users u ON u.id = p.manager_id
@@ -72,7 +73,9 @@ async function getStages(req, res, next) {
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
     const stages = await pool.query(
-      `SELECT id, name, status, order_num, planned_start, planned_end, actual_end, created_at
+      `SELECT id, name, status, order_num, planned_start, planned_end, actual_end,
+              is_from_vor, vor_item_id, unit, planned_value, actual_value,
+              planned_date, actual_date, note, customer_agreed, created_at
        FROM project_stages
        WHERE project_id = $1 AND is_deleted = FALSE
        ORDER BY order_num, created_at`,
@@ -139,6 +142,24 @@ async function updateStage(req, res, next) {
        RETURNING id, name, status, order_num, planned_start, planned_end, actual_end`,
       values
     );
+
+    if (parsed.data.status === 'not_done') {
+      if (!parsed.data.note) {
+        return res.status(400).json({ success: false, error: 'Примечание обязательно при статусе «Не выполнено»' });
+      }
+      const customers = await pool.query(
+        `SELECT user_id FROM project_members WHERE project_id = $1 AND role = 'customer'`,
+        [stage.rows[0].project_id]
+      );
+      await Promise.all(customers.rows.map(c =>
+        sendNotification({
+          userId:    c.user_id,
+          projectId: stage.rows[0].project_id,
+          type:      'status',
+          message:   `Требуется согласование по этапу: ${result.rows[0].name}`,
+        })
+      ));
+    }
 
     if (parsed.data.status === 'done') {
       const members = await pool.query(
@@ -208,6 +229,73 @@ async function uploadPhoto(req, res, next) {
 
     const signedUrl = await getSignedDownloadUrl(fileKey);
     return res.status(201).json({ success: true, data: { ...result.rows[0], url: signedUrl } });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/foreman/projects/:id/stages/generate-from-vor
+async function generateStagesFromVOR(req, res, next) {
+  try {
+    const { id } = req.params;
+    const isMember = await checkMembership(id, req.session.userId);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
+
+    const project = await pool.query(
+      `SELECT stages_generated FROM projects WHERE id = $1 AND is_deleted = FALSE`,
+      [id]
+    );
+    if (!project.rows[0]) return res.status(404).json({ success: false, error: 'Проект не найден' });
+    if (project.rows[0].stages_generated) {
+      return res.status(400).json({ success: false, error: 'Этапы уже сформированы' });
+    }
+
+    const workSpecs = await pool.query(
+      `SELECT id, work_name, unit, quantity FROM work_specs
+       WHERE project_id = $1 AND is_deleted = FALSE
+       ORDER BY created_at`,
+      [id]
+    );
+    if (!workSpecs.rows.length) {
+      return res.status(400).json({ success: false, error: 'ВОР пустой — нечего формировать' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      for (let i = 0; i < workSpecs.rows.length; i++) {
+        const ws = workSpecs.rows[i];
+        await client.query(
+          `INSERT INTO project_stages
+           (project_id, name, status, order_num, is_from_vor, vor_item_id, unit, planned_value, actual_value)
+           VALUES ($1, $2, 'planned', $3, true, $4, $5, $6, 0)`,
+          [id, ws.work_name, i + 1, ws.id, ws.unit || null, ws.quantity]
+        );
+      }
+
+      await client.query(
+        `UPDATE projects SET stages_generated = true WHERE id = $1`,
+        [id]
+      );
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    const stages = await pool.query(
+      `SELECT id, name, status, order_num, is_from_vor, vor_item_id, unit, planned_value, actual_value
+       FROM project_stages
+       WHERE project_id = $1 AND is_deleted = FALSE
+       ORDER BY order_num`,
+      [id]
+    );
+
+    return res.status(201).json({ success: true, data: stages.rows });
   } catch (err) {
     return next(err);
   }
@@ -555,6 +643,7 @@ module.exports = {
   getStages,
   createStage,
   updateStage,
+  generateStagesFromVOR,
   uploadPhoto,
   getWarehouse,
   writeoffWarehouse,

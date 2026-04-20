@@ -3,13 +3,15 @@ const SPEC_STATUS = {
   approved: 'Согласовано', rejected: 'Отклонено',
 };
 const SOURCE_LABELS = { company: 'Общий склад', purchase: 'Закупка', customer: 'От заказчика' };
+const VOR_STATUS_LABELS = { planned: 'Запланировано', done: 'Выполнено', not_done: 'Не выполнено' };
 
-let currentUser      = null;
-let projectsList     = [];
-let activeProjectId  = null;
-let activeStageId    = null;
+let currentUser       = null;
+let projectsList      = [];
+let activeProjectId   = null;
+let activeStageId     = null;
+let activeStageIsVor  = false;
 let activeWarehouseId = null;
-let activeSpecId     = null;
+let activeSpecId      = null;
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
@@ -104,40 +106,98 @@ async function loadStages(id) {
     list.innerHTML = '<div style="color:var(--muted);font-size:.9rem">Этапов нет. Добавьте первый.</div>';
     return;
   }
-  list.innerHTML = data.data.map(s => `
+
+  const vorStages = data.data.filter(s => s.is_from_vor && Number(s.planned_value) > 0);
+  let progressHtml = '';
+  if (vorStages.length) {
+    const sumPlan   = vorStages.reduce((a, s) => a + Number(s.planned_value), 0);
+    const sumActual = vorStages.reduce((a, s) => a + Number(s.actual_value || 0), 0);
+    const pct = sumPlan > 0 ? Math.min(100, Math.round(sumActual / sumPlan * 100)) : 0;
+    progressHtml = `
+      <div style="margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.35rem">
+          <span style="color:var(--muted)">Прогресс (факт/план)</span>
+          <span style="font-weight:700;color:var(--accent)">${pct}%</span>
+        </div>
+        <div style="height:5px;background:var(--border);border-radius:9999px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:9999px;transition:width .4s"></div>
+        </div>
+      </div>`;
+  }
+
+  list.innerHTML = progressHtml + data.data.map(s => {
+    const isVor = s.is_from_vor;
+    const statusLabel = isVor ? (VOR_STATUS_LABELS[s.status] || s.status) : s.status;
+    const subInfo = isVor
+      ? `${s.actual_value != null ? s.actual_value : 0} / ${s.planned_value} ${escHtml(s.unit || '')}`
+        + (s.note ? ` · <span style="color:var(--danger)">${escHtml(s.note)}</span>` : '')
+      : (s.planned_start ? `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}` : '')
+        + (s.actual_end ? ` · Факт: ${formatDate(s.actual_end)}` : '');
+
+    return `
     <div class="stage-item">
       <div class="stage-status-dot dot-${s.status}"></div>
       <div style="flex:1">
         <div class="stage-name">${escHtml(s.name)}</div>
-        <div class="stage-dates">
-          ${s.planned_start ? `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}` : ''}
-          ${s.actual_end ? ` · Факт: ${formatDate(s.actual_end)}` : ''}
-        </div>
+        <div class="stage-dates">${subInfo}</div>
       </div>
-      <div style="display:flex;gap:.4rem">
+      <div style="display:flex;gap:.4rem;align-items:center">
         ${badge(s.status)}
         <button class="btn btn-outline btn-sm" data-action="edit-stage"
-          data-id="${s.id}" data-name="${escHtml(s.name)}" data-status="${s.status}"
+          data-id="${s.id}"
+          data-name="${escHtml(s.name)}"
+          data-status="${s.status}"
+          data-is-vor="${isVor ? '1' : '0'}"
+          data-planned-value="${s.planned_value || ''}"
+          data-actual-value="${s.actual_value || ''}"
+          data-unit="${escHtml(s.unit || '')}"
+          data-planned-date="${s.planned_date || ''}"
+          data-actual-date="${s.actual_date || ''}"
+          data-note="${escHtml(s.note || '')}"
           data-ps="${s.planned_start||''}" data-pe="${s.planned_end||''}" data-ae="${s.actual_end||''}">
           Изменить
         </button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 document.getElementById('stages-list').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="edit-stage"]');
   if (!btn) return;
-  activeStageId = btn.dataset.id;
+  activeStageId    = btn.dataset.id;
+  activeStageIsVor = btn.dataset.isVor === '1';
+
   const f = document.getElementById('edit-stage-form');
-  f.name.value          = btn.dataset.name;
-  f.status.value        = btn.dataset.status;
-  f.planned_start.value = btn.dataset.ps;
-  f.planned_end.value   = btn.dataset.pe;
-  f.actual_end.value    = btn.dataset.ae;
+  document.getElementById('edit-stage-name').value = btn.dataset.name;
+  document.getElementById('edit-stage-name').readOnly = activeStageIsVor;
+
+  document.getElementById('edit-stage-regular').style.display = activeStageIsVor ? 'none' : '';
+  document.getElementById('edit-stage-vor').style.display     = activeStageIsVor ? '' : 'none';
+
+  if (activeStageIsVor) {
+    document.getElementById('edit-stage-status-vor').value  = btn.dataset.status;
+    document.getElementById('edit-stage-planned-val').value = btn.dataset.plannedValue;
+    document.getElementById('edit-stage-unit').value        = btn.dataset.unit;
+    f.actual_value.value  = btn.dataset.actualValue;
+    f.planned_date.value  = btn.dataset.plannedDate;
+    f.actual_date.value   = btn.dataset.actualDate;
+    f.note.value          = btn.dataset.note;
+    updateNoteRequired();
+    document.getElementById('edit-stage-status-vor').addEventListener('change', updateNoteRequired);
+  } else {
+    document.getElementById('edit-stage-status-regular').value = btn.dataset.status;
+    f.planned_start.value = btn.dataset.ps;
+    f.planned_end.value   = btn.dataset.pe;
+    f.actual_end.value    = btn.dataset.ae;
+  }
   openModal('modal-edit-stage');
 });
+
+function updateNoteRequired() {
+  const isNotDone = document.getElementById('edit-stage-status-vor').value === 'not_done';
+  document.getElementById('edit-stage-note-required').style.display = isNotDone ? '' : 'none';
+}
 
 document.getElementById('btn-add-stage').addEventListener('click', () => {
   document.getElementById('add-stage-form').reset();
@@ -163,10 +223,31 @@ document.getElementById('add-stage-form').addEventListener('submit', async (e) =
 document.getElementById('edit-stage-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const body = Object.fromEntries(fd.entries());
-  if (!body.planned_start) delete body.planned_start;
-  if (!body.planned_end)   delete body.planned_end;
-  if (!body.actual_end)    delete body.actual_end;
+  let body = {};
+
+  if (activeStageIsVor) {
+    const status = document.getElementById('edit-stage-status-vor').value;
+    body.status = status;
+    body.name   = document.getElementById('edit-stage-name').value;
+    const av = fd.get('actual_value');
+    if (av !== '' && av !== null) body.actual_value = parseFloat(av);
+    const pd = fd.get('planned_date');
+    if (pd) body.planned_date = pd;
+    const ad = fd.get('actual_date');
+    if (ad) body.actual_date = ad;
+    const note = fd.get('note');
+    if (note) body.note = note;
+    if (status === 'not_done' && !note) {
+      showToast('Заполните примечание для статуса «Не выполнено»', 'error');
+      return;
+    }
+  } else {
+    body = Object.fromEntries(fd.entries());
+    body.status = document.getElementById('edit-stage-status-regular').value;
+    if (!body.planned_start) delete body.planned_start;
+    if (!body.planned_end)   delete body.planned_end;
+    if (!body.actual_end)    delete body.actual_end;
+  }
 
   const { ok, data } = await apiRequest('PUT', `/api/foreman/stages/${activeStageId}`, body);
   if (ok) {
@@ -258,13 +339,28 @@ async function loadWorkSpecs(id) {
   const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${id}/work-specs`);
   if (!ok) { container.innerHTML = '<div style="color:var(--danger)">Ошибка загрузки</div>'; return; }
 
+  const project = projectsList.find(p => p.id == id);
+  const generated = project?.stages_generated;
+
+  const btnGenerate = document.getElementById('btn-generate-stages');
+  const btnAdd      = document.getElementById('btn-add-work-spec');
+  const btnBatch    = document.getElementById('btn-batch-work-specs');
+
+  btnGenerate.style.display = (!generated && data.data.length) ? '' : 'none';
+  btnAdd.style.display      = generated ? 'none' : '';
+  btnBatch.style.display    = generated ? 'none' : '';
+
   const specs = data.data;
   if (!specs.length) {
     container.innerHTML = '<div style="color:var(--muted)">Позиций нет. Добавьте объёмы работ.</div>';
     return;
   }
 
-  container.innerHTML = `
+  const readonly = generated
+    ? '<div style="color:var(--muted);font-size:.82rem;margin-bottom:.75rem">ВОР заблокирован — этапы уже сформированы.</div>'
+    : '';
+
+  container.innerHTML = readonly + `
     <div class="table-wrap">
       <table>
         <thead>
@@ -285,6 +381,21 @@ async function loadWorkSpecs(id) {
     </div>
   `;
 }
+
+document.getElementById('btn-generate-stages').addEventListener('click', async () => {
+  if (!confirm('Этапы будут сформированы из ВОР. ВОР станет недоступен для редактирования. Продолжить?')) return;
+  const btn = document.getElementById('btn-generate-stages');
+  btn.disabled = true;
+  const { ok, data } = await apiRequest('POST', `/api/foreman/projects/${activeProjectId}/stages/generate-from-vor`);
+  btn.disabled = false;
+  if (ok) {
+    showToast(`Создано этапов: ${data.data.length}`, 'success');
+    const project = projectsList.find(p => p.id == activeProjectId);
+    if (project) project.stages_generated = true;
+    loadWorkSpecs(activeProjectId);
+    loadStages(activeProjectId);
+  } else showToast(data.error, 'error');
+});
 
 document.getElementById('btn-add-work-spec').addEventListener('click', () => {
   document.getElementById('add-work-spec-form').reset();

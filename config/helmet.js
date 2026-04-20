@@ -11,6 +11,7 @@ const helmetConfig = helmet({
       connectSrc: ["'self'", 'unpkg.com'],
       mediaSrc: ["'self'"],
       objectSrc: ["'none'"],
+      frameSrc: ["'self'", 'https://yandex.ru', 'https://*.yandex.ru', 'https://*.yandex.net'],
       frameAncestors: ["'none'"],
     },
   },

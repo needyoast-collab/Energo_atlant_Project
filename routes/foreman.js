@@ -8,6 +8,7 @@ const {
   getStages,
   createStage,
   updateStage,
+  generateStagesFromVOR,
   uploadPhoto,
   getWarehouse,
   writeoffWarehouse,
@@ -40,11 +41,12 @@ router.get('/projects',                       getProjects);
 router.post('/projects/join',                 joinProject);
 router.get('/projects/:id',                   getProject);
 
-// Этапы
-router.get('/projects/:id/stages',            getStages);
-router.post('/projects/:id/stages',           createStage);
-router.put('/stages/:id',                     updateStage);
-router.post('/stages/:id/photos',             upload.single('photo'), uploadPhoto);
+// Этапы (generate-from-vor до createStage — конкретный маршрут выше параметрического)
+router.get('/projects/:id/stages',                    getStages);
+router.post('/projects/:id/stages/generate-from-vor', generateStagesFromVOR);
+router.post('/projects/:id/stages',                   createStage);
+router.put('/stages/:id',                             updateStage);
+router.post('/stages/:id/photos',                     upload.single('photo'), uploadPhoto);
 
 // Склад объекта
 router.get('/projects/:id/warehouse',         getWarehouse);

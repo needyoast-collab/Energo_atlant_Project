@@ -229,6 +229,164 @@ async function updatePartnerPayout(req, res, next) {
   }
 }
 
+// GET /api/admin/projects
+async function getProjects(req, res, next) {
+  try {
+    const {
+      q,
+      status,
+      progress,
+      stage_state,
+      created_from,
+      created_to,
+    } = req.query;
+
+    const values = [];
+    let idx = 1;
+    const filters = ['p.is_deleted = FALSE'];
+
+    if (q) {
+      values.push(`%${q.trim()}%`);
+      filters.push(`(p.code ILIKE $${idx} OR p.name ILIKE $${idx} OR COALESCE(p.address, '') ILIKE $${idx})`);
+      idx++;
+    }
+    if (status) {
+      values.push(status);
+      filters.push(`p.status = $${idx++}`);
+    }
+    if (created_from) {
+      values.push(created_from);
+      filters.push(`p.created_at::date >= $${idx++}::date`);
+    }
+    if (created_to) {
+      values.push(created_to);
+      filters.push(`p.created_at::date <= $${idx++}::date`);
+    }
+
+    if (progress === 'green') {
+      filters.push(`(p.status = 'won' OR (COALESCE(st.stage_total, 0) > 0 AND COALESCE(st.stage_done, 0) = COALESCE(st.stage_total, 0)))`);
+    } else if (progress === 'yellow') {
+      filters.push(`(COALESCE(st.stage_done, 0) > 0 AND NOT (p.status = 'won' OR (COALESCE(st.stage_total, 0) > 0 AND COALESCE(st.stage_done, 0) = COALESCE(st.stage_total, 0))))`);
+    } else if (progress === 'red') {
+      filters.push(`(COALESCE(st.stage_done, 0) = 0 AND p.status <> 'won')`);
+    }
+
+    if (stage_state === 'no_stages') {
+      filters.push(`COALESCE(st.stage_total, 0) = 0`);
+    } else if (stage_state === 'none_done') {
+      filters.push(`COALESCE(st.stage_total, 0) > 0 AND COALESCE(st.stage_done, 0) = 0`);
+    } else if (stage_state === 'has_done') {
+      filters.push(`COALESCE(st.stage_done, 0) > 0`);
+    } else if (stage_state === 'all_done') {
+      filters.push(`COALESCE(st.stage_total, 0) > 0 AND COALESCE(st.stage_done, 0) = COALESCE(st.stage_total, 0)`);
+    }
+
+    const result = await pool.query(
+      `SELECT p.id, p.code, p.name, p.status, p.address, p.contract_value, p.created_at,
+              u.id as manager_id, u.name as manager_name,
+              COALESCE(st.stage_total, 0)::int AS stage_total,
+              COALESCE(st.stage_done, 0)::int AS stage_done,
+              CASE
+                WHEN p.status = 'won' OR (COALESCE(st.stage_total, 0) > 0 AND COALESCE(st.stage_done, 0) = COALESCE(st.stage_total, 0)) THEN 'green'
+                WHEN COALESCE(st.stage_done, 0) > 0 THEN 'yellow'
+                ELSE 'red'
+              END AS progress_color
+       FROM projects p
+       LEFT JOIN users u ON u.id = p.manager_id
+       LEFT JOIN (
+         SELECT ps.project_id,
+                COUNT(*) FILTER (WHERE ps.is_deleted = FALSE) AS stage_total,
+                COUNT(*) FILTER (WHERE ps.is_deleted = FALSE AND ps.status = 'done') AS stage_done
+         FROM project_stages ps
+         GROUP BY ps.project_id
+       ) st ON st.project_id = p.id
+       WHERE ${filters.join(' AND ')}
+       ORDER BY p.created_at DESC`,
+      values
+    );
+
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// GET /api/admin/project-history
+async function getProjectHistory(req, res, next) {
+  try {
+    const {
+      project_id,
+      changed_by,
+      action,
+      date_from,
+      date_to,
+      q,
+      limit,
+    } = req.query;
+
+    const values = [];
+    let idx = 1;
+    const filters = ['1 = 1'];
+
+    if (project_id) {
+      values.push(project_id);
+      filters.push(`ph.project_id = $${idx++}`);
+    }
+    if (changed_by) {
+      values.push(changed_by);
+      filters.push(`ph.changed_by = $${idx++}`);
+    }
+    if (action) {
+      values.push(action);
+      filters.push(`ph.action = $${idx++}`);
+    }
+    if (date_from) {
+      values.push(date_from);
+      filters.push(`ph.created_at::date >= $${idx++}::date`);
+    }
+    if (date_to) {
+      values.push(date_to);
+      filters.push(`ph.created_at::date <= $${idx++}::date`);
+    }
+    if (q) {
+      values.push(`%${q.trim()}%`);
+      filters.push(`(
+        p.code ILIKE $${idx}
+        OR p.name ILIKE $${idx}
+        OR COALESCE(ph.field_name, '') ILIKE $${idx}
+        OR COALESCE(ph.old_value, '') ILIKE $${idx}
+        OR COALESCE(ph.new_value, '') ILIKE $${idx}
+        OR COALESCE(ph.details, '') ILIKE $${idx}
+      )`);
+      idx++;
+    }
+
+    const parsedLimit = Number.parseInt(limit, 10);
+    const safeLimit = Number.isFinite(parsedLimit)
+      ? Math.max(1, Math.min(parsedLimit, 500))
+      : 200;
+    values.push(safeLimit);
+
+    const result = await pool.query(
+      `SELECT ph.id, ph.project_id, ph.changed_by, ph.action, ph.field_name,
+              ph.old_value, ph.new_value, ph.details, ph.created_at,
+              p.code AS project_code, p.name AS project_name,
+              u.name AS changed_by_name, u.role AS changed_by_role
+       FROM project_history ph
+       JOIN projects p ON p.id = ph.project_id
+       LEFT JOIN users u ON u.id = ph.changed_by
+       WHERE ${filters.join(' AND ')}
+       ORDER BY ph.created_at DESC
+       LIMIT $${idx}`,
+      values
+    );
+
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getUsers,
   createUser,
@@ -237,6 +395,8 @@ module.exports = {
   verifyUser,
   restoreUser,
   getMetrics,
+  getProjects,
+  getProjectHistory,
   getPartnerPayouts,
   updatePartnerPayout,
 };

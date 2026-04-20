@@ -1,4 +1,17 @@
 let currentUser = null;
+const PROJECT_STATUS_LABELS = {
+  lead: 'Лид',
+  qualification: 'Квалификация',
+  visit: 'Выезд',
+  offer: 'КП',
+  negotiation: 'Переговоры',
+  contract: 'Договор',
+  work: 'В работе',
+  won: 'Завершён',
+  lost: 'Отказ',
+};
+const PROGRESS_COLORS = { green: '#22c55e', yellow: '#f59e0b', red: '#ef4444' };
+const PROGRESS_LABELS = { green: 'Завершён', yellow: 'В работе', red: 'Не начат' };
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
@@ -11,6 +24,8 @@ async function init() {
 // ─── Навигация ────────────────────────────────────────────────
 initNav(section => {
   if (section === 'users')   loadUsers();
+  if (section === 'projects') loadProjects();
+  if (section === 'project-history') loadProjectHistory();
   if (section === 'payouts') loadPayouts();
 });
 
@@ -37,6 +52,82 @@ async function loadMetrics() {
   tbody.innerHTML = m.projects.map(p => `
     <tr><td>${badge(p.status)}</td><td>${p.count}</td></tr>
   `).join('');
+}
+
+function makeQueryFromForm(form) {
+  const fd = new FormData(form);
+  const params = new URLSearchParams();
+  for (const [key, raw] of fd.entries()) {
+    const value = String(raw).trim();
+    if (value) params.set(key, value);
+  }
+  return params.toString() ? `?${params.toString()}` : '';
+}
+
+// ─── Проекты ─────────────────────────────────────────────────
+async function loadProjects() {
+  const form = document.getElementById('projects-filter-form');
+  const query = form ? makeQueryFromForm(form) : '';
+  const tbody = document.querySelector('#admin-projects-table tbody');
+  let resp = await apiRequest('GET', `/api/admin/projects${query}`);
+
+  // Fallback: если backend ещё не перезапущен и нет admin endpoint,
+  // берём список из manager endpoint (admin туда допущен по ролям).
+  if (!resp.ok && resp.status === 404) {
+    resp = await apiRequest('GET', '/api/manager/projects');
+  }
+
+  if (!resp.ok) {
+    const msg = resp.data?.error || `Ошибка загрузки (${resp.status})`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-muted">${escHtml(msg)}</td></tr>`;
+    showToast(msg, 'error');
+    return;
+  }
+
+  const list = resp.data?.data || [];
+  tbody.innerHTML = list.map(p => `
+    <tr>
+      <td>
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${PROGRESS_COLORS[p.progress_color] || '#6b7280'};vertical-align:middle;margin-right:6px"></span>
+        <span style="font-size:.8rem;color:var(--muted)">${PROGRESS_LABELS[p.progress_color] || '—'}</span>
+      </td>
+      <td>${escHtml(p.code)}</td>
+      <td>${escHtml(p.name)}</td>
+      <td>${badge(PROJECT_STATUS_LABELS[p.status] || p.status)}</td>
+      <td>${p.stage_done}/${p.stage_total}</td>
+      <td>${escHtml(p.address || '—')}</td>
+      <td>${escHtml(p.manager_name || '—')}</td>
+      <td>${formatDate(p.created_at)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" class="text-muted">Проектов нет</td></tr>';
+}
+
+// ─── История проектов ────────────────────────────────────────
+async function loadProjectHistory() {
+  const form = document.getElementById('project-history-filter-form');
+  const query = form ? makeQueryFromForm(form) : '';
+  const { ok, data, status } = await apiRequest('GET', `/api/admin/project-history${query}`);
+
+  const tbody = document.querySelector('#project-history-table tbody');
+  if (!ok) {
+    const msg = data?.error || `Ошибка загрузки (${status})`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-muted">${escHtml(msg)}</td></tr>`;
+    showToast(msg, 'error');
+    return;
+  }
+
+  tbody.innerHTML = data.data.map(h => `
+    <tr>
+      <td>${formatDateTime(h.created_at)}</td>
+      <td>${escHtml(h.project_code)}<br><span class="text-muted" style="font-size:.78rem">${escHtml(h.project_name || '')}</span></td>
+      <td><span class="badge badge-gray">${escHtml(h.action)}</span></td>
+      <td>${escHtml(h.field_name || '—')}</td>
+      <td style="max-width:180px;word-break:break-word;font-size:.82rem">${escHtml(h.old_value || '—')}</td>
+      <td style="max-width:180px;word-break:break-word;font-size:.82rem">${escHtml(h.new_value || '—')}</td>
+      <td>${escHtml(h.changed_by_name || 'Система')}<br><span class="text-muted" style="font-size:.78rem">${escHtml(h.changed_by_role || '')}</span></td>
+      <td style="max-width:220px;word-break:break-word;font-size:.82rem">${escHtml(h.details || '—')}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" class="text-muted">История пуста</td></tr>';
 }
 
 // ─── Пользователи ─────────────────────────────────────────────
@@ -160,6 +251,28 @@ async function loadPayouts() {
 document.getElementById('btn-create-user').addEventListener('click', () => {
   document.getElementById('create-user-form').reset();
   openModal('modal-create-user');
+});
+
+document.getElementById('projects-filter-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loadProjects();
+});
+
+document.getElementById('btn-projects-filter-reset').addEventListener('click', async () => {
+  const form = document.getElementById('projects-filter-form');
+  form.reset();
+  loadProjects();
+});
+
+document.getElementById('project-history-filter-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loadProjectHistory();
+});
+
+document.getElementById('btn-history-filter-reset').addEventListener('click', async () => {
+  const form = document.getElementById('project-history-filter-form');
+  form.reset();
+  loadProjectHistory();
 });
 
 init();

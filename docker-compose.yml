@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: energoatlant-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: energoatlant
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - energoatlant_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d energoatlant"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: energoatlant-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - energoatlant_minio_data:/data
+
+volumes:
+  energoatlant_pg_data:
+  energoatlant_minio_data:

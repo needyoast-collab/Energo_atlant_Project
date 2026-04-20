@@ -8,6 +8,8 @@ const {
   verifyUser,
   restoreUser,
   getMetrics,
+  getProjects,
+  getProjectHistory,
   getPartnerPayouts,
   updatePartnerPayout,
 } = require('../controllers/adminController');
@@ -23,6 +25,8 @@ router.delete('/users/:id',           deleteUser);
 router.post('/users/:id/verify',      verifyUser);
 router.post('/users/:id/restore',     restoreUser);
 router.get('/metrics',                getMetrics);
+router.get('/projects',               getProjects);
+router.get('/project-history',        getProjectHistory);
 router.get('/partner-payouts',        getPartnerPayouts);
 router.put('/partner-payouts/:id',    updatePartnerPayout);
 

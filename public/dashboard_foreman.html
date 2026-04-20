@@ -135,11 +135,15 @@
 
     <!-- ВОР: ведомость объёмов работ -->
     <div id="tab-work-specs" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
         <div style="font-weight:600;font-size:.9rem">Ведомость объёмов работ</div>
-        <div style="display:flex;gap:.5rem">
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap" id="vor-actions">
           <button class="btn btn-outline btn-sm" id="btn-batch-work-specs" style="font-size:.78rem">Массовое добавление</button>
           <button class="btn btn-primary btn-sm" id="btn-add-work-spec" style="font-size:.78rem">+ Создать позицию</button>
+          <button class="btn btn-sm" id="btn-generate-stages"
+            style="font-size:.78rem;background:var(--success);color:#000;border:none;display:none">
+            ⚡ Сформировать этапы
+          </button>
         </div>
       </div>
       <div id="work-specs-list"></div>
@@ -227,30 +231,80 @@
     <form id="edit-stage-form">
       <div class="form-group">
         <label class="form-label">Название</label>
-        <input type="text" class="form-control" name="name" required>
+        <input type="text" class="form-control" name="name" required id="edit-stage-name">
       </div>
-      <div class="form-group">
-        <label class="form-label">Статус</label>
-        <select class="form-control" name="status">
-          <option value="pending">Не начат</option>
-          <option value="in_progress">В работе</option>
-          <option value="done">Завершён</option>
-        </select>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+
+      <!-- Обычные поля (не VOR) -->
+      <div id="edit-stage-regular">
         <div class="form-group">
-          <label class="form-label">Плановое начало</label>
-          <input type="date" class="form-control" name="planned_start">
+          <label class="form-label">Статус</label>
+          <select class="form-control" id="edit-stage-status-regular">
+            <option value="pending">Не начат</option>
+            <option value="in_progress">В работе</option>
+            <option value="done">Завершён</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div class="form-group">
+            <label class="form-label">Плановое начало</label>
+            <input type="date" class="form-control" name="planned_start">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Плановое окончание</label>
+            <input type="date" class="form-control" name="planned_end">
+          </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Плановое окончание</label>
-          <input type="date" class="form-control" name="planned_end">
+          <label class="form-label">Фактическое окончание</label>
+          <input type="date" class="form-control" name="actual_end">
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Фактическое окончание</label>
-        <input type="date" class="form-control" name="actual_end">
+
+      <!-- VOR-поля -->
+      <div id="edit-stage-vor" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Статус</label>
+          <select class="form-control" id="edit-stage-status-vor">
+            <option value="planned">Запланировано</option>
+            <option value="done">Выполнено</option>
+            <option value="not_done">Не выполнено</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
+          <div class="form-group">
+            <label class="form-label">Объём план</label>
+            <input type="text" class="form-control" id="edit-stage-planned-val" readonly
+              style="background:var(--bg3);color:var(--muted)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Факт</label>
+            <input type="number" class="form-control" name="actual_value" min="0" step="0.001">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ед. изм.</label>
+            <input type="text" class="form-control" id="edit-stage-unit" readonly
+              style="background:var(--bg3);color:var(--muted)">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div class="form-group">
+            <label class="form-label">Плановая дата</label>
+            <input type="date" class="form-control" name="planned_date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Фактическая дата</label>
+            <input type="date" class="form-control" name="actual_date">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Примечание
+            <span id="edit-stage-note-required" style="color:var(--danger);display:none"> *</span>
+          </label>
+          <textarea class="form-control" name="note" rows="3"
+            placeholder="Укажите причину невыполнения..."></textarea>
+        </div>
       </div>
+
       <button type="submit" class="btn btn-primary w-full mt-2">Сохранить</button>
     </form>
   </div>

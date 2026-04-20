@@ -84,6 +84,21 @@
       font-size: .7rem;
       margin-top: .15rem;
     }
+    .stage-photo-thumb {
+      display: block;
+      border-radius: 6px;
+      overflow: hidden;
+      aspect-ratio: 1;
+      background: var(--bg3);
+    }
+    .stage-photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: grayscale(60%);
+      transition: filter .3s;
+    }
+    .stage-photo-thumb:hover img { filter: grayscale(0%); }
     .pcc-footer {
       display: flex;
       justify-content: space-between;
@@ -181,39 +196,29 @@
         <input type="tel" class="form-control" name="phone" placeholder="+7 999 000 00 00">
       </div>
       <div class="form-group">
-        <label class="form-label">Сообщение <span style="color:var(--accent)">*</span></label>
-        <textarea class="form-control" name="message" rows="4" required
+        <label class="form-label">Сообщение</label>
+        <textarea class="form-control" name="message" rows="4"
           placeholder="Опишите объект, вид работ, сроки..."></textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Тип документа</label>
-        <select class="form-control" name="doc_type">
-          <option value="">— Выберите тип документа —</option>
-          <option value="tu">Технические условия (ТУ)</option>
-          <option value="rd">Рабочая документация (РД)</option>
-          <option value="pd">Проектная документация (ПД)</option>
-          <option value="tz">Техническое задание (ТЗ)</option>
-          <option value="situation_plan">Ситуационный план</option>
-          <option value="other">Прочее</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Документ <span style="color:var(--muted);font-weight:400;font-size:.8rem">(необязательно)</span></label>
-        <div class="file-zone" id="req-file-zone">
-          <input type="file" id="req-file-input" name="file" accept=".pdf,.dwg,.doc,.docx,.xls,.xlsx" style="display:none">
-          <div id="req-file-placeholder">
-            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" style="width:20px;height:20px;stroke:var(--accent);display:block;margin:0 auto .3rem">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-            </svg>
-            <div style="color:var(--accent);font-weight:600;font-size:.88rem">Прикрепить документ</div>
-            <div style="color:var(--muted);font-size:.75rem;margin-top:.2rem">PDF, DWG, DOC, DOCX, XLS, XLSX · до 10 МБ</div>
-          </div>
-          <div class="file-zone-selected" id="req-file-selected" style="display:none">
-            <span id="req-file-name" style="font-size:.88rem;font-weight:600;word-break:break-all"></span>
-            <button type="button" class="file-zone-clear" id="req-file-clear">×</button>
-          </div>
+        <label class="form-label">Документы <span style="color:var(--muted);font-weight:400;font-size:.8rem">(необязательно)</span></label>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+          <select class="form-control" id="req-doc-type" style="flex:1;min-width:160px">
+            <option value="">— Тип документа —</option>
+            <option value="tu">Технические условия (ТУ)</option>
+            <option value="rd">Рабочая документация (РД)</option>
+            <option value="pd">Проектная документация (ПД)</option>
+            <option value="tz">Техническое задание (ТЗ)</option>
+            <option value="situation_plan">Ситуационный план</option>
+            <option value="other">Прочее</option>
+          </select>
+          <label class="btn btn-outline btn-sm" for="req-file-input" style="cursor:pointer;white-space:nowrap;margin:0">Выбрать файл</label>
+          <input type="file" id="req-file-input" accept=".pdf,.dwg,.doc,.docx,.xls,.xlsx" style="display:none">
+          <button type="button" class="btn btn-outline btn-sm" id="btn-add-file">Добавить</button>
         </div>
-        <div class="file-zone-error" id="req-file-error" style="display:none"></div>
+        <div id="req-selected-filename" style="font-size:.8rem;color:var(--muted);margin-top:.3rem;display:none"></div>
+        <div id="req-file-error" style="color:var(--danger);font-size:.8rem;margin-top:.3rem;display:none"></div>
+        <div id="req-files-list" style="margin-top:.5rem"></div>
       </div>
       <button type="submit" class="btn btn-primary w-full mt-2">Отправить</button>
     </form>
@@ -264,6 +269,36 @@
     <!-- Материалы -->
     <div id="tab-warehouse" style="display:none">
       <div id="warehouse-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА: детали этапа -->
+<div class="modal-overlay" id="modal-stage-detail">
+  <div class="modal" style="max-width:580px;max-height:90vh;overflow-y:auto">
+    <button class="modal-close" data-close="modal-stage-detail">×</button>
+    <div id="stage-detail-body"></div>
+  </div>
+</div>
+
+<!-- МОДАЛКА: согласование этапа не_выполнено -->
+<div class="modal-overlay" id="modal-approve-stage">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-approve-stage">×</button>
+    <div class="modal-title">Согласование этапа</div>
+    <div id="approve-stage-name" style="font-weight:600;margin-bottom:.75rem"></div>
+    <div style="margin-bottom:1rem">
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem">Примечание прораба:</div>
+      <div id="approve-stage-note"
+        style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem;
+               font-size:.88rem;color:var(--text);line-height:1.5"></div>
+    </div>
+    <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem">
+      Нажимая «Согласовать», вы подтверждаете, что ознакомлены с причиной невыполнения этапа.
+    </p>
+    <div style="display:flex;gap:.5rem">
+      <button class="btn btn-outline" style="flex:1" data-close="modal-approve-stage">Отмена</button>
+      <button class="btn btn-primary" style="flex:1" id="btn-confirm-approve">Согласовать</button>
     </div>
   </div>
 </div>

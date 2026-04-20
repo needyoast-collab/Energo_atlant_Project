@@ -1,8 +1,9 @@
 const { pool } = require('../config/database');
 const { sendNotification } = require('../utils/notifications');
 const { z } = require('zod');
+const { ROLES } = require('../middleware/auth');
 
-const ALLOWED_SENDER_ROLES = ['admin', 'manager', 'customer'];
+const ALLOWED_SENDER_ROLES = [ROLES.ADMIN, ROLES.MANAGER, ROLES.CUSTOMER];
 
 const sendSchema = z.object({
   receiver_id: z.number().int().positive(),

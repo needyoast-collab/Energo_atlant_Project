@@ -23,11 +23,15 @@ const createStageSchema = z.object({
 
 const updateStageSchema = z.object({
   name:          z.string().min(1).max(200).optional(),
-  status:        z.enum(['pending', 'in_progress', 'done']).optional(),
+  status:        z.enum(['pending', 'in_progress', 'done', 'planned', 'not_done']).optional(),
   order_num:     z.number().int().min(0).optional(),
   planned_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   planned_end:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   actual_end:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  actual_value:  z.number().min(0).optional(),
+  planned_date:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  actual_date:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  note:          z.string().max(1000).optional(),
 });
 
 const mtrSchema = z.object({
@@ -110,6 +114,12 @@ const addWorkSpecSchema = z.object({
   quantity:  z.number().positive(),
 });
 
+const updateWorkSpecSchema = z.object({
+  work_name: z.string().min(1).max(200).optional(),
+  unit:      z.string().max(20).optional(),
+  quantity:  z.number().positive().optional(),
+});
+
 const batchWorkSpecItemSchema = z.object({
   work_name: z.string().min(1).max(200),
   unit:      z.string().max(20).optional(),
@@ -135,7 +145,7 @@ const uploadDocSchema = z.object({
 const REQUEST_DOC_TYPES = ['tu', 'rd', 'pd', 'tz', 'situation_plan', 'other'];
 
 const createRequestSchema = z.object({
-  message:  z.string().min(1).max(2000),
+  message:  z.string().max(2000).optional(),
   phone:    z.string().max(20).optional(),
   doc_type: z.enum(REQUEST_DOC_TYPES).optional(),
 });
@@ -238,6 +248,7 @@ module.exports = {
   rejectSpecSchema,
   batchSpecSchema,
   addWorkSpecSchema,
+  updateWorkSpecSchema,
   batchWorkSpecSchema,
   uploadDocSchema,
   createRequestSchema,

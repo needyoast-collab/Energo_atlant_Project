@@ -3,11 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Контакты — ЭнергоАтлант</title>
-  <meta property="og:title" content="Контакты — ЭнергоАтлант">
-  <meta property="og:description" content="Свяжитесь с нами — электромонтажные работы в Москве и Московской области">
-  <meta property="og:url" content="https://energoatlant.ru/contact.html">
+  <title>Контакты — ЭнергоАтлант | Электромонтаж Москва</title>
+  <meta name="description" content="Свяжитесь с ЭнергоАтлант: +7 (993) 907-45-77, energoatlant@yandex.ru. Москва, ул. Новоорловская, 10. Работаем Пн–Пт 09:00–18:00, Сб 10:00–15:00.">
+  <meta name="author" content="ЭнергоАтлант">
+  <meta name="geo.region" content="RU-MOS">
+  <meta name="geo.placename" content="Москва">
+  <link rel="canonical" href="https://energoatlant.ru/contact.html">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://energoatlant.ru/contact.html">
+  <meta property="og:title" content="Контакты — ЭнергоАтлант | Электромонтаж Москва">
+  <meta property="og:description" content="Оставьте заявку или позвоните: +7 (993) 907-45-77. Выезд инженера на объект, расчёт стоимости — бесплатно.">
+  <meta property="og:image" content="https://energoatlant.ru/img/og-preview.jpg">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:site_name" content="ЭнергоАтлант">
   <link rel="icon" type="image/png" href="/img/logo.png">
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/aos.css">
@@ -183,17 +191,17 @@
     <li><a href="/">Главная</a></li>
     <li><a href="/services.html">Услуги</a></li>
     <li><a href="/portfolio.html">Объекты</a></li>
-    <li><span class="navbar-link-disabled">Партнёрам</span></li>
+    <li><a href="/partners.html">Партнёрам</a></li>
     <li><a href="/contact.html">Контакты</a></li>
   </ul>
   <div class="navbar-actions">
     <button class="navbar-burger" aria-label="Меню">
       <span></span><span></span><span></span>
     </button>
-    <button class="btn btn-primary btn-sm lk-disabled" disabled title="Личный кабинет — скоро" style="opacity:0.5;cursor:not-allowed;pointer-events:none">
+    <a href="/login.html" class="btn btn-primary btn-sm">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span class="navbar-btn-text">Скоро</span>
-    </button>
+      <span class="navbar-btn-text">Личный кабинет</span>
+    </a>
   </div>
 </nav>
 
@@ -326,7 +334,14 @@
 
     <!-- Карта -->
     <div class="map-wrap" data-aos="fade-up" style="margin-top:3rem">
-      <iframe src="https://yandex.ru/map-widget/v1/?text=Москва%2C+ул.+Новоорловская%2C+д.+10&z=16" width="100%" height="400" frameborder="0" allowfullscreen></iframe>
+      <iframe
+        src="https://yandex.ru/map-widget/v1/?apikey=a35aac04-3583-4621-b3f4-77f96e5853e1&text=Москва%2C+ул.+Новоорловская%2C+д.+10&z=16"
+        width="100%"
+        height="400"
+        frameborder="0"
+        allowfullscreen
+        style="border-radius: 8px; display: block;">
+      </iframe>
     </div>
   </div>
 </section>
@@ -351,7 +366,7 @@
       <div class="footer-col-title">Компания</div>
       <ul class="footer-links">
         <li><a href="/portfolio.html">Объекты</a></li>
-        <li><span class="navbar-link-disabled">Партнёрам</span></li>
+        <li><a href="/partners.html">Партнёрам</a></li>
         <li><a href="/contact.html">Контакты</a></li>
       </ul>
     </div>
@@ -383,9 +398,22 @@ AOS.init({ once: true, offset: 60 });
 document.getElementById('request-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
+
+  // Проверяем полноту номера телефона (11 цифр для РФ)
+  const phoneVal = fd.get('phone') || '';
+  const phoneDigits = phoneVal.replace(/\D/g, '');
+  if (phoneDigits.length < 11) {
+    const phoneInput = e.target.querySelector('input[name="phone"]');
+    phoneInput.style.borderColor = 'var(--danger, #e53e3e)';
+    phoneInput.focus();
+    showToast('Введите полный номер телефона', 'error');
+    setTimeout(() => { phoneInput.style.borderColor = ''; }, 2500);
+    return;
+  }
+
   const body = { message: fd.get('message') || '' };
   if (fd.get('name'))  body.name  = fd.get('name');
-  if (fd.get('phone')) body.phone = fd.get('phone');
+  body.phone = phoneVal;
   if (fd.get('email')) body.email = fd.get('email');
   const btn = e.target.querySelector('button[type=submit]');
   btn.disabled = true; btn.textContent = 'Отправка...';

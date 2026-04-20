@@ -1,6 +1,9 @@
-let currentUser = null;
-let projectsList = [];
+let currentUser     = null;
+let projectsList    = [];
 let activeProjectId = null;
+let stagesCache     = [];
+
+const VOR_STATUS_LABELS = { planned: 'Запланировано', done: 'Выполнено', not_done: 'Не выполнено' };
 
 // ─── Маппинг статусов для заказчика ──────────────────────────
 const CUSTOMER_STATUS_MAP = {
@@ -175,8 +178,19 @@ async function loadStages(id) {
 
   const stages = data.data;
   const total  = stages.length;
-  const done   = stages.filter(s => s.status === 'done').length;
-  const pct    = total ? Math.round(done / total * 100) : 0;
+
+  const vorStages = stages.filter(s => s.is_from_vor && Number(s.planned_value) > 0);
+  let pct, progressSub;
+  if (vorStages.length) {
+    const sumPlan   = vorStages.reduce((a, s) => a + Number(s.planned_value), 0);
+    const sumActual = vorStages.reduce((a, s) => a + Number(s.actual_value || 0), 0);
+    pct = sumPlan > 0 ? Math.min(100, Math.round(sumActual / sumPlan * 100)) : 0;
+    progressSub = `Выполнено: ${sumActual.toFixed(2)} из ${sumPlan.toFixed(2)} (объём работ)`;
+  } else {
+    const done = stages.filter(s => s.status === 'done').length;
+    pct = total ? Math.round(done / total * 100) : 0;
+    progressSub = `${done} из ${total} этапов завершено`;
+  }
 
   document.getElementById('stages-progress').innerHTML = total ? `
     <div style="margin-bottom:1rem">
@@ -187,7 +201,7 @@ async function loadStages(id) {
       <div style="height:6px;background:var(--border);border-radius:9999px;overflow:hidden">
         <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:9999px;transition:width .5s"></div>
       </div>
-      <div style="color:var(--muted);font-size:.8rem;margin-top:.4rem">${done} из ${total} этапов завершено</div>
+      <div style="color:var(--muted);font-size:.8rem;margin-top:.4rem">${progressSub}</div>
     </div>
   ` : '';
 
@@ -197,19 +211,146 @@ async function loadStages(id) {
     return;
   }
 
-  list.innerHTML = stages.map(s => `
-    <div class="stage-item">
+  stagesCache = stages;
+
+  list.innerHTML = stages.map(s => {
+    const isNotDone = s.status === 'not_done';
+    const isAgreed  = s.customer_agreed;
+
+    let subInfo = '';
+    if (s.is_from_vor) {
+      subInfo = `${s.actual_value != null ? s.actual_value : 0} / ${s.planned_value} ${escHtml(s.unit || '')}`;
+      if (s.planned_date) subInfo += ` · план: ${formatDate(s.planned_date)}`;
+      if (s.actual_date)  subInfo += ` · факт: ${formatDate(s.actual_date)}`;
+    } else {
+      if (s.planned_start) subInfo += `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}`;
+      if (s.actual_end)    subInfo += ` · Сдан: ${formatDate(s.actual_end)}`;
+      if (s.photo_count > 0) subInfo += ` · 📷 ${s.photo_count} фото`;
+    }
+
+    const statusBadge = isNotDone
+      ? `<span class="badge badge-red" style="font-size:.72rem">${isAgreed ? 'Согласовано' : 'Требует согласования'}</span>`
+      : badge(s.status);
+
+    return `
+    <div class="stage-item" style="cursor:pointer${isNotDone && !isAgreed ? ';border-left:2px solid var(--danger);padding-left:.5rem' : ''}"
+         data-action="open-stage" data-id="${s.id}">
       <div class="stage-status-dot dot-${s.status}"></div>
       <div style="flex:1">
         <div class="stage-name">${escHtml(s.name)}</div>
-        <div class="stage-dates">
-          ${s.planned_start ? `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}` : ''}
-          ${s.actual_end ? ` · Сдан: ${formatDate(s.actual_end)}` : ''}
-          ${s.photo_count > 0 ? ` · 📷 ${s.photo_count} фото` : ''}
-        </div>
+        <div class="stage-dates">${subInfo}</div>
       </div>
-      ${badge(s.status)}
-    </div>
+      ${statusBadge}
+    </div>`;
+  }).join('');
+}
+
+// ─── Детальная модалка этапа ──────────────────────────────────
+let approveStageId = null;
+
+document.getElementById('stages-list').addEventListener('click', (e) => {
+  const item = e.target.closest('[data-action="open-stage"]');
+  if (!item) return;
+  const stage = stagesCache.find(s => s.id == item.dataset.id);
+  if (stage) openStageDetailModal(stage);
+});
+
+function openStageDetailModal(s) {
+  approveStageId = s.id;
+
+  const isNotDone  = s.status === 'not_done';
+  const isAgreed   = s.customer_agreed;
+  const statusLabel = s.is_from_vor
+    ? (VOR_STATUS_LABELS[s.status] || s.status)
+    : (s.status === 'pending' ? 'Не начат' : s.status === 'in_progress' ? 'В работе' : s.status === 'done' ? 'Завершён' : s.status);
+
+  let detailRows = '';
+
+  if (s.is_from_vor) {
+    detailRows += row('Объём (план)', `${s.planned_value} ${escHtml(s.unit || '')}`);
+    detailRows += row('Объём (факт)', `${s.actual_value != null ? s.actual_value : 0} ${escHtml(s.unit || '')}`);
+    if (s.planned_date) detailRows += row('Плановая дата', formatDate(s.planned_date));
+    if (s.actual_date)  detailRows += row('Фактическая дата', formatDate(s.actual_date));
+  } else {
+    if (s.planned_start) detailRows += row('Период', `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}`);
+    if (s.actual_end)    detailRows += row('Сдан', formatDate(s.actual_end));
+  }
+
+  const noteBlock = s.note
+    ? `<div style="margin-top:1rem">
+         <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem">Примечание прораба</div>
+         <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem;
+                     font-size:.88rem;line-height:1.5${isNotDone ? ';border-color:var(--danger)' : ''}">${escHtml(s.note)}</div>
+       </div>`
+    : '';
+
+  const approveBlock = (isNotDone && !isAgreed)
+    ? `<div style="margin-top:1.25rem;padding:1rem;background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:10px">
+         <div style="color:var(--danger);font-weight:600;font-size:.88rem;margin-bottom:.5rem">⚠ Требует вашего согласования</div>
+         <p style="color:var(--muted);font-size:.82rem;margin-bottom:.75rem">
+           Ознакомьтесь с примечанием прораба и подтвердите, что приняли информацию к сведению.
+         </p>
+         <button class="btn btn-primary btn-sm" id="btn-approve-in-modal">Согласовать</button>
+       </div>`
+    : isAgreed && isNotDone
+    ? `<div style="margin-top:1rem;color:var(--muted);font-size:.85rem">✓ Вы согласовали этот этап</div>`
+    : '';
+
+  const photosBlock = Number(s.photo_count) > 0
+    ? `<div style="margin-top:1.25rem">
+         <div style="font-size:.8rem;color:var(--muted);margin-bottom:.5rem">Фото (${s.photo_count})</div>
+         <div id="stage-photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem">
+           <div style="color:var(--muted);font-size:.82rem">Загрузка...</div>
+         </div>
+       </div>`
+    : '';
+
+  document.getElementById('stage-detail-body').innerHTML = `
+    <div class="modal-title" style="margin-bottom:.75rem">${escHtml(s.name)}</div>
+    <div style="margin-bottom:1rem">${badge(s.status)} <span style="font-size:.85rem;color:var(--muted);margin-left:.4rem">${statusLabel}</span></div>
+    <div style="display:grid;gap:.4rem">${detailRows}</div>
+    ${noteBlock}
+    ${photosBlock}
+    ${approveBlock}
+  `;
+
+  openModal('modal-stage-detail');
+
+  if (Number(s.photo_count) > 0) loadStagePhotos(s.id);
+
+  const approveBtn = document.getElementById('btn-approve-in-modal');
+  if (approveBtn) {
+    approveBtn.addEventListener('click', async () => {
+      approveBtn.disabled = true;
+      const { ok, data } = await apiRequest(
+        'PUT', `/api/customer/projects/${activeProjectId}/stages/${approveStageId}/approve`
+      );
+      approveBtn.disabled = false;
+      if (ok) {
+        showToast('Этап согласован', 'success');
+        closeModal('modal-stage-detail');
+        loadStages(activeProjectId);
+      } else showToast(data.error, 'error');
+    });
+  }
+}
+
+function row(label, value) {
+  return `<div style="display:flex;gap:.5rem;font-size:.88rem">
+    <span style="color:var(--muted);min-width:130px;flex-shrink:0">${label}</span>
+    <span>${value}</span>
+  </div>`;
+}
+
+async function loadStagePhotos(stageId) {
+  const grid = document.getElementById('stage-photos-grid');
+  if (!grid) return;
+  const { ok, data } = await apiRequest('GET', `/api/customer/stages/${stageId}/photos`);
+  if (!ok || !data.data.length) { grid.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Нет фото</span>'; return; }
+  grid.innerHTML = data.data.map(p => `
+    <a href="${p.url}" target="_blank" rel="noopener" class="stage-photo-thumb">
+      <img src="${p.url}" alt="${escHtml(p.description || '')}">
+    </a>
   `).join('');
 }
 
@@ -273,72 +414,119 @@ async function loadWarehouse(id) {
     </div>`;
 }
 
-// ─── Зона загрузки файла (заявка) ────────────────────────────
+// ─── Заявка — мульти-файловая очередь ────────────────────────
+let attachedFiles = [];
+
+const REQUEST_DOC_LABELS = {
+  tu:             'Технические условия',
+  rd:             'Рабочая документация',
+  pd:             'Проектная документация',
+  tz:             'Техническое задание',
+  situation_plan: 'Ситуационный план',
+  other:          'Прочее',
+};
+
+function truncateFilename(name, maxLen = 40) {
+  if (name.length <= maxLen) return name;
+  const tail = 15;
+  const head = maxLen - tail - 3;
+  return name.slice(0, head) + '...' + name.slice(-tail);
+}
+
+function renderFilesList() {
+  const container = document.getElementById('req-files-list');
+  if (!attachedFiles.length) { container.innerHTML = ''; return; }
+  container.innerHTML = attachedFiles.map((f, i) => `
+    <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;
+                background:var(--bg3);border:1px solid var(--border);border-radius:6px;margin-top:.3rem;font-size:.82rem">
+      <span style="color:var(--muted);flex-shrink:0;white-space:nowrap">${escHtml(REQUEST_DOC_LABELS[f.docType] || '—')}</span>
+      <span style="color:var(--muted)">|</span>
+      <span style="color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(truncateFilename(f.file.name))}</span>
+      <button type="button" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;
+                                   padding:0 .2rem;line-height:1;flex-shrink:0"
+              data-remove-file="${i}">×</button>
+    </div>`).join('');
+}
+
 (function () {
-  const ALLOWED = ['pdf','dwg','doc','docx','xls','xlsx'];
-  const MAX = 10 * 1024 * 1024;
-  const zone        = document.getElementById('req-file-zone');
-  const input       = document.getElementById('req-file-input');
-  const placeholder = document.getElementById('req-file-placeholder');
-  const selected    = document.getElementById('req-file-selected');
-  const nameEl      = document.getElementById('req-file-name');
-  const clearBtn    = document.getElementById('req-file-clear');
-  const errorEl     = document.getElementById('req-file-error');
+  const fileInput  = document.getElementById('req-file-input');
+  const fileNameEl = document.getElementById('req-selected-filename');
+  const errorEl    = document.getElementById('req-file-error');
+  const ALLOWED    = ['pdf','dwg','doc','docx','xls','xlsx'];
+  const MAX        = 130 * 1024 * 1024;
 
-  // Клик по зоне → открыть диалог. stopPropagation на input предотвращает рекурсию.
-  zone.addEventListener('click', () => input.click());
-  input.addEventListener('click', (e) => e.stopPropagation());
-
-  input.addEventListener('change', () => {
+  fileInput.addEventListener('change', () => {
     errorEl.style.display = 'none';
-    const file = input.files[0];
-    if (!file) return;
+    const file = fileInput.files[0];
+    if (!file) { fileNameEl.style.display = 'none'; return; }
+    fileNameEl.textContent = truncateFilename(file.name);
+    fileNameEl.style.display = '';
+  });
+
+  document.getElementById('btn-add-file').addEventListener('click', () => {
+    errorEl.style.display = 'none';
+    const file = fileInput.files[0];
+    if (!file) {
+      errorEl.textContent = 'Сначала выберите файл';
+      errorEl.style.display = ''; return;
+    }
     const ext = file.name.split('.').pop().toLowerCase();
     if (!ALLOWED.includes(ext)) {
       errorEl.textContent = 'Недопустимый формат. Разрешены: PDF, DWG, DOC, DOCX, XLS, XLSX';
-      errorEl.style.display = 'block';
-      input.value = ''; return;
+      errorEl.style.display = ''; return;
     }
     if (file.size > MAX) {
-      errorEl.textContent = 'Файл превышает 10 МБ';
-      errorEl.style.display = 'block';
-      input.value = ''; return;
+      errorEl.textContent = 'Файл превышает 130 МБ';
+      errorEl.style.display = ''; return;
     }
-    nameEl.textContent = file.name;
-    placeholder.style.display = 'none';
-    selected.style.display = '';
+    const docType = document.getElementById('req-doc-type').value;
+    attachedFiles.push({ file, docType });
+    fileInput.value = '';
+    fileNameEl.style.display = 'none';
+    document.getElementById('req-doc-type').value = '';
+    renderFilesList();
   });
 
-  clearBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    input.value = '';
-    placeholder.style.display = '';
-    selected.style.display = 'none';
-    errorEl.style.display = 'none';
+  document.getElementById('req-files-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-remove-file]');
+    if (!btn) return;
+    attachedFiles.splice(parseInt(btn.dataset.removeFile), 1);
+    renderFilesList();
   });
 })();
 
-function resetRequestFileZone() {
-  document.getElementById('req-file-input').value = '';
-  document.getElementById('req-file-placeholder').style.display = '';
-  document.getElementById('req-file-selected').style.display = 'none';
+function resetRequestForm() {
+  attachedFiles = [];
+  document.getElementById('req-files-list').innerHTML = '';
+  document.getElementById('req-selected-filename').style.display = 'none';
   document.getElementById('req-file-error').style.display = 'none';
+  document.getElementById('req-file-input').value = '';
+  document.getElementById('req-doc-type').value = '';
 }
 
 // ─── Заявка ──────────────────────────────────────────────────
 document.getElementById('btn-new-request').addEventListener('click', () => {
   document.getElementById('request-form').reset();
-  resetRequestFileZone();
+  resetRequestForm();
   openModal('modal-request');
 });
 
 document.getElementById('request-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const fd = new FormData(e.target);
-  if (!fd.get('doc_type')) fd.delete('doc_type');
-
   const btn = e.target.querySelector('button[type=submit]');
   btn.disabled = true;
+
+  const formData = new FormData(e.target);
+  const fd = new FormData();
+  const phone   = formData.get('phone') || '';
+  const message = formData.get('message') || '';
+  if (phone)   fd.append('phone', phone);
+  if (message) fd.append('message', message);
+  for (const af of attachedFiles) {
+    fd.append('files', af.file);
+    fd.append('doc_types', af.docType || '');
+  }
+
   const { ok, data } = await apiRequest('POST', '/api/customer/requests', fd);
   btn.disabled = false;
 
@@ -346,8 +534,10 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
     showToast('Заявка отправлена! Менеджер свяжется с вами.', 'success');
     closeModal('modal-request');
     e.target.reset();
-    resetRequestFileZone();
-  } else showToast(data.error, 'error');
+    resetRequestForm();
+  } else {
+    showToast(data?.error || 'Ошибка при отправке', 'error');
+  }
 });
 
 // ─── Войти по коду ───────────────────────────────────────────

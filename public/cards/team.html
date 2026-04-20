@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+  <title>Команда | ЭнергоАтлант</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="/img/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #0a0c10;
+      --bg2:    #111318;
+      --card:   #13161e;
+      --accent: #f5c300;
+      --border: rgba(255,255,255,.08);
+      --text:   #f0f2f5;
+      --muted:  #8a8f9a;
+    }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Mulish', sans-serif;
+      min-height: 100vh;
+      padding: 0 16px 56px;
+      overflow-x: hidden;
+    }
+
+    .top-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: var(--accent);
+      z-index: 100;
+    }
+
+    .page-header {
+      max-width: 480px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 20px 0 16px;
+      margin-top: 4px;
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .logo-img { height: 30px; width: auto; display: block; }
+
+    .logo-fallback { display: none; align-items: center; gap: 7px; }
+
+    .logo-fallback-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 17px;
+      letter-spacing: .05em;
+      color: var(--text);
+    }
+
+    .badge {
+      margin-left: auto;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--accent);
+      border: 1px solid rgba(245,195,0,.35);
+      border-radius: 4px;
+      padding: 2px 7px;
+      white-space: nowrap;
+      letter-spacing: .04em;
+    }
+
+    /* Page content */
+    .page-content {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .accent-bar {
+      width: 36px;
+      height: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+      margin-bottom: 10px;
+    }
+
+    .page-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(38px, 11vw, 56px);
+      letter-spacing: .04em;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .page-sub {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    /* Team grid */
+    .team-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 360px) { .team-grid { grid-template-columns: 1fr; } }
+
+    .team-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+      opacity: 0;
+      transform: translateY(24px);
+      animation: cardIn .55s cubic-bezier(.22,.68,0,1.1) forwards;
+    }
+
+    .team-card:nth-child(1) { animation-delay: .0s; }
+    .team-card:nth-child(2) { animation-delay: .08s; }
+    .team-card:nth-child(3) { animation-delay: .14s; }
+    .team-card:nth-child(4) { animation-delay: .20s; }
+
+    @keyframes cardIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Avatar */
+    .tc-avatar {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: #1c2030;
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px;
+      color: var(--accent);
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .tc-avatar img {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+
+    /* Role label */
+    .tc-role {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(14px, 3.6vw, 16px);
+      letter-spacing: .04em;
+      line-height: 1.2;
+      color: var(--text);
+    }
+
+    /* Link button */
+    .tc-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 10px 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Mulish', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: border-color .18s ease, background .18s ease, transform .15s ease;
+    }
+
+    .tc-btn:hover {
+      border-color: rgba(245,195,0,.4);
+      background: rgba(245,195,0,.05);
+    }
+
+    .tc-btn:active { transform: scale(.96); }
+
+    /* Site link */
+    .site-link {
+      display: block;
+      text-align: center;
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 13px;
+      text-decoration: none;
+      transition: color .18s;
+    }
+
+    .site-link:hover { color: var(--accent); }
+
+    .site-link span {
+      color: var(--accent);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+<div class="top-bar"></div>
+
+<header class="page-header">
+  <a href="https://energoatlant.ru" target="_blank" rel="noopener" class="logo-wrap">
+    <img class="logo-img" src="/img/logo.png" alt="ЭнергоАтлант"
+         onerror="this.style.display='none';document.getElementById('lf').style.display='flex'">
+    <div id="lf" class="logo-fallback">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M13 2L4.5 13.5H12L11 22L19.5 10.5H12L13 2Z" fill="#f5c300"/>
+      </svg>
+      <span class="logo-fallback-text">ЭнергоАтлант</span>
+    </div>
+  </a>
+  <div class="badge">0.4–110 кВ</div>
+</header>
+
+<div class="page-content">
+  <div class="accent-bar"></div>
+  <h1 class="page-title">Команда</h1>
+  <p class="page-sub">Руководство ЭнергоАтлант</p>
+
+  <div class="team-grid">
+
+    <div class="team-card">
+      <div class="tc-avatar">
+        О
+        <img src="/cards/img/operations.jpg" alt="" onerror="this.remove()">
+      </div>
+      <div class="tc-role">Операционный директор</div>
+      <a href="/cards/operations.html" class="tc-btn">
+        Визитка
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+
+    <div class="team-card">
+      <div class="tc-avatar">
+        К
+        <img src="/cards/img/commercial.jpg" alt="" onerror="this.remove()">
+      </div>
+      <div class="tc-role">Коммерческий директор</div>
+      <a href="/cards/commercial.html" class="tc-btn">
+        Визитка
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+
+    <div class="team-card">
+      <div class="tc-avatar">
+        Г
+        <img src="/cards/img/engineer.jpg" alt="" onerror="this.remove()">
+      </div>
+      <div class="tc-role">Главный инженер</div>
+      <a href="/cards/engineer.html" class="tc-btn">
+        Визитка
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+
+    <div class="team-card">
+      <div class="tc-avatar">
+        Т
+        <img src="/cards/img/technical.jpg" alt="" onerror="this.remove()">
+      </div>
+      <div class="tc-role">Технический директор</div>
+      <a href="/cards/technical.html" class="tc-btn">
+        Визитка
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+
+  </div>
+
+  <a href="https://energoatlant.ru" target="_blank" rel="noopener" class="site-link">
+    <span>energoatlant.ru</span> — электромонтаж 0.4–110 кВ
+  </a>
+</div>
+
+</body>
+</html>

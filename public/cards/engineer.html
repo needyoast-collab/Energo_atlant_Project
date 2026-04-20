@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+  <title>Главный инженер | ЭнергоАтлант</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="/img/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Mulish:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #0a0c10;
+      --bg2:    #111318;
+      --card:   #13161e;
+      --accent: #f5c300;
+      --border: rgba(255,255,255,.08);
+      --text:   #f0f2f5;
+      --muted:  #8a8f9a;
+    }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Mulish', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 16px 56px;
+      overflow-x: hidden;
+    }
+
+    .top-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: var(--accent);
+      z-index: 100;
+    }
+
+    .logo-bar {
+      width: 100%;
+      max-width: 400px;
+      margin-top: 4px;
+      display: flex;
+      align-items: stretch;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      box-sizing: border-box;
+      gap: 0;
+    }
+
+    .logo-half {
+      width: 50%;
+      display: flex;
+      align-items: center;
+    }
+
+    .logo-wrap {
+      display: inline-block;
+      text-decoration: none;
+    }
+
+    .logo-img { max-width: 100%; height: auto; max-height: 36px; display: block; object-fit: contain; object-position: left; }
+
+    .logo-fallback { display: none; align-items: center; gap: 7px; }
+
+    .logo-fallback-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 17px;
+      letter-spacing: .05em;
+      color: var(--text);
+    }
+
+    .logo-divider {
+      width: 2px;
+      flex-shrink: 0;
+      background: rgba(245,195,0,.5);
+      margin: 0 16px;
+      border-radius: 1px;
+      align-self: stretch;
+    }
+
+    .utp-half {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 600;
+      font-style: italic;
+      color: rgba(245,195,0,.85);
+      line-height: 1.5;
+      text-align: left;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 400px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      animation: cardIn .55s cubic-bezier(.22,.68,0,1.1) both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-head {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .avatar-wrap { position: relative; flex-shrink: 0; }
+
+    .avatar-img {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .avatar-fb {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: #1c2030;
+      border: 2px solid var(--border);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 34px;
+      color: var(--accent);
+    }
+
+    @media (min-width: 400px) {
+      .avatar-img, .avatar-fb { width: 96px; height: 96px; }
+      .avatar-fb { font-size: 40px; }
+    }
+
+    .head-info { flex: 1; min-width: 0; }
+
+    .card-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(22px, 6vw, 30px);
+      letter-spacing: .03em;
+      line-height: 1.1;
+      margin-bottom: 5px;
+    }
+
+    .card-name:empty::before { content: '—'; color: var(--muted); }
+
+    .card-role {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .card-body { padding: 20px; }
+
+    .card-desc {
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.7;
+      padding-bottom: 18px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      text-decoration: none;
+      color: var(--text);
+      min-height: 52px;
+      transition: transform .18s ease, border-color .18s ease;
+    }
+
+    .contact-item:hover { transform: translateX(3px); border-color: rgba(245,195,0,.35); }
+    .contact-item:active { transform: translateX(3px) scale(.98); }
+
+    .ci-icon {
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,.05);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      color: var(--muted);
+    }
+
+    .ci-info { flex: 1; min-width: 0; }
+
+    .ci-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 2px;
+    }
+
+    .ci-val {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ci-val:empty::before { content: '—'; color: var(--muted); font-weight: 400; }
+
+    .msg-wrap {
+      position: relative;
+      height: 52px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 8px 0 16px;
+    }
+
+    .msg-tg, .msg-max {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text);
+      transition: background .18s ease;
+    }
+
+    .msg-tg {
+      clip-path: polygon(0 0, calc(50% + 14px) 0, calc(50% - 14px) 100%, 0 100%);
+      justify-content: center;
+      padding: 0 50% 0 0;
+    }
+
+    .msg-max {
+      clip-path: polygon(calc(50% + 14px) 0, 100% 0, 100% 100%, calc(50% - 14px) 100%);
+      justify-content: center;
+      padding: 0 0 0 50%;
+    }
+
+    .msg-tg:hover  { background: rgba(41,182,246,.1); }
+    .msg-tg:active, .msg-max:active { opacity: .75; }
+    .msg-max:hover { background: rgba(255,110,30,.1); }
+
+    .diag-sep {
+      position: absolute;
+      top: -10%;
+      left: calc(50% - 1px);
+      width: 2px;
+      height: 120%;
+      background: var(--border);
+      transform: skewX(-12deg);
+      pointer-events: none;
+    }
+
+    .msg-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .msg-icon img { width: 32px; height: 32px; object-fit: contain; display: block; }
+
+    .msg-meta { display: flex; flex-direction: column; }
+
+    .msg-lbl {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+
+    .msg-user { font-size: 13px; font-weight: 600; }
+    .msg-user:empty::before { content: '—'; color: var(--muted); font-weight: 400; }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    @media (max-width: 360px) { .btn-row { grid-template-columns: 1fr; } }
+
+    .btn {
+      display: flex; align-items: center; justify-content: center;
+      gap: 7px;
+      padding: 13px 14px;
+      border-radius: 10px;
+      border: none;
+      font-family: 'Mulish', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform .15s ease, opacity .15s ease;
+      white-space: nowrap;
+    }
+
+    .btn:active { transform: scale(.96); }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { opacity: .9; }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.04); }
+
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: #1c2030;
+      border: 1px solid rgba(245,195,0,.3);
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px 24px;
+      border-radius: 100px;
+      opacity: 0;
+      transition: opacity .25s, transform .25s;
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<div class="top-bar"></div>
+
+<div class="logo-bar">
+  <div class="logo-half">
+    <a href="https://energoatlant.ru" target="_blank" rel="noopener" class="logo-wrap">
+      <img class="logo-img" src="/img/logo.png" alt="ЭнергоАтлант"
+           onerror="this.style.display='none';document.getElementById('lf').style.display='flex'">
+      <div id="lf" class="logo-fallback">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M13 2L4.5 13.5H12L11 22L19.5 10.5H12L13 2Z" fill="#f5c300"/>
+        </svg>
+        <span class="logo-fallback-text">ЭнергоАтлант</span>
+      </div>
+    </a>
+  </div>
+  <div class="logo-divider"></div>
+  <div class="utp-half">Сдаём полный комплект ИД с каждым объектом — без доделок после нас</div>
+</div>
+
+<main class="card">
+  <div class="card-head">
+    <div class="avatar-wrap">
+      <img class="avatar-img" src="/cards/img/engineer.jpg" alt=""
+           onerror="this.style.display='none';document.getElementById('af').style.display='flex'">
+      <div class="avatar-fb" id="af">Г</div>
+    </div>
+    <div class="head-info">
+      <div class="card-name" id="c-name"></div>
+      <div class="card-role">Главный инженер</div>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="card-desc" id="c-desc"></div>
+
+    <div class="contact-list">
+      <a class="contact-item" id="lnk-phone" href="#">
+        <div class="ci-icon">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.75a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+        </div>
+        <div class="ci-info">
+          <div class="ci-label">Телефон</div>
+          <div class="ci-val" id="c-phone"></div>
+        </div>
+      </a>
+      <a class="contact-item" id="lnk-email" href="#">
+        <div class="ci-icon">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+          </svg>
+        </div>
+        <div class="ci-info">
+          <div class="ci-label">Email</div>
+          <div class="ci-val" id="c-email"></div>
+        </div>
+      </a>
+    </div>
+
+    <div class="msg-wrap">
+      <a class="msg-tg" id="lnk-tg" href="#">
+        <div class="msg-icon" style="background:rgba(41,182,246,.12)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#29b6f6">
+            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.26 13.9l-2.94-.919c-.64-.203-.654-.64.135-.954l11.57-4.461c.537-.194 1.006.131.869.655z"/>
+          </svg>
+        </div>
+        <div class="msg-meta">
+          <span class="msg-lbl">Telegram</span>
+          <span class="msg-user" id="c-tg"></span>
+        </div>
+      </a>
+      <div class="diag-sep"></div>
+      <a class="msg-max" id="lnk-max" href="#" target="_blank" rel="noopener">
+        <div class="msg-icon">
+          <img src="/cards/img/max-logo.png" alt="MAX">
+        </div>
+        <div class="msg-meta">
+          <span class="msg-lbl">Мессенджер</span>
+          <span class="msg-user">MAX</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="btn-row">
+      <a href="https://energoatlant.ru" target="_blank" rel="noopener" class="btn btn-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Наш сайт
+      </a>
+      <button class="btn btn-secondary" id="btn-vcf">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        В контакты
+      </button>
+    </div>
+  </div>
+</main>
+
+<script>
+const ROLE = 'Главный инженер';
+
+const DATA = {
+  name:     'Барышник Сергей Александрович',
+  phone:    '+7(926) 391-29-96',
+  phoneTel: '+7(926) 391-29-96',
+  tg:       '@Serg28081985',
+  tgUser:   '@Serg28081985',
+  max:      '+7(926) 391-29-96',
+  maxUser:  '+7(926) 391-29-96',
+  email:    'cgo@energoatlant.ru',
+  desc:     'Технический контроль проектных решений и монтажных работ. Отвечает за соответствие объектов нормам и проектной документации',
+};
+
+(function init() {
+  set('c-name',  DATA.name);
+  set('c-phone', DATA.phone);
+  set('c-email', DATA.email);
+  set('c-tg',    DATA.tg);
+
+  var desc = document.getElementById('c-desc');
+  if (DATA.desc) { desc.textContent = DATA.desc; }
+  else { desc.style.display = 'none'; }
+
+  if (DATA.phoneTel) lnk('lnk-phone', 'tel:' + DATA.phoneTel);
+  if (DATA.email)    lnk('lnk-email', 'mailto:' + DATA.email);
+  if (DATA.tgUser)   lnk('lnk-tg',   'https://t.me/' + DATA.tgUser);
+  if (DATA.maxUser)  lnk('lnk-max',  DATA.maxUser);
+  document.getElementById('btn-vcf').addEventListener('click', downloadVCF);
+})();
+
+function set(id, val) { document.getElementById(id).textContent = val; }
+function lnk(id, href) { document.getElementById(id).href = href; }
+
+function buildVCF() {
+  var rows = [
+    'BEGIN:VCARD', 'VERSION:3.0',
+    'FN:' + (DATA.name || ROLE),
+    'ORG:\u042D\u043D\u0435\u0440\u0433\u043E\u0410\u0442\u043B\u0430\u043D\u0442',
+    'TITLE:' + ROLE
+  ];
+  if (DATA.phoneTel) rows.push('TEL;TYPE=CELL:' + DATA.phoneTel);
+  if (DATA.email)    rows.push('EMAIL:' + DATA.email);
+  if (DATA.tgUser)   rows.push('URL;TYPE=Telegram:https://t.me/' + DATA.tgUser);
+  if (DATA.maxUser)  rows.push('URL;TYPE=MAX:https://max.ru/join/' + DATA.maxUser);
+  rows.push('END:VCARD');
+  return rows.join('\r\n');
+}
+
+function downloadVCF() {
+  var content  = buildVCF();
+  var fileName = (DATA.name || ROLE).replace(/\s+/g, '_') + '.vcf';
+  var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if (isSafari) {
+    window.open('data:text/vcard;charset=utf-8,' + encodeURIComponent(content), '_blank');
+  } else {
+    var blob = new Blob([content], { type: 'text/vcard;charset=utf-8' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+  showToast('\u2713 \u041A\u043E\u043D\u0442\u0430\u043A\u0442 \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D');
+}
+
+function showToast(msg) {
+  var t = document.createElement('div');
+  t.className   = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() { t.classList.add('show'); });
+  });
+  setTimeout(function() {
+    t.classList.remove('show');
+    setTimeout(function() { t.remove(); }, 300);
+  }, 2500);
+}
+</script>
+</body>
+</html>

@@ -11,7 +11,12 @@ async function apiRequest(method, url, body = null) {
   }
 
   const res = await fetch(url, opts);
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    data = { error: 'Сбой парсинга ответа (не JSON)' };
+  }
   return { ok: res.ok, status: res.status, data };
 }
 

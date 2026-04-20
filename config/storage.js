@@ -12,6 +12,7 @@ if (missing.length) {
   s3 = new S3Client({
     region: 'ru-central1',
     endpoint: process.env.YOS_ENDPOINT,
+    forcePathStyle: true,
     credentials: {
       accessKeyId:     process.env.YOS_ACCESS_KEY,
       secretAccessKey: process.env.YOS_SECRET_KEY,
