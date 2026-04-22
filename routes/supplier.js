@@ -19,6 +19,7 @@ const {
   addSpec,
   updateSpec,
   deleteSpec,
+  fulfillSpec,
   submitSpecs,
   batchAddSpecs,
 } = require('../controllers/supplierController');
@@ -56,6 +57,7 @@ router.get('/projects/:id/specs',                     getSpecs);
 router.post('/projects/:id/specs',                    addSpec);
 router.put('/specs/:id',                              updateSpec);
 router.delete('/specs/:id',                           deleteSpec);
+router.post('/specs/:id/fulfill',                     fulfillSpec);
 router.post('/projects/:id/specs/submit',             submitSpecs);
 router.post('/projects/:id/specs/batch',              batchAddSpecs);
 

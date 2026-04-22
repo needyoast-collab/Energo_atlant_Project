@@ -387,17 +387,25 @@ async function getProjectHistory(req, res, next) {
   }
 }
 
-// ─── Справочник расценок ───
+// ─── Справочник работ ───
 
 // GET /api/admin/catalog
 async function getCatalog(req, res, next) {
   try {
-    const result = await pool.query(
-      `SELECT c.*, u.name as added_by_name 
-       FROM price_catalog c
-       LEFT JOIN users u ON c.added_by = u.id
-       ORDER BY c.item_name ASC`
-    );
+    const { q } = req.query;
+    let query = `SELECT c.id, c.item_type, c.item_name, c.unit, c.base_price,
+                        c.is_approved, c.added_by, c.approved_by, c.approved_at,
+                        c.created_at, c.updated_at, u.name as added_by_name
+                 FROM price_catalog c
+                 LEFT JOIN users u ON c.added_by = u.id`;
+    const params = [];
+    if (q) {
+      query += ` WHERE c.item_name ILIKE $1`;
+      params.push(`%${q.trim()}%`);
+    }
+    query += ` ORDER BY c.item_name ASC`;
+    
+    const result = await pool.query(query, params);
     return res.json({ success: true, data: result.rows });
   } catch (err) {
     return next(err);
@@ -443,7 +451,8 @@ async function updateCatalogItem(req, res, next) {
     const result = await pool.query(
       `UPDATE price_catalog 
        SET item_name = $1, unit = $2, base_price = $3, updated_at = NOW()
-       WHERE id = $4 RETURNING *`,
+       WHERE id = $4
+       RETURNING id, item_type, item_name, unit, base_price, is_approved, added_by, approved_by, approved_at, created_at, updated_at`,
       [item_name, unit, base_price, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Не найдено' });
@@ -461,7 +470,8 @@ async function approveCatalogItem(req, res, next) {
     const result = await pool.query(
       `UPDATE price_catalog 
        SET base_price = COALESCE($1, base_price), is_approved = TRUE, approved_at = NOW(), approved_by = $2, updated_at = NOW()
-       WHERE id = $3 RETURNING *`,
+       WHERE id = $3
+       RETURNING id, item_type, item_name, unit, base_price, is_approved, added_by, approved_by, approved_at, created_at, updated_at`,
       [base_price, req.session.userId, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Не найдено' });
@@ -476,6 +486,68 @@ async function deleteCatalogItem(req, res, next) {
   try {
     const { id } = req.params;
     await pool.query('DELETE FROM price_catalog WHERE id = $1', [id]);
+    return res.json({ success: true });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// ─── Коэффициенты ───
+
+// GET /api/admin/coefficients
+async function getCoefficients(req, res, next) {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, value, description, created_at
+       FROM price_coefficients
+       ORDER BY name ASC`
+    );
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/admin/coefficients
+async function createCoefficient(req, res, next) {
+  try {
+    const { name, value, description } = req.body;
+    const result = await pool.query(
+      `INSERT INTO price_coefficients (name, value, description)
+       VALUES ($1, $2, $3)
+       RETURNING id, name, value, description, created_at`,
+      [name, value, description]
+    );
+    return res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// PUT /api/admin/coefficients/:id
+async function updateCoefficient(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { name, value, description } = req.body;
+    const result = await pool.query(
+      `UPDATE price_coefficients
+       SET name = $1, value = $2, description = $3
+       WHERE id = $4
+       RETURNING id, name, value, description, created_at`,
+      [name, value, description, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Не найдено' });
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// DELETE /api/admin/coefficients/:id
+async function deleteCoefficient(req, res, next) {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM price_coefficients WHERE id = $1', [id]);
     return res.json({ success: true });
   } catch (err) {
     return next(err);
@@ -498,5 +570,9 @@ module.exports = {
   addCatalogBulk,
   updateCatalogItem,
   approveCatalogItem,
-  deleteCatalogItem
+  deleteCatalogItem,
+  getCoefficients,
+  createCoefficient,
+  updateCoefficient,
+  deleteCoefficient
 };

@@ -67,7 +67,7 @@
             <line x1="16" y1="17" x2="8" y2="17" />
             <polyline points="10 9 9 9 8 9" />
           </svg>
-          Справочник расценок
+          Справочник работ
         </button>
       </nav>
       <div class="sidebar-footer">
@@ -277,28 +277,64 @@
         </div>
       </div>
 
-      <!-- Справочник расценок -->
+      <!-- Справочник работ -->
       <div class="dash-section" id="section-catalog">
-        <div class="dash-header flex-between">
-          <h1>Справочник расценок (База работ)</h1>
-          <div style="display:flex;gap:.5rem">
-            <button class="btn btn-primary btn-sm" id="btn-catalog-bulk-open">+ Добавить / Импорт из Excel</button>
+        <div class="dash-header">
+          <h1>Справочник работ</h1>
+        </div>
+
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="works">Работы</button>
+          <button class="tab-btn" data-tab="coeffs">Коэффициенты</button>
+        </div>
+
+        <!-- Таб: Работы -->
+        <div id="tab-works" class="tab-content active">
+          <div class="dash-header flex-between">
+            <h2>База работ</h2>
+            <div style="display:flex;gap:.5rem">
+              <input type="text" class="form-control" id="catalog-search" placeholder="Поиск по названию..." style="max-width:300px">
+              <button class="btn btn-primary btn-sm" id="btn-catalog-bulk-open">+ Добавить / Импорт из Excel</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="table-wrap">
+              <table id="catalog-table">
+                <thead>
+                  <tr>
+                    <th>Наименование работ</th>
+                    <th>Ед. изм.</th>
+                    <th>Цена (базовая), ₽</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
         </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table id="catalog-table">
-              <thead>
-                <tr>
-                  <th>Наименование работ</th>
-                  <th>Ед. изм.</th>
-                  <th>Цена (базовая), ₽</th>
-                  <th>Статус</th>
-                  <th>Действия</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+
+        <!-- Таб: Коэффициенты -->
+        <div id="tab-coeffs" class="tab-content">
+          <div class="dash-header flex-between">
+            <h2>Коэффициенты</h2>
+            <button class="btn btn-primary btn-sm" id="btn-coeff-create">+ Создать</button>
+          </div>
+          <div class="card">
+            <div class="table-wrap">
+              <table id="coeffs-table">
+                <thead>
+                  <tr>
+                    <th>Название</th>
+                    <th>Значение (x)</th>
+                    <th>Описание</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -373,11 +409,11 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА: Редактировать расценку -->
+  <!-- МОДАЛКА: Редактировать работу -->
   <div class="modal-overlay" id="modal-edit-catalog">
     <div class="modal" style="max-width:480px">
       <button class="modal-close" data-close="modal-edit-catalog">×</button>
-      <div class="modal-title">Редактировать расценку</div>
+      <div class="modal-title">Редактировать работу</div>
       <form id="edit-catalog-form">
         <input type="hidden" name="id">
         <div class="form-group">
@@ -394,30 +430,71 @@
             <input type="number" class="form-control" name="base_price" step="0.01" required>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary w-full mt-2">Сохранить</button>
+        <div style="display:flex;gap:.75rem;margin-top:1rem">
+          <button type="button" class="btn btn-danger" id="btn-catalog-delete-modal" style="flex:1">Удалить</button>
+          <button type="submit" class="btn btn-primary" style="flex:1">Сохранить</button>
+        </div>
       </form>
     </div>
   </div>
 
   <!-- МОДАЛКА: Массовое добавление (Excel) -->
   <div class="modal-overlay" id="modal-catalog-bulk">
-    <div class="modal" style="max-width:700px">
+    <div class="modal" id="catalog-batch-modal-box" style="max-width:900px;max-height:72vh;display:flex;flex-direction:column;padding:2rem;transition:max-height .22s ease">
       <button class="modal-close" data-close="modal-catalog-bulk">×</button>
-      <div class="modal-title">Импорт расценок (Excel / Таблица)</div>
-      <p class="text-muted mb-3" style="font-size:.85rem">
-        Скопируйте колонки из Excel (Наименование, Ед.изм, Цена) и вставьте в поле ниже.<br>
-        Существующие позиции с таким же названием будут обновлены.
-      </p>
-      <form id="catalog-bulk-form">
+      <div class="modal-title">Массовое добавление — Справочник работ</div>
+      <div style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem">
+        Скопируйте 3 колонки из Excel: <strong style="color:var(--text)">Наименование</strong>, <strong style="color:var(--text)">Ед. изм.</strong>, <strong style="color:var(--text)">Цена</strong>.
+        Вставка распределится по строкам автоматически. Если работа уже существует, её данные обновятся.
+      </div>
+      <form id="catalog-bulk-form" style="display:flex;flex-direction:column;flex:1;min-height:0">
+        <div style="flex:1;overflow-y:auto;min-height:0">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="border-bottom:2px solid var(--border)">
+                <th style="padding:.5rem .6rem;text-align:center;color:var(--muted);font-size:.78rem;width:36px">№</th>
+                <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem">Наименование</th>
+                <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:140px">Ед. изм.</th>
+                <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:140px">Цена</th>
+              </tr>
+            </thead>
+            <tbody id="catalog-batch-tbody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:.75rem">
+          <button type="button" class="btn btn-outline btn-sm" id="btn-catalog-batch-add-row" style="font-size:.82rem">+ Добавить строку</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+          <div id="bulk-preview-count" class="text-muted" style="font-size:.85rem">0 позиций заполнено</div>
+          <div style="display:flex;gap:.5rem">
+            <button type="button" class="btn btn-outline" data-close="modal-catalog-bulk">Отмена</button>
+            <button type="submit" class="btn btn-primary" id="btn-catalog-batch-save">Импортировать в базу</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА: Редактировать коэффициент -->
+  <div class="modal-overlay" id="modal-edit-coeff">
+    <div class="modal" style="max-width:440px">
+      <button class="modal-close" data-close="modal-edit-coeff">×</button>
+      <div class="modal-title" id="coeff-modal-title">Редактировать коэффициент</div>
+      <form id="edit-coeff-form">
+        <input type="hidden" name="id">
         <div class="form-group">
-          <textarea class="form-control" id="catalog-bulk-input" rows="15" 
-            placeholder="Монтаж ТП	шт	50000&#10;Прокладка КЛ	м	450" 
-            style="font-family:monospace;white-space:pre;overflow:auto"></textarea>
+          <label class="form-label">Название</label>
+          <input type="text" class="form-control" name="name" required>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem">
-          <div id="bulk-preview-count" class="text-muted" style="font-size:.85rem">Строк распознано: 0</div>
-          <button type="submit" class="btn btn-primary">Импортировать в базу</button>
+        <div class="form-group">
+          <label class="form-label">Значение (x)</label>
+          <input type="number" class="form-control" name="value" step="0.001" required>
         </div>
+        <div class="form-group">
+          <label class="form-label">Описание</label>
+          <textarea class="form-control" name="description" rows="3"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary w-full mt-2">Сохранить</button>
       </form>
     </div>
   </div>

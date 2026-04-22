@@ -1,7 +1,10 @@
 // ─── Общие утилиты дашборда ───────────────────────────────────
 // Подключается перед role-specific JS на каждом дашборде.
 
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function openModal(id)  {
+  const modal = document.getElementById(id);
+  modal.classList.add('open');
+}
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 /**
@@ -27,6 +30,16 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 });
 document.querySelectorAll('[data-close]').forEach(btn => {
   btn.addEventListener('click', () => closeModal(btn.dataset.close));
+});
+
+// Автоскрываемые скроллбары в больших модалках/таблицах
+document.querySelectorAll('.autohide-scroll').forEach((el) => {
+  let scrollTimer = null;
+  el.addEventListener('scroll', () => {
+    el.classList.add('scrolling');
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => el.classList.remove('scrolling'), 650);
+  }, { passive: true });
 });
 
 // Выход

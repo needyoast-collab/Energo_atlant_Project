@@ -54,6 +54,146 @@
       color: var(--muted);
       font-size: .9rem;
     }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.8);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+    .modal-overlay.modal-overlay-shifted {
+      align-items: flex-start;
+      padding-top: max(2rem, 8vh);
+      padding-bottom: 2rem;
+      overflow-y: auto;
+    }
+    .modal-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 540px;
+      padding: 2rem;
+      position: relative;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+      transition: max-width .3s ease, transform .3s ease;
+    }
+    .modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      cursor: pointer;
+      color: var(--muted);
+    }
+    .recovery-shell {
+      display: flex;
+      flex-direction: column;
+      gap: .8rem;
+      margin-top: .5rem;
+    }
+    .recovery-section {
+      border: 1px solid rgba(255,255,255,.06);
+      background: rgba(255,255,255,.02);
+      padding: 1rem 1rem 1.1rem;
+      opacity: .55;
+      overflow: hidden;
+      transform-origin: top center;
+      transition: opacity .3s ease, background .3s ease, border-color .3s ease,
+        max-height .42s cubic-bezier(.22, 1, .36, 1),
+        padding .42s cubic-bezier(.22, 1, .36, 1),
+        margin .42s cubic-bezier(.22, 1, .36, 1),
+        transform .42s cubic-bezier(.22, 1, .36, 1);
+    }
+    .recovery-section.is-open {
+      opacity: 1;
+      background: rgba(255,255,255,.03);
+      border-color: var(--border);
+      max-height: 420px;
+      transform: translateY(0) scaleY(1);
+    }
+    .recovery-section:not(.is-open) {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      margin: 0;
+      opacity: 0;
+      border-color: transparent;
+      transform: translateY(-6px) scaleY(.98);
+      pointer-events: none;
+    }
+    .recovery-section:not(.is-open) .recovery-reveal {
+      opacity: 0;
+    }
+    .recovery-reveal {
+      transition: opacity .2s ease .08s;
+    }
+    .recovery-title {
+      margin-bottom: .35rem;
+      font-size: 1rem;
+    }
+    .recovery-text {
+      color: var(--muted);
+      font-size: .85rem;
+      margin-bottom: 1rem;
+      max-width: 42ch;
+    }
+    .recovery-text:last-child {
+      margin-bottom: 0;
+    }
+    .recovery-status {
+      min-height: 1.2em;
+      color: var(--muted);
+      font-size: .82rem;
+      margin-top: .1rem;
+      margin-bottom: .85rem;
+    }
+    .recovery-actions {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .recovery-actions .btn {
+      flex: 1 1 180px;
+    }
+    .recovery-inline-action {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: .75rem;
+      margin-top: -.1rem;
+      margin-bottom: .65rem;
+      flex-wrap: wrap;
+    }
+    .recovery-link-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      padding: 0;
+      font: inherit;
+      font-size: .82rem;
+      cursor: pointer;
+      transition: opacity .2s ease, color .2s ease;
+    }
+    .recovery-link-btn[disabled] {
+      cursor: default;
+      opacity: .45;
+    }
+    .recovery-timer {
+      color: var(--muted);
+      font-size: .8rem;
+      white-space: nowrap;
+    }
+    .modal-card.is-animating {
+      will-change: transform;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 
@@ -70,8 +210,8 @@
         <h2 style="margin-bottom:1.5rem;font-size:1.8rem">Вход</h2>
         <form id="login-form">
           <div class="form-group">
-            <label class="form-label">Email</label>
-            <input type="email" class="form-control" name="email" placeholder="your@email.ru" required autofocus>
+            <label class="form-label">Логин, Email или Телефон</label>
+            <input type="text" class="form-control" name="login" placeholder="Ваши данные" required autofocus>
           </div>
           <div class="form-group">
             <label class="form-label">Пароль</label>
@@ -84,6 +224,64 @@
         Нет аккаунта? <a href="/register.html">Зарегистрироваться</a><br>
         <a href="#" id="link-forgot" style="color:var(--muted);font-size:.85rem">Забыли пароль?</a><br>
         <a href="/" style="color:var(--muted);font-size:.85rem">← На главную</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recovery Modal -->
+  <div class="modal-overlay" id="modal-recovery">
+    <div class="modal-card">
+      <div class="modal-close" id="recovery-close">✕</div>
+      <h3 style="margin-bottom:1rem;padding-right:2rem">Восстановление пароля</h3>
+      <div class="recovery-shell">
+        <div class="recovery-section is-open" id="stage-1">
+          <div class="recovery-title">Шаг 1. Получение кода</div>
+          <p class="recovery-text">Введите Email, Логин или Телефон для получения кода.</p>
+          <div class="form-group">
+            <input type="text" class="form-control" id="recovery-contact" placeholder="Email / Логин / Телефон">
+          </div>
+          <div class="recovery-status" id="recovery-contact-status"></div>
+          <div class="recovery-actions" id="recovery-send-actions">
+            <button class="btn btn-primary" id="btn-recovery-send" type="button">Получить код</button>
+          </div>
+        </div>
+
+        <div class="recovery-section" id="stage-2">
+          <div class="recovery-reveal">
+            <div class="recovery-title">Шаг 2. Подтверждение кода</div>
+            <p class="recovery-text">Введите 6-значный код, который был отправлен на указанный контакт.</p>
+            <div class="recovery-status" id="recovery-send-status"></div>
+            <div class="form-group">
+              <input type="text" class="form-control" id="recovery-code" placeholder="6-значный код" maxlength="6">
+            </div>
+            <div class="recovery-inline-action">
+              <button class="recovery-link-btn" id="btn-recovery-resend" type="button" disabled>Отправить заново</button>
+              <span class="recovery-timer" id="recovery-resend-timer"></span>
+            </div>
+            <div class="recovery-actions">
+              <button class="btn btn-primary" id="btn-recovery-verify" type="button">Подтвердить</button>
+              <button class="btn btn-outline" id="btn-recovery-back" type="button">Назад</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="recovery-section" id="stage-3">
+          <div class="recovery-reveal">
+            <div class="recovery-title">Шаг 3. Новый пароль</div>
+            <p class="recovery-text">После успешной смены пароля нужно будет снова войти в личный кабинет.</p>
+            <div class="form-group">
+              <label class="form-label">Пароль</label>
+              <input type="password" class="form-control" id="new-password" placeholder="Минимум 8 символов">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Повторите пароль</label>
+              <input type="password" class="form-control" id="confirm-password" placeholder="••••••••">
+            </div>
+            <div class="recovery-actions">
+              <button class="btn btn-primary" id="btn-recovery-reset" type="button">Сменить пароль</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -108,8 +306,194 @@
 
     document.getElementById('link-forgot').addEventListener('click', (e) => {
       e.preventDefault();
-      showToast('Для сброса пароля обратитесь к администратору: energoatlant@yandex.ru', 'info');
+      document.getElementById('modal-recovery').style.display = 'flex';
     });
+
+    document.getElementById('recovery-close').addEventListener('click', closeRecovery);
+    document.getElementById('btn-recovery-send').addEventListener('click', sendRecoveryCode);
+    document.getElementById('btn-recovery-resend').addEventListener('click', resendRecoveryCode);
+    document.getElementById('btn-recovery-verify').addEventListener('click', verifyRecoveryCode);
+    document.getElementById('btn-recovery-back').addEventListener('click', () => switchStage(1));
+    document.getElementById('btn-recovery-reset').addEventListener('click', resetPassword);
+    window.addEventListener('resize', () => {
+      const currentStep = document.getElementById('stage-3').classList.contains('is-open')
+        ? 3
+        : document.getElementById('stage-2').classList.contains('is-open')
+          ? 2
+          : 1;
+      syncRecoveryLayout(currentStep);
+    });
+    updateResendUi(60);
+
+    function syncRecoveryLayout(step) {
+      const overlay = document.getElementById('modal-recovery');
+      overlay.classList.toggle('modal-overlay-shifted', step >= 3 || window.innerHeight < 760);
+    }
+
+    function setRecoveryStatus(message, type = 'muted') {
+      const status = document.getElementById('recovery-send-status');
+      status.textContent = message || '';
+      status.style.color = type === 'error'
+        ? 'var(--danger, #ff6b6b)'
+        : type === 'success'
+          ? 'var(--accent)'
+          : 'var(--muted)';
+    }
+
+    function setRecoveryContactStatus(message, type = 'muted') {
+      const status = document.getElementById('recovery-contact-status');
+      status.textContent = message || '';
+      status.style.color = type === 'error'
+        ? 'var(--danger, #ff6b6b)'
+        : type === 'success'
+          ? 'var(--accent)'
+          : 'var(--muted)';
+    }
+
+    function updateResendUi(secondsLeft) {
+      const resendBtn = document.getElementById('btn-recovery-resend');
+      const timer = document.getElementById('recovery-resend-timer');
+
+      if (secondsLeft > 0) {
+        resendBtn.disabled = true;
+        timer.textContent = `Повторная отправка через ${secondsLeft} сек`;
+      } else {
+        resendBtn.disabled = false;
+        timer.textContent = 'Можно отправить код повторно';
+      }
+    }
+
+    function stopResendTimer() {
+      if (window.recoveryResendTimerId) {
+        window.clearInterval(window.recoveryResendTimerId);
+        window.recoveryResendTimerId = null;
+      }
+    }
+
+    function startResendTimer(duration = 60) {
+      stopResendTimer();
+      let secondsLeft = duration;
+      updateResendUi(secondsLeft);
+
+      window.recoveryResendTimerId = window.setInterval(() => {
+        secondsLeft -= 1;
+        updateResendUi(secondsLeft);
+
+        if (secondsLeft <= 0) {
+          stopResendTimer();
+        }
+      }, 1000);
+    }
+
+    function animateRecoveryCard() {
+      const card = document.querySelector('.modal-card');
+      card.classList.add('is-animating');
+      window.clearTimeout(animateRecoveryCard.timer);
+      animateRecoveryCard.timer = window.setTimeout(() => {
+        card.classList.remove('is-animating');
+      }, 460);
+    }
+
+    function closeRecovery() {
+      document.getElementById('modal-recovery').style.display = 'none';
+      document.getElementById('modal-recovery').classList.remove('modal-overlay-shifted');
+      stopResendTimer();
+      switchStage(1);
+      document.getElementById('recovery-contact').value = '';
+      document.getElementById('recovery-code').value = '';
+      document.getElementById('new-password').value = '';
+      document.getElementById('confirm-password').value = '';
+      setRecoveryStatus('');
+      setRecoveryContactStatus('');
+      updateResendUi(60);
+    }
+
+    function switchStage(n) {
+      animateRecoveryCard();
+      document.getElementById('stage-1').classList.add('is-open');
+      document.getElementById('stage-2').classList.toggle('is-open', n >= 2);
+      document.getElementById('stage-3').classList.toggle('is-open', n >= 3);
+      document.getElementById('recovery-send-actions').style.display = n >= 2 ? 'none' : 'flex';
+      syncRecoveryLayout(n);
+    }
+
+    async function requestRecoveryCode({ isResend = false } = {}) {
+      const contact = document.getElementById('recovery-contact').value;
+      if (!contact) return showToast('Укажите контакт', 'error');
+      const sendBtn = document.getElementById('btn-recovery-send');
+      const resendBtn = document.getElementById('btn-recovery-resend');
+
+      if (!isResend) {
+        setRecoveryContactStatus('Проверяем пользователя и отправляем код...');
+        setRecoveryStatus('');
+      } else {
+        setRecoveryStatus('Отправляем код повторно...');
+      }
+
+      sendBtn.disabled = true;
+      resendBtn.disabled = true;
+
+      const { ok, data } = await apiRequest('POST', '/api/auth/forgot-password', { contact });
+      if (ok) {
+        if (!isResend) {
+          switchStage(2);
+          document.getElementById('recovery-code').focus();
+        }
+        setRecoveryStatus('Код отправлен. Проверьте почту или телефон.', 'success');
+        setRecoveryContactStatus('');
+        startResendTimer(60);
+      } else {
+        showToast(data.error || 'Ошибка', 'error');
+        setRecoveryStatus(data.error || 'Не удалось отправить код', 'error');
+        if (!isResend) {
+          setRecoveryContactStatus(data.error || 'Не удалось отправить код', 'error');
+        } else {
+          updateResendUi(0);
+        }
+      }
+
+      sendBtn.disabled = false;
+    }
+
+    async function sendRecoveryCode() {
+      await requestRecoveryCode({ isResend: false });
+    }
+
+    async function resendRecoveryCode() {
+      if (document.getElementById('btn-recovery-resend').disabled) return;
+      await requestRecoveryCode({ isResend: true });
+    }
+
+    async function verifyRecoveryCode() {
+      const contact = document.getElementById('recovery-contact').value;
+      const code = document.getElementById('recovery-code').value;
+      const { ok, data } = await apiRequest('POST', '/api/auth/verify-code', { contact, code });
+      if (ok) {
+        showToast(data.message || 'Код подтвержден', 'success');
+        switchStage(3);
+        document.getElementById('new-password').focus();
+      } else {
+        showToast(data.error || 'Неверный код', 'error');
+      }
+    }
+
+    async function resetPassword() {
+      const contact = document.getElementById('recovery-contact').value;
+      const code = document.getElementById('recovery-code').value;
+      const password = document.getElementById('new-password').value;
+      const confirm = document.getElementById('confirm-password').value;
+
+      if (password !== confirm) return showToast('Пароли не совпадают', 'error');
+      if (password.length < 8) return showToast('Пароль слишком короткий', 'error');
+
+      const { ok, data } = await apiRequest('POST', '/api/auth/reset-password', { contact, code, password });
+      if (ok) {
+        showToast('Пароль изменен! Войдите в систему', 'success');
+        closeRecovery();
+      } else {
+        showToast(data.error || 'Ошибка', 'error');
+      }
+    }
 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -126,6 +510,24 @@
         showToast(data.error || 'Ошибка входа', 'error');
         btn.disabled = false;
         btn.textContent = 'Войти';
+      }
+    });
+
+    function resetLoginFormState() {
+      const form = document.getElementById('login-form');
+      const btn = form?.querySelector('button[type=submit]');
+      if (!form || !btn) return;
+
+      form.reset();
+      btn.disabled = false;
+      btn.textContent = 'Войти';
+    }
+
+    window.addEventListener('pageshow', (event) => {
+      const navigationEntry = performance.getEntriesByType('navigation')[0];
+      const isBackForward = navigationEntry?.type === 'back_forward';
+      if (event.persisted || isBackForward) {
+        resetLoginFormState();
       }
     });
   </script>

@@ -8,6 +8,7 @@ const {
   updateGeneralWarehouseSchema,
   transferToProjectSchema,
   addProjectWarehouseSchema,
+  fulfillSpecSchema,
   addSpecSchema,
   updateSpecSchema,
   rejectSpecSchema,
@@ -222,6 +223,7 @@ async function updateGeneralWarehouse(req, res, next) {
     const values = [];
     let idx = 1;
 
+    if (parsed.data.unit !== undefined)         { fields.push(`unit = $${idx++}`);         values.push(parsed.data.unit || null); }
     if (parsed.data.qty_total !== undefined)    { fields.push(`qty_total = $${idx++}`);    values.push(parsed.data.qty_total); }
     if (parsed.data.qty_reserved !== undefined) { fields.push(`qty_reserved = $${idx++}`); values.push(parsed.data.qty_reserved); }
     if (parsed.data.notes !== undefined)        { fields.push(`notes = $${idx++}`);        values.push(parsed.data.notes); }
@@ -300,7 +302,7 @@ async function getWarehouse(req, res, next) {
 
     const result = await pool.query(
       `SELECT id, material_name, unit, qty_total, qty_used,
-              (qty_total - qty_used) AS qty_balance, source, general_item_id, notes, updated_at
+              (qty_total - qty_used) AS qty_balance, source, general_item_id, purchase_price, notes, updated_at
        FROM warehouse_project
        WHERE project_id = $1
        ORDER BY material_name`,
@@ -322,13 +324,13 @@ async function addProjectWarehouse(req, res, next) {
     const isMember = await checkMembership(id, req.session.userId);
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
-    const { material_name, unit, qty_total, source, notes } = parsed.data;
+    const { material_name, unit, qty_total, source, purchase_price, notes } = parsed.data;
 
     const result = await pool.query(
-      `INSERT INTO warehouse_project (project_id, material_name, unit, qty_total, source, notes)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, material_name, unit, qty_total, qty_used, source`,
-      [id, material_name, unit || null, qty_total, source, notes || null]
+      `INSERT INTO warehouse_project (project_id, material_name, unit, qty_total, source, purchase_price, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, material_name, unit, qty_total, qty_used, source, purchase_price`,
+      [id, material_name, unit || null, qty_total, source, purchase_price ?? null, notes || null]
     );
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -383,16 +385,140 @@ async function getSpecs(req, res, next) {
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
     const result = await pool.query(
-      `SELECT ms.id, ms.material_name, ms.unit, ms.quantity, ms.status,
+      `SELECT ms.id, ms.material_name, ms.unit, ms.quantity, ms.unit_price, ms.status,
               ms.rejection_note, ms.approved_at, ms.created_at,
+              COALESCE(ws.supplied_qty, 0) AS supplied_qty,
+              GREATEST(ms.quantity - COALESCE(ws.supplied_qty, 0), 0) AS remaining_qty,
               u.name AS approved_by_name
        FROM material_specs ms
+       LEFT JOIN (
+         SELECT spec_id, SUM(qty_total) AS supplied_qty
+         FROM warehouse_project
+         WHERE spec_id IS NOT NULL
+         GROUP BY spec_id
+       ) ws ON ws.spec_id = ms.id
        LEFT JOIN users u ON u.id = ms.approved_by
        WHERE ms.project_id = $1 AND ms.supplier_id = $2 AND ms.is_deleted = FALSE
        ORDER BY ms.created_at`,
       [id, req.session.userId]
     );
     return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/supplier/specs/:id/fulfill
+async function fulfillSpec(req, res, next) {
+  try {
+    const parsed = fulfillSpecSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
+    const { id } = req.params;
+    const { source, quantity, general_item_id, purchase_price, unit, notes } = parsed.data;
+
+    const spec = await pool.query(
+      `SELECT ms.id, ms.project_id, ms.supplier_id, ms.material_name, ms.unit, ms.quantity, ms.status,
+              COALESCE(ws.supplied_qty, 0) AS supplied_qty
+       FROM material_specs ms
+       LEFT JOIN (
+         SELECT spec_id, SUM(qty_total) AS supplied_qty
+         FROM warehouse_project
+         WHERE spec_id IS NOT NULL
+         GROUP BY spec_id
+       ) ws ON ws.spec_id = ms.id
+       WHERE ms.id = $1 AND ms.is_deleted = FALSE`,
+      [id]
+    );
+
+    if (!spec.rows[0]) return res.status(404).json({ success: false, error: 'Позиция ведомости не найдена' });
+    if (spec.rows[0].supplier_id !== req.session.userId) {
+      return res.status(403).json({ success: false, error: 'Нет доступа' });
+    }
+    if (spec.rows[0].status !== 'approved') {
+      return res.status(400).json({ success: false, error: 'Обеспечивать можно только согласованные позиции' });
+    }
+
+    const remaining = Number(spec.rows[0].quantity) - Number(spec.rows[0].supplied_qty || 0);
+    if (quantity > remaining) {
+      return res.status(400).json({ success: false, error: `Осталось обеспечить: ${remaining}` });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      let generalItemId = null;
+      if (source === 'company') {
+        const generalItem = await client.query(
+          `SELECT id, material_name, unit, qty_total, qty_reserved
+           FROM warehouse_general
+           WHERE id = $1`,
+          [general_item_id]
+        );
+        if (!generalItem.rows[0]) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ success: false, error: 'Позиция общего склада не найдена' });
+        }
+
+        const available = Number(generalItem.rows[0].qty_total) - Number(generalItem.rows[0].qty_reserved || 0);
+        if (quantity > available) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ success: false, error: `Недостаточно на общем складе. Доступно: ${available}` });
+        }
+
+        await client.query(
+          `UPDATE warehouse_general
+           SET qty_total = qty_total - $1, updated_at = NOW()
+           WHERE id = $2`,
+          [quantity, general_item_id]
+        );
+        generalItemId = general_item_id;
+      }
+
+      const inserted = await client.query(
+        `INSERT INTO warehouse_project
+         (project_id, material_name, unit, qty_total, source, general_item_id, purchase_price, notes, spec_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING id, project_id, material_name, unit, qty_total, qty_used, source, purchase_price, spec_id`,
+        [
+          spec.rows[0].project_id,
+          spec.rows[0].material_name,
+          unit || spec.rows[0].unit || null,
+          quantity,
+          source,
+          generalItemId,
+          source === 'purchase' ? purchase_price : null,
+          notes || null,
+          id,
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      const foremen = await pool.query(
+        `SELECT user_id
+         FROM project_members
+         WHERE project_id = $1 AND role = 'foreman'`,
+        [spec.rows[0].project_id]
+      );
+
+      await Promise.all(foremen.rows.map((row) => sendNotification({
+        userId: row.user_id,
+        projectId: spec.rows[0].project_id,
+        type: 'mtr',
+        message: `На склад объекта поступил материал «${spec.rows[0].material_name}»`,
+      })));
+
+      return res.status(201).json({ success: true, data: inserted.rows[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     return next(err);
   }
@@ -408,13 +534,13 @@ async function addSpec(req, res, next) {
     const isMember = await checkMembership(id, req.session.userId);
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
-    const { material_name, unit, quantity } = parsed.data;
+    const { material_name, unit, quantity, unit_price } = parsed.data;
 
     const result = await pool.query(
-      `INSERT INTO material_specs (project_id, supplier_id, material_name, unit, quantity)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, material_name, unit, quantity, status`,
-      [id, req.session.userId, material_name, unit || null, quantity]
+      `INSERT INTO material_specs (project_id, supplier_id, material_name, unit, quantity, unit_price)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, material_name, unit, quantity, unit_price, status`,
+      [id, req.session.userId, material_name, unit || null, quantity, unit_price]
     );
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -445,6 +571,7 @@ async function updateSpec(req, res, next) {
     if (parsed.data.material_name !== undefined) { fields.push(`material_name = $${idx++}`); values.push(parsed.data.material_name); }
     if (parsed.data.unit !== undefined)          { fields.push(`unit = $${idx++}`);          values.push(parsed.data.unit); }
     if (parsed.data.quantity !== undefined)      { fields.push(`quantity = $${idx++}`);      values.push(parsed.data.quantity); }
+    if (parsed.data.unit_price !== undefined)    { fields.push(`unit_price = $${idx++}`);    values.push(parsed.data.unit_price); }
 
     if (!fields.length) return res.status(400).json({ success: false, error: 'Нет полей для обновления' });
 
@@ -452,7 +579,7 @@ async function updateSpec(req, res, next) {
     const result = await pool.query(
       `UPDATE material_specs SET ${fields.join(', ')}
        WHERE id = $${idx} AND is_deleted = FALSE
-       RETURNING id, material_name, unit, quantity, status`,
+       RETURNING id, material_name, unit, quantity, unit_price, status`,
       values
     );
     return res.json({ success: true, data: result.rows[0] });
@@ -497,9 +624,9 @@ async function batchAddSpecs(req, res, next) {
       await client.query('BEGIN');
       for (const item of items) {
         await client.query(
-          `INSERT INTO material_specs (project_id, supplier_id, material_name, unit, quantity)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [id, req.session.userId, item.material_name, item.unit || null, item.quantity]
+          `INSERT INTO material_specs (project_id, supplier_id, material_name, unit, quantity, unit_price)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [id, req.session.userId, item.material_name, item.unit || null, item.quantity, item.unit_price]
         );
       }
       await client.query('COMMIT');
@@ -574,6 +701,7 @@ module.exports = {
   addSpec,
   updateSpec,
   deleteSpec,
+  fulfillSpec,
   submitSpecs,
   batchAddSpecs,
 };

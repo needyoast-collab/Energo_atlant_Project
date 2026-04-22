@@ -98,6 +98,152 @@ async function ensureManagerProjectAccess(projectId, req, res) {
   return project;
 }
 
+async function syncPendingCatalogWork({ workName, unit, managerPrice, addedBy }) {
+  const normalizedName = String(workName || '').trim();
+  const normalizedUnit = String(unit || '').trim();
+  const price = Number(managerPrice);
+
+  if (!normalizedName || !normalizedUnit || !Number.isFinite(price) || price <= 0) {
+    return;
+  }
+
+  const existing = await pool.query(
+    `SELECT id, is_approved
+     FROM price_catalog
+     WHERE item_type = 'work'
+       AND LOWER(item_name) = LOWER($1)
+     LIMIT 1`,
+    [normalizedName]
+  );
+
+  if (existing.rows[0]?.is_approved) {
+    return;
+  }
+
+  if (existing.rows[0]) {
+    await pool.query(
+      `UPDATE price_catalog
+       SET unit = $1,
+           base_price = $2,
+           added_by = $3,
+           updated_at = NOW()
+       WHERE id = $4`,
+      [normalizedUnit, price, addedBy, existing.rows[0].id]
+    );
+    return;
+  }
+
+  await pool.query(
+    `INSERT INTO price_catalog
+      (item_type, item_name, unit, base_price, is_approved, added_by)
+     VALUES ('work', $1, $2, $3, FALSE, $4)`,
+    [normalizedName, normalizedUnit, price, addedBy]
+  );
+}
+
+async function attachCustomerFromRequest({ projectId, requestId, changedBy }) {
+  if (!requestId) return null;
+
+  const requestResult = await pool.query(
+    `SELECT id, name, phone, email
+     FROM public_requests
+     WHERE id = $1 AND is_deleted = FALSE`,
+    [requestId]
+  );
+
+  const request = requestResult.rows[0];
+  if (!request) {
+    return null;
+  }
+
+  let customer = null;
+
+  if (request.email) {
+    const byEmail = await pool.query(
+      `SELECT id, name
+       FROM users
+       WHERE role = 'customer'
+         AND is_deleted = FALSE
+         AND email = $1
+       LIMIT 1`,
+      [request.email]
+    );
+    customer = byEmail.rows[0] || null;
+  }
+
+  if (!customer && request.phone) {
+    const byPhone = await pool.query(
+      `SELECT id, name
+       FROM users
+       WHERE role = 'customer'
+         AND is_deleted = FALSE
+         AND regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') =
+             regexp_replace($1, '\\D', '', 'g')
+       LIMIT 1`,
+      [request.phone]
+    );
+    customer = byPhone.rows[0] || null;
+  }
+
+  if (!customer) {
+    return null;
+  }
+
+  await pool.query(
+    `INSERT INTO project_members (project_id, user_id, role)
+     VALUES ($1, $2, 'customer')
+     ON CONFLICT (project_id, user_id) DO NOTHING`,
+    [projectId, customer.id]
+  );
+
+  await sendNotification({
+    userId: customer.id,
+    projectId,
+    type: 'status',
+    message: 'Вам назначен новый проект в личном кабинете',
+  });
+
+  await logProjectHistory({
+    projectId,
+    changedBy,
+    action: 'attach_customer_from_request',
+    details: `Заказчик автоматически привязан из заявки id=${requestId}, user_id=${customer.id}`,
+  });
+
+  return customer;
+}
+
+async function getProjectCoefficientRows(projectId, db = pool) {
+  const result = await db.query(
+    `SELECT pc.id, pc.project_id, c.id AS coefficient_id, c.name, c.value, c.description
+     FROM project_coefficients pc
+     JOIN price_coefficients c ON c.id = pc.coefficient_id
+     WHERE pc.project_id = $1
+     ORDER BY c.name ASC`,
+    [projectId]
+  );
+  return result.rows;
+}
+
+function calculateProjectCoefficientTotal(rows) {
+  if (!rows.length) return 1;
+  return rows.reduce((acc, row) => acc * Number(row.value), 1);
+}
+
+async function recalculateProjectRegionalCoeff(projectId, db = pool) {
+  const rows = await getProjectCoefficientRows(projectId, db);
+  const total = calculateProjectCoefficientTotal(rows);
+
+  await db.query(
+    `UPDATE projects
+     SET regional_coeff = $1
+     WHERE id = $2`,
+    [total, projectId]
+  );
+
+  return { total, rows };
+}
+
 // GET /api/manager/requests
 async function getRequests(req, res, next) {
   try {
@@ -167,7 +313,8 @@ async function getProjects(req, res, next) {
     }
 
     const result = await pool.query(
-      `SELECT p.id, p.code, p.name, p.status, p.address, p.contract_value, p.stages_generated, p.created_at,
+      `SELECT p.id, p.code, p.name, p.status, p.address, p.contract_value,
+              p.include_materials, p.regional_coeff, p.stages_generated, p.created_at,
               u.id as manager_id, u.name as manager_name,
               COALESCE(st.stage_total, 0)::int AS stage_total,
               COALESCE(st.stage_done, 0)::int AS stage_done,
@@ -210,6 +357,7 @@ async function getProject(req, res, next) {
     }
     const result = await pool.query(
       `SELECT p.id, p.code, p.name, p.status, p.description, p.address, p.contract_value,
+              p.include_materials, p.regional_coeff,
               p.object_type, p.voltage_class, p.work_types, p.lead_source,
               p.contact_name, p.contact_phone, p.contact_email, p.contact_org,
               p.planned_start, p.planned_end, p.notes, p.stages_generated, p.created_at,
@@ -238,7 +386,7 @@ async function createProject(req, res, next) {
     }
 
     const {
-      name, description, address, contract_value,
+      name, request_id, description, address, contract_value, include_materials,
       object_type, voltage_class, work_types, lead_source,
       contact_name, contact_phone, contact_email, contact_org,
       planned_start, planned_end, notes,
@@ -248,14 +396,15 @@ async function createProject(req, res, next) {
     const result = await pool.query(
       `INSERT INTO projects (
          code, name, description, address, contract_value,
+         include_materials,
          object_type, voltage_class, work_types, lead_source,
          contact_name, contact_phone, contact_email, contact_org,
          planned_start, planned_end, notes, manager_id
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
-       RETURNING id, code, name, status, address, contract_value, created_at`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+       RETURNING id, code, name, status, address, contract_value, include_materials, regional_coeff, created_at`,
       [
-        code, name, description || null, address || null, contract_value || null,
+        code, name, description || null, address || null, contract_value || null, include_materials ?? true,
         object_type || null, voltage_class || null,
         work_types ? JSON.stringify(work_types) : null,
         lead_source || null,
@@ -270,6 +419,12 @@ async function createProject(req, res, next) {
       changedBy: req.session.userId,
       action: 'create_project',
       details: `Создан проект «${name}»`,
+    });
+
+    await attachCustomerFromRequest({
+      projectId: result.rows[0].id,
+      requestId: request_id,
+      changedBy: req.session.userId,
     });
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -289,6 +444,7 @@ async function updateProject(req, res, next) {
     const { id } = req.params;
     const before = await pool.query(
       `SELECT id, code, name, status, description, address, contract_value,
+              include_materials, regional_coeff,
               object_type, voltage_class, work_types, lead_source,
               contact_name, contact_phone, contact_email, contact_org,
               planned_start, planned_end, notes, manager_id
@@ -325,7 +481,7 @@ async function updateProject(req, res, next) {
     const result = await pool.query(
       `UPDATE projects SET ${fields.join(', ')}
        WHERE ${projectWhere}
-       RETURNING id, code, name, status, address, contract_value`,
+       RETURNING id, code, name, status, address, contract_value, include_materials, regional_coeff`,
       values
     );
 
@@ -370,6 +526,92 @@ async function updateProject(req, res, next) {
     }
 
     return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// GET /api/manager/projects/:id/coefficients
+async function getProjectCoefficients(req, res, next) {
+  try {
+    const { id } = req.params;
+    const access = await ensureManagerProjectAccess(id, req, res);
+    if (!access) return;
+
+    const rows = await getProjectCoefficientRows(id);
+    return res.json({
+      success: true,
+      data: {
+        items: rows,
+        total: calculateProjectCoefficientTotal(rows),
+      },
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// PUT /api/manager/projects/:id/coefficients
+async function updateProjectCoefficients(req, res, next) {
+  try {
+    const { id } = req.params;
+    const access = await ensureManagerProjectAccess(id, req, res);
+    if (!access) return;
+
+    const coefficientIds = Array.isArray(req.body.coefficient_ids)
+      ? [...new Set(req.body.coefficient_ids.map((value) => parseInt(value, 10)).filter((value) => Number.isInteger(value) && value > 0))]
+      : [];
+
+    const existingCoefficients = coefficientIds.length
+      ? await pool.query(
+          `SELECT id, name, value
+           FROM price_coefficients
+           WHERE id = ANY($1::int[])`,
+          [coefficientIds]
+        )
+      : { rows: [] };
+
+    if (existingCoefficients.rows.length !== coefficientIds.length) {
+      return res.status(400).json({ success: false, error: 'Часть коэффициентов не найдена' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM project_coefficients WHERE project_id = $1', [id]);
+
+      for (const coefficientId of coefficientIds) {
+        await client.query(
+          `INSERT INTO project_coefficients (project_id, coefficient_id)
+           VALUES ($1, $2)`,
+          [id, coefficientId]
+        );
+      }
+
+      const { total, rows } = await recalculateProjectRegionalCoeff(id, client);
+      await client.query('COMMIT');
+
+      const coeffNames = rows.map((row) => row.name).join(', ') || 'без коэффициентов';
+      await logProjectHistory({
+        projectId: parseInt(id, 10),
+        changedBy: req.session.userId,
+        action: 'update_project_coefficients',
+        details: `Обновлены коэффициенты проекта: ${coeffNames}. Итоговый коэффициент: ${total.toFixed(3)}`,
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          items: rows,
+          total,
+        },
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     return next(err);
   }
@@ -451,7 +693,7 @@ async function analyzeProject(req, res, next) {
     const stages = await pool.query(
       `SELECT name, status, planned_start, planned_end, actual_end
        FROM project_stages
-       WHERE project_id = $1 AND is_deleted = FALSE
+       WHERE w.project_id = $1 AND w.is_deleted = FALSE
        ORDER BY order_num`,
       [id]
     );
@@ -805,10 +1047,15 @@ async function getWorkSpecs(req, res, next) {
     const access = await ensureManagerProjectAccess(id, req, res);
     if (!access) return;
     const result = await pool.query(
-      `SELECT id, work_name, unit, quantity, created_at
-       FROM work_specs
+      `SELECT w.id, w.work_name, w.unit, w.quantity, w.manager_price, w.created_at,
+              pc.base_price AS catalog_price
+       FROM work_specs w
+       LEFT JOIN price_catalog pc
+         ON pc.item_type = 'work'
+        AND pc.is_approved = TRUE
+        AND LOWER(pc.item_name) = LOWER(w.work_name)
        WHERE project_id = $1 AND is_deleted = FALSE
-       ORDER BY created_at`,
+       ORDER BY w.created_at`,
       [id]
     );
     return res.json({ success: true, data: result.rows });
@@ -825,12 +1072,12 @@ async function addWorkSpec(req, res, next) {
     const { id } = req.params;
     const access = await ensureManagerProjectAccess(id, req, res);
     if (!access) return;
-    const { work_name, unit, quantity } = parsed.data;
+    const { work_name, unit, quantity, manager_price } = parsed.data;
     const result = await pool.query(
-      `INSERT INTO work_specs (project_id, foreman_id, work_name, unit, quantity)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, work_name, unit, quantity, created_at`,
-      [id, req.session.userId, work_name, unit || null, quantity]
+      `INSERT INTO work_specs (project_id, foreman_id, work_name, unit, quantity, manager_price)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, work_name, unit, quantity, manager_price, created_at`,
+      [id, req.session.userId, work_name, unit || null, quantity, manager_price ?? null]
     );
 
     await logProjectHistory({
@@ -838,6 +1085,13 @@ async function addWorkSpec(req, res, next) {
       changedBy: req.session.userId,
       action: 'create_work_spec',
       details: `Добавлена ВОР позиция «${work_name}»`,
+    });
+
+    await syncPendingCatalogWork({
+      workName,
+      unit,
+      managerPrice,
+      addedBy: req.session.userId,
     });
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -854,7 +1108,9 @@ async function updateWorkSpec(req, res, next) {
 
     const { id } = req.params;
     const spec = await pool.query(
-      `SELECT project_id, work_name, unit, quantity FROM work_specs WHERE id = $1 AND is_deleted = FALSE`,
+      `SELECT project_id, work_name, unit, quantity, manager_price
+       FROM work_specs
+       WHERE id = $1 AND is_deleted = FALSE`,
       [id]
     );
     if (!spec.rows[0]) return res.status(404).json({ success: false, error: 'Позиция ВОР не найдена' });
@@ -876,7 +1132,7 @@ async function updateWorkSpec(req, res, next) {
     const result = await pool.query(
       `UPDATE work_specs SET ${fields.join(', ')}
        WHERE id = $${idx} AND is_deleted = FALSE
-       RETURNING id, work_name, unit, quantity, created_at`,
+       RETURNING id, work_name, unit, quantity, manager_price, created_at`,
       values
     );
 
@@ -895,6 +1151,13 @@ async function updateWorkSpec(req, res, next) {
         details: `ВОР: ${prev.work_name}`,
       })
     ));
+
+    await syncPendingCatalogWork({
+      workName: result.rows[0].work_name,
+      unit: result.rows[0].unit,
+      managerPrice: result.rows[0].manager_price,
+      addedBy: req.session.userId,
+    });
 
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -1020,7 +1283,7 @@ async function getProjectSpecs(req, res, next) {
     const access = await ensureManagerProjectAccess(id, req, res);
     if (!access) return;
     const result = await pool.query(
-      `SELECT ms.id, ms.material_name, ms.unit, ms.quantity, ms.status,
+      `SELECT ms.id, ms.material_name, ms.unit, ms.quantity, ms.unit_price, ms.status,
               ms.rejection_note, ms.approved_at, ms.created_at,
               u.name as supplier_name
        FROM material_specs ms
@@ -1064,6 +1327,8 @@ module.exports = {
   getProject,
   createProject,
   updateProject,
+  getProjectCoefficients,
+  updateProjectCoefficients,
   copyRequestFiles,
   addTeamMember,
   analyzeProject,

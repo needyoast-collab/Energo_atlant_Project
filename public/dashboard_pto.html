@@ -104,8 +104,9 @@
 
 <!-- МОДАЛКА: проект (этапы + документы) -->
 <div class="modal-overlay" id="modal-project">
-  <div class="modal" style="max-width:620px;max-height:90vh;overflow-y:auto">
+  <div class="modal modal-shell" style="max-width:620px;max-height:90vh">
     <button class="modal-close" data-close="modal-project">×</button>
+    <div class="modal-shell-header">
     <div class="modal-title" id="modal-project-title">Проект</div>
     <div id="modal-project-meta" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
 
@@ -114,6 +115,8 @@
       <button class="btn btn-sm btn-primary" id="pto-tab-btn-stages" data-ptotab="stages">Этапы</button>
       <button class="btn btn-sm btn-outline"  id="pto-tab-btn-docs"   data-ptotab="docs">Документы</button>
     </div>
+    </div>
+    <div class="modal-shell-body autohide-scroll">
 
     <!-- Этапы -->
     <div id="pto-tab-stages">
@@ -124,6 +127,7 @@
     <!-- Документы -->
     <div id="pto-tab-docs" style="display:none">
       <div id="pto-modal-docs-list"><span style="color:var(--muted)">Загрузка...</span></div>
+    </div>
     </div>
   </div>
 </div>

@@ -2,6 +2,7 @@ let currentUser = null;
 let projectsList = [];
 let activeProjectId = null;
 let stagesCache = [];
+let requestManualPhone = '';
 
 const VOR_STATUS_LABELS = { planned: 'Запланировано', done: 'Выполнено', not_done: 'Не выполнено' };
 
@@ -51,12 +52,19 @@ const DOC_LABELS = {
   other: 'Прочее',
 };
 
+const WAREHOUSE_SOURCE_LABELS = {
+  company: 'Склад компании',
+  purchase: 'Закупка',
+  customer: 'Давальческий',
+};
+
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
   currentUser = await requireAuth('customer');
   if (!currentUser) return;
   document.getElementById('user-name').textContent = currentUser.name;
   initNotificationBell();
+  initRequestPhonePrefill();
   loadProjects();
 }
 
@@ -257,6 +265,7 @@ document.getElementById('stages-list').addEventListener('click', (e) => {
 
 function openStageDetailModal(s) {
   approveStageId = s.id;
+  const project = projectsList.find((item) => item.id == activeProjectId);
 
   const isNotDone = s.status === 'not_done';
   const isAgreed = s.customer_agreed;
@@ -306,8 +315,11 @@ function openStageDetailModal(s) {
     : '';
 
   document.getElementById('stage-detail-body').innerHTML = `
-    <div class="modal-title" style="margin-bottom:.75rem">${escHtml(s.name)}</div>
-    <div style="margin-bottom:1rem">${badge(s.status)} <span style="font-size:.85rem;color:var(--muted);margin-left:.4rem">${statusLabel}</span></div>
+    <div style="margin-bottom:.75rem">
+      <div style="font-size:1.15rem;font-weight:700;color:var(--accent);line-height:1.25">${escHtml(project?.name || 'Проект')}</div>
+      <div style="font-size:.95rem;color:var(--muted);margin-top:.2rem">${escHtml(s.name)}</div>
+    </div>
+    <div style="margin-bottom:1rem">${badge(s.status)}</div>
     <div style="display:grid;gap:.4rem">${detailRows}</div>
     ${noteBlock}
     ${photosBlock}
@@ -393,6 +405,7 @@ async function loadWarehouse(id) {
   if (!data.data.length) { container.innerHTML = '<span style="color:var(--muted)">Позиций нет</span>'; return; }
 
   container.innerHTML = `
+    <div style="color:var(--muted);font-size:.82rem;margin-bottom:.75rem">Остатки материалов на объекте</div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -502,6 +515,58 @@ function resetRequestForm() {
   document.getElementById('req-file-error').style.display = 'none';
   document.getElementById('req-file-input').value = '';
   document.getElementById('req-doc-type').value = '';
+  requestManualPhone = '';
+  const checkboxWrap = document.getElementById('request-use-account-phone-wrap');
+  const checkbox = document.getElementById('request-use-account-phone');
+  const phoneInput = document.querySelector('#request-form [name="phone"]');
+  if (checkboxWrap) {
+    checkboxWrap.style.display = currentUser?.phone ? 'flex' : 'none';
+  }
+  if (checkbox) checkbox.checked = false;
+  if (phoneInput) {
+    phoneInput.readOnly = false;
+    phoneInput.value = '';
+  }
+}
+
+function initRequestPhonePrefill() {
+  const checkboxWrap = document.getElementById('request-use-account-phone-wrap');
+  const checkbox = document.getElementById('request-use-account-phone');
+  const phoneInput = document.querySelector('#request-form [name="phone"]');
+  if (!checkbox || !phoneInput) return;
+
+  if (checkboxWrap) {
+    checkboxWrap.style.display = currentUser?.phone ? 'flex' : 'none';
+  }
+
+  const applyAccountPhone = () => {
+    const accountPhone = currentUser?.phone || '';
+    if (!accountPhone) {
+      checkbox.checked = false;
+      showToast('В профиле аккаунта не указан номер телефона', 'error');
+      return;
+    }
+
+    requestManualPhone = phoneInput.value;
+    phoneInput.value = accountPhone;
+    phoneInput.readOnly = true;
+  };
+
+  checkbox.addEventListener('change', () => {
+    if (checkbox.checked) {
+      applyAccountPhone();
+      return;
+    }
+
+    phoneInput.readOnly = false;
+    phoneInput.value = requestManualPhone || '';
+  });
+
+  phoneInput.addEventListener('input', () => {
+    if (!checkbox.checked) {
+      requestManualPhone = phoneInput.value;
+    }
+  });
 }
 
 // ─── Заявка ──────────────────────────────────────────────────

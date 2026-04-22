@@ -5,7 +5,6 @@ const {
   createUser,
   updateUser,
   deleteUser,
-  verifyUser,
   restoreUser,
   getMetrics,
   getProjects,
@@ -22,7 +21,6 @@ router.get('/users', getUsers);
 router.post('/users', createUser);
 router.put('/users/:id', updateUser);
 router.delete('/users/:id', deleteUser);
-router.post('/users/:id/verify', verifyUser);
 router.post('/users/:id/restore', restoreUser);
 router.get('/metrics', getMetrics);
 router.get('/projects', getProjects);
@@ -37,5 +35,10 @@ router.put('/catalog/:id', require('../controllers/adminController').updateCatal
 router.post('/catalog/:id/approve', require('../controllers/adminController').approveCatalogItem);
 router.delete('/catalog/:id', require('../controllers/adminController').deleteCatalogItem);
 
-module.exports = router;
+// COEFFICIENTS
+router.get('/coefficients', require('../controllers/adminController').getCoefficients);
+router.post('/coefficients', require('../controllers/adminController').createCoefficient);
+router.put('/coefficients/:id', require('../controllers/adminController').updateCoefficient);
+router.delete('/coefficients/:id', require('../controllers/adminController').deleteCoefficient);
 
+module.exports = router;

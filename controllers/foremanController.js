@@ -16,6 +16,24 @@ const {
   batchWorkSpecSchema,
 } = require('../utils/validate');
 
+async function notifyManagerAboutWorkSpecs(projectId) {
+  const project = await pool.query(
+    `SELECT manager_id, name
+     FROM projects
+     WHERE id = $1 AND is_deleted = FALSE`,
+    [projectId]
+  );
+
+  if (!project.rows[0]?.manager_id) return;
+
+  await sendNotification({
+    userId: project.rows[0].manager_id,
+    projectId: Number(projectId),
+    type: 'status',
+    message: `Добавлены новые позиции ВОР по проекту "${project.rows[0].name}"`,
+  });
+}
+
 // ─── Проекты ──────────────────────────────────────────────────
 
 // GET /api/foreman/projects
@@ -312,13 +330,80 @@ async function getWarehouse(req, res, next) {
 
     const result = await pool.query(
       `SELECT id, material_name, unit, qty_total, qty_used,
-              (qty_total - qty_used) AS qty_balance, source, updated_at
+              (qty_total - qty_used) AS qty_balance, source, purchase_price, updated_at
        FROM warehouse_project
        WHERE project_id = $1
        ORDER BY material_name`,
       [id]
     );
     return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// GET /api/foreman/stages/:id/writeoffs
+async function getStageWriteoffs(req, res, next) {
+  try {
+    const { id } = req.params;
+    const stage = await pool.query(
+      `SELECT id, project_id
+       FROM project_stages
+       WHERE id = $1 AND is_deleted = FALSE`,
+      [id]
+    );
+    if (!stage.rows[0]) return res.status(404).json({ success: false, error: 'Этап не найден' });
+
+    const isMember = await checkMembership(stage.rows[0].project_id, req.session.userId);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа' });
+
+    const result = await pool.query(
+      `SELECT ww.id, ww.quantity, ww.created_at,
+              wp.material_name, wp.unit,
+              u.name AS written_off_by_name
+       FROM warehouse_writeoffs ww
+       JOIN warehouse_project wp ON wp.id = ww.warehouse_item_id
+       LEFT JOIN users u ON u.id = ww.written_off_by
+       WHERE ww.stage_id = $1
+       ORDER BY ww.created_at DESC`,
+      [id]
+    );
+
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// GET /api/foreman/stages/:id/photos
+async function getStagePhotos(req, res, next) {
+  try {
+    const { id } = req.params;
+    const stage = await pool.query(
+      `SELECT id, project_id
+       FROM project_stages
+       WHERE id = $1 AND is_deleted = FALSE`,
+      [id]
+    );
+    if (!stage.rows[0]) return res.status(404).json({ success: false, error: 'Этап не найден' });
+
+    const isMember = await checkMembership(stage.rows[0].project_id, req.session.userId);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа' });
+
+    const photos = await pool.query(
+      `SELECT id, file_key, description, uploaded_at
+       FROM stage_photos
+       WHERE stage_id = $1
+       ORDER BY uploaded_at DESC`,
+      [id]
+    );
+
+    const withUrls = await Promise.all(photos.rows.map(async (photo) => ({
+      ...photo,
+      url: await getSignedDownloadUrl(photo.file_key),
+    })));
+
+    return res.json({ success: true, data: withUrls });
   } catch (err) {
     return next(err);
   }
@@ -331,10 +416,12 @@ async function writeoffWarehouse(req, res, next) {
     if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
 
     const { id } = req.params;
-    const { quantity } = parsed.data;
+    const { quantity, stage_id } = parsed.data;
 
     const item = await pool.query(
-      `SELECT id, project_id, qty_total, qty_used FROM warehouse_project WHERE id = $1`,
+      `SELECT id, project_id, qty_total, qty_used
+       FROM warehouse_project
+       WHERE id = $1`,
       [id]
     );
     if (!item.rows[0]) return res.status(404).json({ success: false, error: 'Позиция склада не найдена' });
@@ -342,19 +429,46 @@ async function writeoffWarehouse(req, res, next) {
     const isMember = await checkMembership(item.rows[0].project_id, req.session.userId);
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа' });
 
+    const stage = await pool.query(
+      `SELECT id
+       FROM project_stages
+       WHERE id = $1 AND project_id = $2 AND is_deleted = FALSE`,
+      [stage_id, item.rows[0].project_id]
+    );
+    if (!stage.rows[0]) return res.status(400).json({ success: false, error: 'Этап не найден в проекте' });
+
     const available = parseFloat(item.rows[0].qty_total) - parseFloat(item.rows[0].qty_used);
     if (quantity > available) {
       return res.status(400).json({ success: false, error: `Недостаточно на складе. Доступно: ${available}` });
     }
 
-    const result = await pool.query(
-      `UPDATE warehouse_project
-       SET qty_used = qty_used + $1, updated_at = NOW()
-       WHERE id = $2
-       RETURNING id, material_name, qty_total, qty_used`,
-      [quantity, id]
-    );
-    return res.json({ success: true, data: result.rows[0] });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `UPDATE warehouse_project
+         SET qty_used = qty_used + $1, updated_at = NOW()
+         WHERE id = $2
+         RETURNING id, material_name, qty_total, qty_used`,
+        [quantity, id]
+      );
+
+      await client.query(
+        `INSERT INTO warehouse_writeoffs
+         (warehouse_item_id, project_id, stage_id, quantity, written_off_by)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, item.rows[0].project_id, stage_id, quantity, req.session.userId]
+      );
+
+      await client.query('COMMIT');
+      return res.json({ success: true, data: result.rows[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     return next(err);
   }
@@ -433,11 +547,27 @@ async function getSpecs(req, res, next) {
     const result = await pool.query(
       `SELECT ms.id, ms.material_name, ms.unit, ms.quantity, ms.status,
               ms.rejection_note, ms.approved_at, ms.created_at,
+              COALESCE(ws.supplied_qty, 0) AS supplied_qty,
+              GREATEST(ms.quantity - COALESCE(ws.supplied_qty, 0), 0) AS remaining_qty,
               u.name AS supplier_name
        FROM material_specs ms
+       LEFT JOIN (
+         SELECT spec_id, SUM(qty_total) AS supplied_qty
+         FROM warehouse_project
+         WHERE spec_id IS NOT NULL
+         GROUP BY spec_id
+       ) ws ON ws.spec_id = ms.id
        JOIN users u ON u.id = ms.supplier_id
-       WHERE ms.project_id = $1 AND ms.is_deleted = FALSE
-       ORDER BY ms.created_at`,
+       WHERE ms.project_id = $1
+         AND ms.is_deleted = FALSE
+         AND ms.status <> 'draft'
+       ORDER BY CASE ms.status
+                  WHEN 'pending_approval' THEN 1
+                  WHEN 'approved' THEN 2
+                  WHEN 'rejected' THEN 3
+                  ELSE 4
+                END,
+                ms.created_at`,
       [id]
     );
     return res.json({ success: true, data: result.rows });
@@ -571,6 +701,9 @@ async function addWorkSpec(req, res, next) {
        RETURNING id, work_name, unit, quantity, status`,
       [id, req.session.userId, work_name, unit || null, quantity]
     );
+
+    await notifyManagerAboutWorkSpecs(id);
+
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
     return next(err);
@@ -605,6 +738,8 @@ async function batchAddWorkSpecs(req, res, next) {
     } finally {
       client.release();
     }
+
+    await notifyManagerAboutWorkSpecs(id);
 
     return res.status(201).json({ success: true, data: { inserted: items.length } });
   } catch (err) {
@@ -646,6 +781,8 @@ module.exports = {
   generateStagesFromVOR,
   uploadPhoto,
   getWarehouse,
+  getStageWriteoffs,
+  getStagePhotos,
   writeoffWarehouse,
   getMtrRequests,
   createMtrRequest,

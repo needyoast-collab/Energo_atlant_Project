@@ -12,6 +12,29 @@ let activeStageId     = null;
 let activeStageIsVor  = false;
 let activeWarehouseId = null;
 let activeSpecId      = null;
+let activeWriteoffProjectId = null;
+let rejectSpecMode = 'single';
+let stageWriteoffItems = [];
+
+function getPendingSpecCheckboxes() {
+  return Array.from(document.querySelectorAll('#specs-list .spec-approve-checkbox'));
+}
+
+function updateSpecBulkActions() {
+  const checkboxes = getPendingSpecCheckboxes();
+  const actionWrap = document.getElementById('specs-bulk-actions');
+  const counter = document.getElementById('specs-bulk-counter');
+
+  if (!checkboxes.length) {
+    actionWrap.style.display = 'none';
+    counter.textContent = '0 отмечено';
+    return;
+  }
+
+  const checkedCount = checkboxes.filter((input) => input.checked).length;
+  actionWrap.style.display = 'flex';
+  counter.textContent = `${checkedCount} отмечено из ${checkboxes.length}`;
+}
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
@@ -75,7 +98,7 @@ async function openProject(id) {
 }
 
 // ─── Вкладки в модалке проекта ───────────────────────────────
-const TABS = ['stages', 'specs', 'work-specs', 'warehouse', 'photos', 'docs'];
+const TABS = ['stages', 'specs', 'work-specs', 'warehouse', 'docs'];
 
 document.querySelectorAll('[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
@@ -97,10 +120,6 @@ function switchTab(tab) {
 async function loadStages(id) {
   const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${id}/stages`);
   if (!ok) return;
-
-  const stageSelect = document.getElementById('photo-stage-select');
-  stageSelect.innerHTML = '<option value="">— без этапа —</option>' +
-    data.data.map(s => `<option value="${s.id}">${escHtml(s.name)}</option>`).join('');
 
   const list = document.getElementById('stages-list');
   if (!data.data.length) {
@@ -163,7 +182,7 @@ async function loadStages(id) {
   }).join('');
 }
 
-document.getElementById('stages-list').addEventListener('click', (e) => {
+document.getElementById('stages-list').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-action="edit-stage"]');
   if (!btn) return;
   activeStageId    = btn.dataset.id;
@@ -192,6 +211,7 @@ document.getElementById('stages-list').addEventListener('click', (e) => {
     f.planned_end.value   = btn.dataset.pe;
     f.actual_end.value    = btn.dataset.ae;
   }
+  await loadStageWriteoffPanel(btn.dataset.id, activeProjectId);
   openModal('modal-edit-stage');
 });
 
@@ -243,11 +263,15 @@ document.getElementById('edit-stage-form').addEventListener('submit', async (e) 
       return;
     }
   } else {
-    body = Object.fromEntries(fd.entries());
+    body.name = document.getElementById('edit-stage-name').value;
     body.status = document.getElementById('edit-stage-status-regular').value;
-    if (!body.planned_start) delete body.planned_start;
-    if (!body.planned_end)   delete body.planned_end;
-    if (!body.actual_end)    delete body.actual_end;
+    const plannedStart = fd.get('planned_start');
+    const plannedEnd = fd.get('planned_end');
+    const actualEnd = fd.get('actual_end');
+
+    if (plannedStart) body.planned_start = plannedStart;
+    if (plannedEnd) body.planned_end = plannedEnd;
+    if (actualEnd) body.actual_end = actualEnd;
   }
 
   const { ok, data } = await apiRequest('PUT', `/api/foreman/stages/${activeStageId}`, body);
@@ -263,41 +287,77 @@ async function loadProjectSpecs(id) {
   const container = document.getElementById('specs-list');
   container.innerHTML = '<div style="color:var(--muted)">Загрузка...</div>';
   const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${id}/specs`);
-  if (!ok) { container.innerHTML = '<div style="color:var(--danger)">Ошибка загрузки</div>'; return; }
+  if (!ok) {
+    container.innerHTML = '<div style="color:var(--danger)">Ошибка загрузки</div>';
+    updateSpecBulkActions();
+    return;
+  }
 
   const specs = data.data;
   if (!specs.length) {
     container.innerHTML = '<div style="color:var(--muted)">Ведомость пуста. Снабженец ещё не отправил материалы.</div>';
+    updateSpecBulkActions();
     return;
   }
 
-  container.innerHTML = specs.map(s => `
-    <div style="padding:.6rem 0;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem">
-        <div>
-          <div style="font-weight:500;font-size:.9rem">${escHtml(s.material_name)}</div>
-          <div style="color:var(--muted);font-size:.78rem">
-            ${s.quantity} ${escHtml(s.unit || '')} · ${escHtml(s.supplier_name)}
-            ${s.rejection_note ? ` · <span style="color:var(--danger)">Отклонено: ${escHtml(s.rejection_note)}</span>` : ''}
-            ${s.approved_at ? ` · Согласовано ${formatDate(s.approved_at)}` : ''}
-          </div>
-        </div>
-        <div style="display:flex;gap:.35rem;flex-shrink:0">
-          ${badge(s.status)}
-          ${s.status === 'pending_approval' ? `
-            <button class="btn btn-sm" style="font-size:.75rem;background:var(--success);color:#000;border:none"
-              data-action="approve-spec" data-id="${s.id}" data-name="${escHtml(s.material_name)}">
-              ✓
-            </button>
-            <button class="btn btn-sm" style="font-size:.75rem;color:var(--danger);border:1px solid var(--border);background:transparent"
-              data-action="reject-spec" data-id="${s.id}" data-name="${escHtml(s.material_name)}">
-              ✕
-            </button>
-          ` : ''}
+  container.innerHTML = `
+    <div class="table-wrap">
+      <div style="position:sticky;top:0;z-index:3;background:var(--bg);border-bottom:1px solid var(--border)">
+        <div style="display:grid;grid-template-columns:42% 14% 14% 14% 16%;gap:0;align-items:center">
+          <div style="padding:.75rem 1rem;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em">Материал</div>
+          <div style="padding:.75rem 1rem;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;text-align:right">Нужно</div>
+          <div style="padding:.75rem 1rem;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;text-align:right">Поступило</div>
+          <div style="padding:.75rem 1rem;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;text-align:right">Осталось</div>
+          <div style="padding:.75rem 1rem;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em">Статус</div>
         </div>
       </div>
+      <table>
+        <tbody>
+          ${specs.map((s) => `
+            <tr>
+              <td>
+                <div style="display:flex;align-items:flex-start;gap:.65rem;min-width:0">
+                  ${s.status === 'pending_approval' ? `
+                    <label style="padding-top:.15rem">
+                      <input type="checkbox" class="spec-approve-checkbox" value="${s.id}">
+                    </label>
+                  ` : '<div style="width:16px"></div>'}
+                  <div style="min-width:0">
+                    <div style="font-weight:500;line-height:1.35">${escHtml(s.material_name)}</div>
+                    <div style="color:var(--muted);font-size:.74rem;line-height:1.35;margin-top:.28rem;opacity:.9">
+                      ${escHtml(s.supplier_name)}
+                      ${s.rejection_note ? ` · <span style="color:var(--danger)">Отклонено: ${escHtml(s.rejection_note)}</span>` : ''}
+                      ${s.approved_at ? ` · Согласовано ${formatDate(s.approved_at)}` : ''}
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td style="text-align:right">${s.quantity} ${escHtml(s.unit || '')}</td>
+              <td style="text-align:right">${s.supplied_qty || 0}</td>
+              <td style="text-align:right">${s.remaining_qty || 0}</td>
+              <td>
+                <div style="display:flex;gap:.35rem;align-items:center;justify-content:flex-end;flex-wrap:wrap">
+                  ${badge(s.status)}
+                  ${s.status === 'pending_approval' ? `
+                    <button class="btn btn-sm" style="font-size:.75rem;background:var(--success);color:#000;border:none"
+                      data-action="approve-spec" data-id="${s.id}" data-name="${escHtml(s.material_name)}">
+                      ✓
+                    </button>
+                    <button class="btn btn-sm" style="font-size:.75rem;color:var(--danger);border:1px solid var(--border);background:transparent"
+                      data-action="reject-spec" data-id="${s.id}" data-name="${escHtml(s.material_name)}">
+                      ✕
+                    </button>
+                  ` : ''}
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
     </div>
-  `).join('');
+  `;
+
+  updateSpecBulkActions();
 }
 
 document.getElementById('specs-list').addEventListener('click', async (e) => {
@@ -312,11 +372,61 @@ document.getElementById('specs-list').addEventListener('click', async (e) => {
 
   const rejectBtn = e.target.closest('[data-action="reject-spec"]');
   if (rejectBtn) {
+    rejectSpecMode = 'single';
     activeSpecId = rejectBtn.dataset.id;
+    document.getElementById('reject-spec-title').textContent = 'Отклонить позицию';
     document.getElementById('reject-spec-info').textContent = `Материал: ${rejectBtn.dataset.name}`;
     document.getElementById('reject-spec-form').reset();
     openModal('modal-reject-spec');
   }
+});
+
+document.getElementById('specs-list').addEventListener('change', (e) => {
+  if (!e.target.classList.contains('spec-approve-checkbox')) return;
+  updateSpecBulkActions();
+});
+
+document.getElementById('btn-approve-selected-specs').addEventListener('click', async () => {
+  const ids = getPendingSpecCheckboxes()
+    .filter((input) => input.checked)
+    .map((input) => input.value);
+
+  if (!ids.length) {
+    showToast('Отметьте хотя бы одну позицию', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-approve-selected-specs');
+  btn.disabled = true;
+
+  for (const id of ids) {
+    const { ok, data } = await apiRequest('PUT', `/api/foreman/specs/${id}/approve`);
+    if (!ok) {
+      btn.disabled = false;
+      showToast(data.error, 'error');
+      return;
+    }
+  }
+
+  btn.disabled = false;
+  showToast('Отмеченные позиции согласованы', 'success');
+  getPendingSpecCheckboxes().forEach((input) => { input.checked = false; });
+  loadProjectSpecs(activeProjectId);
+});
+
+document.getElementById('btn-reject-unchecked-specs').addEventListener('click', () => {
+  const unchecked = getPendingSpecCheckboxes().filter((input) => !input.checked);
+  if (!unchecked.length) {
+    showToast('Нет неотмеченных позиций для отклонения', 'error');
+    return;
+  }
+
+  rejectSpecMode = 'bulk';
+  activeSpecId = null;
+  document.getElementById('reject-spec-title').textContent = 'Отклонить неотмеченные позиции';
+  document.getElementById('reject-spec-info').textContent = `Будет отклонено позиций: ${unchecked.length}`;
+  document.getElementById('reject-spec-form').reset();
+  openModal('modal-reject-spec');
 });
 
 document.getElementById('reject-spec-form').addEventListener('submit', async (e) => {
@@ -324,6 +434,28 @@ document.getElementById('reject-spec-form').addEventListener('submit', async (e)
   const rejection_note = new FormData(e.target).get('rejection_note');
   const btn = e.target.querySelector('button[type=submit]');
   btn.disabled = true;
+
+  if (rejectSpecMode === 'bulk') {
+    const ids = getPendingSpecCheckboxes()
+      .filter((input) => !input.checked)
+      .map((input) => input.value);
+
+    for (const id of ids) {
+      const { ok, data } = await apiRequest('PUT', `/api/foreman/specs/${id}/reject`, { rejection_note });
+      if (!ok) {
+        btn.disabled = false;
+        showToast(data.error, 'error');
+        return;
+      }
+    }
+
+    btn.disabled = false;
+    closeModal('modal-reject-spec');
+    showToast('Неотмеченные позиции отклонены', 'success');
+    loadProjectSpecs(activeProjectId);
+    return;
+  }
+
   const { ok, data } = await apiRequest('PUT', `/api/foreman/specs/${activeSpecId}/reject`, { rejection_note });
   btn.disabled = false;
   if (ok) {
@@ -607,10 +739,11 @@ document.getElementById('modal-warehouse-table').addEventListener('click', (e) =
   const btn = e.target.closest('[data-action="writeoff"]');
   if (!btn) return;
   activeWarehouseId = btn.dataset.id;
+  activeWriteoffProjectId = activeProjectId;
   document.getElementById('writeoff-item-info').innerHTML =
     `<strong>${escHtml(btn.dataset.name)}</strong> · Доступно: <strong>${btn.dataset.available} ${escHtml(btn.dataset.unit)}</strong>`;
   document.getElementById('writeoff-form').reset();
-  openModal('modal-writeoff');
+  populateWriteoffStages(activeProjectId).then(() => openModal('modal-writeoff'));
 });
 
 // ─── Документы (вкладка в модалке) ────────────────────────────
@@ -621,26 +754,6 @@ async function loadProjectDocs(id) {
   if (!ok) { container.innerHTML = '<span style="color:var(--danger)">Ошибка загрузки</span>'; return; }
   renderTechDocs(container, data.data);
 }
-
-// ─── Фото ─────────────────────────────────────────────────────
-document.getElementById('upload-photo-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const stageId = fd.get('stage_id');
-  if (!stageId) { showToast('Выберите этап для загрузки фото', 'error'); return; }
-
-  const btn = e.target.querySelector('button[type=submit]');
-  btn.disabled = true; btn.textContent = 'Загрузка...';
-
-  const formData = new FormData();
-  formData.append('photo', fd.get('photo'));
-  if (fd.get('description')) formData.append('description', fd.get('description'));
-
-  const { ok, data } = await apiRequest('POST', `/api/foreman/stages/${stageId}/photos`, formData);
-  btn.disabled = false; btn.textContent = 'Загрузить';
-  if (ok) { showToast('Фото загружено', 'success'); e.target.reset(); }
-  else showToast(data.error, 'error');
-});
 
 // ─── Заявки МТР (секция сайдбара) ────────────────────────────
 async function loadMtrAll() {
@@ -726,7 +839,7 @@ async function loadWarehouseAll() {
   const allRows = [];
   for (const p of projectsList) {
     const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${p.id}/warehouse`);
-    if (ok) data.data.forEach(r => allRows.push({ ...r, project_name: p.name }));
+    if (ok) data.data.forEach(r => allRows.push({ ...r, project_name: p.name, project_id: p.id }));
   }
 
   if (!allRows.length) {
@@ -749,7 +862,8 @@ async function loadWarehouseAll() {
       <td>
         <button class="btn btn-outline btn-sm" data-action="writeoff"
           data-id="${r.id}" data-name="${escHtml(r.material_name)}"
-          data-unit="${escHtml(r.unit||'')}" data-available="${r.qty_balance}">
+          data-unit="${escHtml(r.unit||'')}" data-available="${r.qty_balance}"
+          data-project-id="${r.project_id || ''}">
           Списать
         </button>
       </td>
@@ -761,16 +875,19 @@ document.getElementById('warehouse-table').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="writeoff"]');
   if (!btn) return;
   activeWarehouseId = btn.dataset.id;
+  activeWriteoffProjectId = btn.dataset.projectId;
   document.getElementById('writeoff-item-info').innerHTML =
     `<strong>${escHtml(btn.dataset.name)}</strong> · Доступно: <strong>${btn.dataset.available} ${escHtml(btn.dataset.unit)}</strong>`;
   document.getElementById('writeoff-form').reset();
-  openModal('modal-writeoff');
+  populateWriteoffStages(btn.dataset.projectId).then(() => openModal('modal-writeoff'));
 });
 
 document.getElementById('writeoff-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const quantity = parseFloat(new FormData(e.target).get('quantity'));
-  const { ok, data } = await apiRequest('POST', `/api/foreman/warehouse/${activeWarehouseId}/writeoff`, { quantity });
+  const formData = new FormData(e.target);
+  const quantity = parseFloat(formData.get('quantity'));
+  const stage_id = parseInt(formData.get('stage_id'), 10);
+  const { ok, data } = await apiRequest('POST', `/api/foreman/warehouse/${activeWarehouseId}/writeoff`, { quantity, stage_id });
   if (ok) {
     showToast('Списание выполнено', 'success');
     closeModal('modal-writeoff');
@@ -781,6 +898,170 @@ document.getElementById('writeoff-form').addEventListener('submit', async (e) =>
       loadWarehouseAll();
     }
   } else showToast(data.error, 'error');
+});
+
+async function populateWriteoffStages(projectId) {
+  const select = document.getElementById('writeoff-stage-select');
+  select.innerHTML = '<option value="">— выберите этап —</option>';
+
+  const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${projectId}/stages`);
+  if (!ok) return;
+
+  select.innerHTML += data.data.map((stage) =>
+    `<option value="${stage.id}">${escHtml(stage.name)}</option>`
+  ).join('');
+}
+
+function renderStageWriteoffSelect() {
+  const select = document.getElementById('stage-writeoff-item-select');
+  const hint = document.getElementById('stage-writeoff-hint');
+
+  if (!stageWriteoffItems.length) {
+    select.innerHTML = '<option value="">— материалов на складе нет —</option>';
+    hint.textContent = 'На складе объекта нет доступных материалов для списания.';
+    return;
+  }
+
+  select.innerHTML = '<option value="">— выберите материал —</option>' + stageWriteoffItems.map((item) =>
+    `<option value="${item.id}">${escHtml(item.material_name)} · доступно ${item.qty_balance} ${escHtml(item.unit || '')}</option>`
+  ).join('');
+  hint.textContent = 'Списывать можно только материалы с остатком больше 0.';
+}
+
+async function loadStageWriteoffHistory(stageId) {
+  const list = document.getElementById('stage-writeoff-list');
+  list.innerHTML = '<div style="color:var(--muted);font-size:.82rem">Загрузка списаний...</div>';
+
+  const { ok, data } = await apiRequest('GET', `/api/foreman/stages/${stageId}/writeoffs`);
+  if (!ok) {
+    list.innerHTML = '<div style="color:var(--danger);font-size:.82rem">Не удалось загрузить списания</div>';
+    return;
+  }
+
+  if (!data.data.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:.82rem">На этот этап ещё ничего не списано.</div>';
+    return;
+  }
+
+  list.innerHTML = data.data.map((row) => `
+    <div style="display:flex;justify-content:space-between;gap:.75rem;padding:.45rem 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:500;font-size:.85rem">${escHtml(row.material_name)}</div>
+        <div style="color:var(--muted);font-size:.78rem">${formatDate(row.created_at)}${row.written_off_by_name ? ` · ${escHtml(row.written_off_by_name)}` : ''}</div>
+      </div>
+      <div style="font-weight:600">${row.quantity} ${escHtml(row.unit || '')}</div>
+    </div>
+  `).join('');
+}
+
+async function loadStageWriteoffPanel(stageId, projectId) {
+  const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${projectId}/warehouse`);
+  stageWriteoffItems = ok
+    ? data.data.filter((item) => Number(item.qty_balance) > 0)
+    : [];
+
+  document.getElementById('stage-writeoff-qty').value = '';
+  renderStageWriteoffSelect();
+  await loadStageWriteoffHistory(stageId);
+  await loadStagePhotos(stageId);
+}
+
+document.getElementById('btn-stage-writeoff-add').addEventListener('click', async () => {
+  if (!activeStageId) return;
+
+  const itemId = document.getElementById('stage-writeoff-item-select').value;
+  const qty = parseFloat(document.getElementById('stage-writeoff-qty').value);
+
+  if (!itemId || !(qty > 0)) {
+    showToast('Выберите материал и количество', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-stage-writeoff-add');
+  btn.disabled = true;
+  const { ok, data } = await apiRequest('POST', `/api/foreman/warehouse/${itemId}/writeoff`, {
+    quantity: qty,
+    stage_id: parseInt(activeStageId, 10),
+  });
+  btn.disabled = false;
+
+  if (!ok) {
+    showToast(data.error, 'error');
+    return;
+  }
+
+  showToast('Материал списан на этап', 'success');
+  await loadStageWriteoffPanel(activeStageId, activeProjectId);
+  if (document.getElementById('tab-warehouse').style.display !== 'none') {
+    loadProjectWarehouse(activeProjectId);
+  }
+  loadStages(activeProjectId);
+});
+
+async function loadStagePhotos(stageId) {
+  const list = document.getElementById('stage-photos-list');
+  list.innerHTML = '<div style="color:var(--muted);font-size:.82rem">Загрузка фото...</div>';
+
+  const { ok, data } = await apiRequest('GET', `/api/foreman/stages/${stageId}/photos`);
+  if (!ok) {
+    list.innerHTML = '<div style="color:var(--danger);font-size:.82rem">Не удалось загрузить фото</div>';
+    return;
+  }
+
+  if (!data.data.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:.82rem">Фото для этапа пока не загружены.</div>';
+    return;
+  }
+
+  list.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.75rem">
+      ${data.data.map((photo) => `
+        <a href="${photo.url}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
+          <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--bg2)">
+            <img src="${photo.url}" alt="${escHtml(photo.description || 'Фото этапа')}"
+              style="width:100%;height:120px;object-fit:cover;display:block">
+            <div style="padding:.55rem .6rem">
+              <div style="font-size:.75rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(photo.description || 'Без описания')}</div>
+              <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">${formatDate(photo.uploaded_at)}</div>
+            </div>
+          </div>
+        </a>
+      `).join('')}
+    </div>
+  `;
+}
+
+document.getElementById('stage-photo-inline-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!activeStageId) return;
+
+  const fd = new FormData(e.target);
+  const photo = fd.get('photo');
+  if (!(photo instanceof File) || !photo.name) {
+    showToast('Выберите фото', 'error');
+    return;
+  }
+
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true;
+  btn.textContent = 'Загрузка...';
+
+  const formData = new FormData();
+  formData.append('photo', photo);
+  if (fd.get('description')) formData.append('description', fd.get('description'));
+
+  const { ok, data } = await apiRequest('POST', `/api/foreman/stages/${activeStageId}/photos`, formData);
+  btn.disabled = false;
+  btn.textContent = 'Загрузить';
+
+  if (!ok) {
+    showToast(data.error, 'error');
+    return;
+  }
+
+  e.target.reset();
+  showToast('Фото загружено', 'success');
+  loadStagePhotos(activeStageId);
 });
 
 // ─── Присоединиться по коду ───────────────────────────────────

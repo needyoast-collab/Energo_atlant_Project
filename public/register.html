@@ -18,20 +18,26 @@
 
     .auth-box {
       width: 100%;
-      max-width: 440px;
+      max-width: 600px;
     }
 
     .auth-logo {
-      font-family: 'Stolzl', sans-serif;
-      font-size: 2rem;
-      color: var(--accent);
-      margin-bottom: .25rem;
+      display: flex;
+      justify-content: center;
+      margin-bottom: .5rem;
+    }
+
+    .auth-logo img {
+      width: min(320px, 72%);
+      height: auto;
+      display: block;
     }
 
     .auth-sub {
       color: var(--muted);
-      font-size: .9rem;
+      font-size: .95rem;
       margin-bottom: 2rem;
+      text-align: center;
     }
 
     .auth-card {
@@ -72,6 +78,82 @@
       color: var(--accent);
       background: rgba(245, 166, 35, .08);
     }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.82);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 520px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 2rem;
+      position: relative;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.6rem;
+      line-height: 1;
+    }
+
+    .verify-status {
+      min-height: 1.2em;
+      color: var(--muted);
+      font-size: .82rem;
+      margin-bottom: 1rem;
+    }
+
+    .verify-meta {
+      color: var(--muted);
+      font-size: .85rem;
+      margin-bottom: 1rem;
+    }
+
+    .verify-resend {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin: .35rem 0 1rem;
+    }
+
+    .verify-link-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      padding: 0;
+      font: inherit;
+      font-size: .83rem;
+      cursor: pointer;
+      transition: opacity .2s ease;
+    }
+
+    .verify-link-btn[disabled] {
+      opacity: .45;
+      cursor: default;
+    }
+
+    .verify-timer {
+      color: var(--muted);
+      font-size: .8rem;
+    }
   </style>
 </head>
 
@@ -79,7 +161,7 @@
   <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
   <div class="auth-wrap">
     <div class="auth-box">
-      <div class="auth-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:180px;height:auto"></div>
+      <div class="auth-logo"><img src="/img/logo.png" alt="ЭнергоАтлант"></div>
       <div class="auth-sub">Регистрация личного кабинета</div>
       <div class="auth-card">
         <h2 style="margin-bottom:1.25rem;font-size:1.8rem">Регистрация</h2>
@@ -95,17 +177,25 @@
             <label class="form-label">Имя и фамилия</label>
             <input type="text" class="form-control" name="name" placeholder="Иван Иванов" required>
           </div>
+
           <div class="form-group">
             <label class="form-label">Email</label>
-            <input type="email" class="form-control" name="email" placeholder="your@email.ru" required>
+            <input type="email" class="form-control" name="email" placeholder="your@email.ru">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Телефон</label>
+            <input type="tel" class="form-control" name="phone" id="phone-mask" placeholder="+7 (9XX) XXX-XX-XX">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Логин</label>
+            <input type="text" class="form-control" name="login" placeholder="Придумайте логин" required>
           </div>
           <div class="form-group">
             <label class="form-label">Пароль</label>
             <input type="password" class="form-control" name="password" placeholder="Минимум 8 символов" minlength="8"
               required>
           </div>
-          <p class="text-muted mt-2" style="font-size:.85rem">После регистрации аккаунт будет активирован
-            администратором.</p>
+          <p class="text-muted mt-2" style="font-size:.85rem">Если указан телефон, код подтверждения придёт по SMS. Если телефона нет, код придёт на email.</p>
           <button type="submit" class="btn btn-primary w-full mt-3">Зарегистрироваться</button>
         </form>
       </div>
@@ -115,22 +205,153 @@
       </div>
     </div>
   </div>
+  <div class="modal-overlay" id="register-verify-modal">
+    <div class="modal-card">
+      <div class="modal-close" id="register-verify-close">×</div>
+      <h3 style="margin-bottom:1rem;padding-right:2rem">Подтверждение регистрации</h3>
+      <div class="verify-meta" id="register-verify-meta"></div>
+      <div class="verify-status" id="register-verify-status"></div>
+      <div class="form-group">
+        <label class="form-label">6-значный код</label>
+        <input type="text" class="form-control" id="register-verify-code" maxlength="6" placeholder="Введите код">
+      </div>
+      <div class="verify-resend">
+        <button class="verify-link-btn" id="register-verify-resend" type="button" disabled>Отправить заново</button>
+        <span class="verify-timer" id="register-verify-timer"></span>
+      </div>
+      <button type="button" class="btn btn-primary w-full" id="register-verify-submit">Подтвердить</button>
+    </div>
+  </div>
   <div id="toast-container"></div>
   <script src="/js/preloader.js"></script>
+  <script src="https://unpkg.com/imask"></script>
   <script src="/js/api.js"></script>
   <script>
+    const registerVerificationState = {
+      userId: null,
+      type: null,
+      contact: null,
+      timerId: null,
+    };
+
     // Переключение роли
-    document.querySelectorAll('.role-tab').forEach(tab => {
+    document.querySelectorAll('[data-role]').forEach(tab => {
       tab.addEventListener('click', () => {
-        document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('[data-role]').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         document.querySelector('[name=role]').value = tab.dataset.role;
       });
     });
 
+    function setVerifyStatus(message, type = 'muted') {
+      const status = document.getElementById('register-verify-status');
+      status.textContent = message || '';
+      status.style.color = type === 'error'
+        ? 'var(--danger, #ff6b6b)'
+        : type === 'success'
+          ? 'var(--accent)'
+          : 'var(--muted)';
+    }
+
+    function updateVerifyResend(secondsLeft) {
+      const btn = document.getElementById('register-verify-resend');
+      const timer = document.getElementById('register-verify-timer');
+      if (secondsLeft > 0) {
+        btn.disabled = true;
+        timer.textContent = `Повторная отправка через ${secondsLeft} сек`;
+      } else {
+        btn.disabled = false;
+        timer.textContent = 'Можно отправить код повторно';
+      }
+    }
+
+    function stopVerifyTimer() {
+      if (registerVerificationState.timerId) {
+        clearInterval(registerVerificationState.timerId);
+        registerVerificationState.timerId = null;
+      }
+    }
+
+    function startVerifyTimer(duration = 60) {
+      stopVerifyTimer();
+      let secondsLeft = duration;
+      updateVerifyResend(secondsLeft);
+      registerVerificationState.timerId = setInterval(() => {
+        secondsLeft -= 1;
+        updateVerifyResend(secondsLeft);
+        if (secondsLeft <= 0) stopVerifyTimer();
+      }, 1000);
+    }
+
+    function closeVerifyModal() {
+      document.getElementById('register-verify-modal').style.display = 'none';
+      document.getElementById('register-verify-code').value = '';
+      setVerifyStatus('');
+      stopVerifyTimer();
+      updateVerifyResend(60);
+    }
+
+    async function resendVerifyCode() {
+      if (!registerVerificationState.userId) return;
+      const btn = document.getElementById('register-verify-resend');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      setVerifyStatus('Отправляем код повторно...');
+      const { ok, data } = await apiRequest('POST', '/api/auth/register/resend', { userId: registerVerificationState.userId });
+      if (ok) {
+        setVerifyStatus(data.message || 'Код отправлен повторно', 'success');
+        startVerifyTimer(60);
+      } else {
+        setVerifyStatus(data.error || 'Не удалось отправить код', 'error');
+        updateVerifyResend(0);
+      }
+    }
+
+    async function verifyRegistrationCode() {
+      const code = document.getElementById('register-verify-code').value.trim();
+      if (!code) {
+        showToast('Введите код подтверждения', 'error');
+        return;
+      }
+      const { ok, data } = await apiRequest('POST', '/api/auth/register/verify', {
+        userId: registerVerificationState.userId,
+        code,
+      });
+      if (ok) {
+        setVerifyStatus('Регистрация подтверждена. Теперь можно войти.', 'success');
+        showToast('Регистрация подтверждена', 'success');
+        setTimeout(() => {
+          closeVerifyModal();
+          window.location.href = '/login.html';
+        }, 700);
+      } else {
+        setVerifyStatus(data.error || 'Неверный код', 'error');
+      }
+    }
+
+    document.getElementById('register-verify-close').addEventListener('click', closeVerifyModal);
+    document.getElementById('register-verify-submit').addEventListener('click', verifyRegistrationCode);
+    document.getElementById('register-verify-resend').addEventListener('click', resendVerifyCode);
+
     document.getElementById('register-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
+      const phone = String(fd.get('phone') || '');
+      const email = String(fd.get('email') || '').trim();
+      const phoneDigits = phone.replace(/\D/g, '');
+
+      if (!email && !phoneDigits) {
+        showToast('Укажите email или телефон', 'error');
+        e.target.querySelector('[name=email]').focus();
+        return;
+      }
+
+      if (phone && (phoneDigits.length !== 11 || !['7', '8'].includes(phoneDigits[0]))) {
+        showToast('Укажите телефон в формате +7 (9XX) XXX-XX-XX', 'error');
+        e.target.querySelector('[name=phone]').focus();
+        return;
+      }
+
       const btn = e.target.querySelector('button[type=submit]');
       btn.disabled = true;
       btn.textContent = 'Отправка...';
@@ -138,9 +359,18 @@
       const { ok, data } = await apiRequest('POST', '/api/auth/register', Object.fromEntries(fd.entries()));
 
       if (ok) {
-        showToast('Заявка на регистрацию отправлена! Ожидайте активации аккаунта.', 'success');
+        registerVerificationState.userId = data.data.id;
+        registerVerificationState.type = data.data.verification_type;
+        registerVerificationState.contact = data.data.verification_contact;
+        document.getElementById('register-verify-meta').textContent = data.data.verification_type === 'phone'
+          ? `Мы отправили код подтверждения на номер ${data.data.verification_contact}.`
+          : `Мы отправили код подтверждения на email ${data.data.verification_contact}.`;
+        setVerifyStatus(data.message || 'Код подтверждения отправлен', 'success');
+        document.getElementById('register-verify-modal').style.display = 'flex';
+        document.getElementById('register-verify-code').focus();
+        startVerifyTimer(60);
         e.target.reset();
-        document.querySelectorAll('.role-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+        document.querySelectorAll('[data-role]').forEach((t, i) => t.classList.toggle('active', i === 0));
         document.querySelector('[name=role]').value = 'customer';
       } else {
         showToast(data.error || 'Ошибка регистрации', 'error');

@@ -1,0 +1,6 @@
+ALTER TABLE users
+  ALTER COLUMN email DROP NOT NULL;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS verification_code VARCHAR(10),
+  ADD COLUMN IF NOT EXISTS verification_expires TIMESTAMPTZ;

@@ -231,6 +231,10 @@
       <form id="request-form">
         <div class="form-group">
           <label class="form-label">Телефон для связи</label>
+          <label id="request-use-account-phone-wrap" style="display:none;align-items:center;gap:.55rem;margin:.55rem 0 .75rem;color:var(--muted);font-size:.85rem;cursor:pointer">
+            <input type="checkbox" id="request-use-account-phone" style="width:1rem;height:1rem">
+            Использовать номер телефона аккаунта
+          </label>
           <input type="tel" class="form-control" name="phone" placeholder="+7 999 000 00 00">
         </div>
         <div class="form-group">
@@ -286,8 +290,9 @@
 
   <!-- МОДАЛКА: детали проекта -->
   <div class="modal-overlay" id="modal-project">
-    <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto">
+    <div class="modal modal-shell" style="max-width:680px;max-height:90vh">
       <button class="modal-close" data-close="modal-project">×</button>
+      <div class="modal-shell-header">
       <div class="modal-title" id="modal-project-title">Проект</div>
       <div id="modal-project-meta" class="mb-3"></div>
 
@@ -296,8 +301,10 @@
         style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:.75rem">
         <button class="btn btn-sm btn-primary" data-tab="stages">Ход работ</button>
         <button class="btn btn-sm btn-outline" data-tab="documents">Документы</button>
-        <button class="btn btn-sm btn-outline" data-tab="warehouse">Материалы</button>
+        <button class="btn btn-sm btn-outline" data-tab="warehouse">Склад объекта</button>
       </div>
+      </div>
+      <div class="modal-shell-body autohide-scroll">
 
       <!-- Ход работ -->
       <div id="tab-stages">
@@ -310,9 +317,10 @@
         <div id="documents-list" style="color:var(--muted);font-size:.9rem">Загрузка...</div>
       </div>
 
-      <!-- Материалы -->
+      <!-- Склад объекта -->
       <div id="tab-warehouse" style="display:none">
         <div id="warehouse-list"></div>
+      </div>
       </div>
     </div>
   </div>

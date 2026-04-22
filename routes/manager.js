@@ -9,6 +9,8 @@ const {
   getProject,
   createProject,
   updateProject,
+  getProjectCoefficients,
+  updateProjectCoefficients,
   copyRequestFiles,
   addTeamMember,
   analyzeProject,
@@ -29,6 +31,11 @@ const {
   deleteDocument,
   getDocTypes,
 } = require('../controllers/managerController');
+const {
+  getKpData,
+  generateWord,
+  sendKp,
+} = require('../controllers/kpController');
 
 const router = Router();
 
@@ -60,6 +67,8 @@ router.get('/projects', getProjects);
 router.post('/projects', createProject);
 router.get('/projects/:id', getProject);
 router.put('/projects/:id', updateProject);
+router.get('/projects/:id/coefficients', getProjectCoefficients);
+router.put('/projects/:id/coefficients', updateProjectCoefficients);
 router.post('/projects/:id/team', addTeamMember);
 router.post('/projects/:id/copy-request-files', copyRequestFiles);
 router.post('/projects/:id/analyze', analyzeProject);
@@ -81,11 +90,15 @@ router.delete('/work-specs/:id', deleteWorkSpec);
 
 router.get('/projects/:id/warehouse', getProjectWarehouse);
 router.get('/projects/:id/specs', getProjectSpecs);
+router.get('/projects/:id/kp-data', getKpData);
+router.post('/projects/:id/kp-generate', generateWord);
+router.post('/projects/:id/kp-send', upload.single('file'), sendKp);
 
 router.delete('/documents/:id', deleteDocument);
 router.get('/doc-types', getDocTypes);
 router.get('/staff', getStaff);
 
 router.get('/catalog', require('../controllers/adminController').getCatalog);
+router.get('/coefficients', require('../controllers/adminController').getCoefficients);
 
 module.exports = router;

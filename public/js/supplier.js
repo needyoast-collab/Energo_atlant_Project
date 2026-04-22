@@ -9,7 +9,10 @@ let projectsList   = [];
 let activeMtrId    = null;
 let activeModalProjectId = null;
 let activeGeneralItemId  = null;
+let activeEditGeneralId  = null;
 let activeSpecId         = null;
+let activeFulfillSpecId  = null;
+let activeStockTab       = 'general';
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
@@ -24,7 +27,9 @@ async function init() {
 initNav(section => {
   if (section === 'projects')         renderProjectCards();
   if (section === 'mtr')              loadMtrAll();
-  if (section === 'general-warehouse') loadGeneralWarehouse();
+  if (section === 'stock') {
+    switchStockTab(activeStockTab);
+  }
 });
 
 // ─── Проекты ─────────────────────────────────────────────────
@@ -63,13 +68,61 @@ function renderProjectCards() {
   `).join('');
 }
 
+function renderStockProjectsTable() {
+  const tbody = document.querySelector('#stock-projects-table tbody');
+  if (!tbody) return;
+  if (!projectsList.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">Нет проектов, привязанных к снабженцу.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = projectsList.map(p => `
+    <tr>
+      <td style="color:var(--muted);font-size:.82rem">${escHtml(p.code)}</td>
+      <td style="font-weight:600">${escHtml(p.name)}</td>
+      <td>${badge(p.status)}</td>
+      <td style="color:var(--muted);font-size:.82rem">${escHtml(p.address || '—')}</td>
+      <td style="text-align:right">
+        <button class="btn btn-outline btn-sm" data-action="open-project-stock" data-id="${p.id}">
+          Открыть склад
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
 document.addEventListener('click', (e) => {
   const card = e.target.closest('[data-action="open-project"]');
-  if (!card) return;
-  openProjectModal(card.dataset.id);
+  if (card) {
+    openProjectModal(card.dataset.id);
+    return;
+  }
+
+  const stockCardBtn = e.target.closest('[data-action="open-project-stock"]');
+  if (stockCardBtn) {
+    openProjectModal(stockCardBtn.dataset.id, { warehouseOnly: true });
+  }
 });
 
-async function openProjectModal(id) {
+function switchStockTab(tab) {
+  activeStockTab = tab;
+  document.querySelectorAll('[data-stock-tab]').forEach((btn) => {
+    btn.className = btn.dataset.stockTab === tab ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  });
+  const general = document.getElementById('stock-tab-general');
+  const projects = document.getElementById('stock-tab-projects');
+  if (general) general.style.display = tab === 'general' ? '' : 'none';
+  if (projects) projects.style.display = tab === 'projects' ? '' : 'none';
+  if (tab === 'general') loadGeneralWarehouse();
+  if (tab === 'projects') renderStockProjectsTable();
+}
+
+document.querySelectorAll('[data-stock-tab]').forEach((btn) => {
+  btn.addEventListener('click', () => switchStockTab(btn.dataset.stockTab));
+});
+
+async function openProjectModal(id, options = {}) {
+  const { warehouseOnly = false } = options;
   activeModalProjectId = id;
   const project = projectsList.find(p => p.id == id);
   if (!project) return;
@@ -82,9 +135,18 @@ async function openProjectModal(id) {
   document.getElementById('sup-warehouse-export').href =
     `/api/supplier/projects/${id}/warehouse/export`;
 
+  const tabs = document.getElementById('sup-project-tabs');
+  if (tabs) tabs.style.display = warehouseOnly ? 'none' : 'flex';
+
   try {
     switchSupTab('warehouse');
   } catch(err) { /* tab уже активен */ }
+
+  if (warehouseOnly) {
+    document.getElementById('sup-tab-warehouse').style.display = '';
+    document.getElementById('sup-tab-specs').style.display = 'none';
+    document.getElementById('sup-tab-docs').style.display = 'none';
+  }
   openModal('modal-project');
 }
 
@@ -172,27 +234,56 @@ async function loadSupSpecs(id) {
     return;
   }
 
+  const getSupplyState = (spec) => {
+    const supplied = Number(spec.supplied_qty || 0);
+    const remaining = Number(spec.remaining_qty || 0);
+    if (remaining <= 0 && supplied > 0) return { label: 'Обеспечено', color: 'var(--success)' };
+    if (supplied > 0) return { label: 'Частично обеспечено', color: 'var(--accent)' };
+    return { label: 'Не обеспечено', color: 'var(--muted)' };
+  };
+
   container.innerHTML = specs.map(s => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem 0;border-bottom:1px solid var(--border)">
-      <div>
-        <div style="font-weight:500;font-size:.9rem">${escHtml(s.material_name)}</div>
-        <div style="color:var(--muted);font-size:.78rem">
-          ${s.quantity} ${escHtml(s.unit || '')} · ${escHtml(SPEC_STATUS_LABELS[s.status] || s.status)}
-          ${s.rejection_note ? ` · <span style="color:var(--danger)">${escHtml(s.rejection_note)}</span>` : ''}
+    <div style="padding:.7rem 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem">
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:500;font-size:.9rem">${escHtml(s.material_name)}</div>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap;color:var(--muted);font-size:.78rem;margin-top:.1rem">
+            <span>Нужно: <strong style="color:var(--text)">${s.quantity} ${escHtml(s.unit || '')}</strong></span>
+            <span>Цена: <strong style="color:var(--text)">${formatMoney(Number(s.unit_price || 0))}</strong></span>
+            <span>Обеспечено: <strong style="color:var(--text)">${s.supplied_qty || 0}</strong></span>
+            <span>Осталось: <strong style="color:var(--text)">${s.remaining_qty || 0}</strong></span>
+          </div>
+          ${s.status === 'approved' ? `
+            <div style="font-size:.78rem;margin-top:.2rem;color:${getSupplyState(s).color}">
+              ${getSupplyState(s).label}
+            </div>
+          ` : ''}
+          <div style="color:var(--muted);font-size:.78rem;margin-top:.2rem">
+            ${escHtml(SPEC_STATUS_LABELS[s.status] || s.status)}
+            ${s.rejection_note ? ` · <span style="color:var(--danger)">${escHtml(s.rejection_note)}</span>` : ''}
+          </div>
         </div>
-      </div>
-      <div style="display:flex;gap:.35rem;flex-shrink:0;margin-left:.5rem">
-        ${s.status === 'draft' ? `
-          <button class="btn btn-outline btn-sm" style="font-size:.75rem"
-            data-action="edit-spec" data-id="${s.id}"
-            data-name="${escHtml(s.material_name)}" data-unit="${escHtml(s.unit||'')}" data-qty="${s.quantity}">
-            Изм.
-          </button>
-          <button class="btn btn-sm" style="font-size:.75rem;color:var(--danger);border:1px solid var(--border);background:transparent"
-            data-action="delete-spec" data-id="${s.id}">
-            ✕
-          </button>
-        ` : ''}
+        <div style="display:flex;gap:.35rem;flex-shrink:0;margin-left:.5rem">
+          ${s.status === 'approved' && Number(s.remaining_qty || 0) > 0 ? `
+            <button class="btn btn-outline btn-sm" style="font-size:.75rem"
+              data-action="fulfill-spec" data-id="${s.id}"
+              data-name="${escHtml(s.material_name)}" data-unit="${escHtml(s.unit || '')}"
+              data-remaining="${s.remaining_qty}">
+              Обеспечить
+            </button>
+          ` : ''}
+          ${s.status === 'draft' ? `
+            <button class="btn btn-outline btn-sm" style="font-size:.75rem;min-width:120px"
+              data-action="edit-spec" data-id="${s.id}"
+              data-name="${escHtml(s.material_name)}" data-unit="${escHtml(s.unit||'')}" data-qty="${s.quantity}" data-price="${s.unit_price}">
+              Изм.
+            </button>
+            <button class="btn btn-outline btn-sm" style="font-size:.75rem;min-width:120px;color:var(--danger);border-color:rgba(239,68,68,.35)"
+              data-action="delete-spec" data-id="${s.id}">
+              Удалить
+            </button>
+          ` : ''}
+        </div>
       </div>
     </div>
   `).join('');
@@ -209,6 +300,7 @@ document.getElementById('sup-specs-list').addEventListener('click', async (e) =>
     form.querySelector('[name=material_name]').value = editBtn.dataset.name;
     form.querySelector('[name=unit]').value = editBtn.dataset.unit;
     form.querySelector('[name=quantity]').value = editBtn.dataset.qty;
+    form.querySelector('[name=unit_price]').value = editBtn.dataset.price || '0';
     openModal('modal-add-spec');
     return;
   }
@@ -219,14 +311,37 @@ document.getElementById('sup-specs-list').addEventListener('click', async (e) =>
     const { ok, data } = await apiRequest('DELETE', `/api/supplier/specs/${delBtn.dataset.id}`);
     if (ok) { showToast('Удалено', 'success'); loadSupSpecs(activeModalProjectId); }
     else showToast(data.error, 'error');
+    return;
+  }
+
+  const fulfillBtn = e.target.closest('[data-action="fulfill-spec"]');
+  if (fulfillBtn) {
+    activeFulfillSpecId = fulfillBtn.dataset.id;
+    document.getElementById('fulfill-spec-info').innerHTML =
+      `<strong>${escHtml(fulfillBtn.dataset.name)}</strong> · Осталось обеспечить: <strong>${fulfillBtn.dataset.remaining} ${escHtml(fulfillBtn.dataset.unit || '')}</strong>`;
+    const form = document.getElementById('fulfill-spec-form');
+    form.reset();
+    form.querySelector('[name=quantity]').value = fulfillBtn.dataset.remaining;
+    form.querySelector('[name=unit]').value = fulfillBtn.dataset.unit || '';
+    const priceInput = form.querySelector('[name=purchase_price]');
+    priceInput.value = '';
+    document.getElementById('fulfill-spec-source').value = 'company';
+    await loadFulfillGeneralItems(fulfillBtn.dataset.name);
+    toggleFulfillGeneralWrap();
+    openModal('modal-fulfill-spec');
   }
 });
 
 document.getElementById('btn-add-spec').addEventListener('click', () => {
-  activeSpecId = null;
-  document.getElementById('modal-spec-title').textContent = 'Добавить позицию';
-  document.getElementById('spec-form').reset();
-  openModal('modal-add-spec');
+  const project = projectsList.find(p => p.id == activeModalProjectId);
+  openBatchModal(project?.name || '', 'ВОМ', 'Наименование материала', async (items) => {
+    const { ok, data } = await apiRequest('POST', `/api/supplier/projects/${activeModalProjectId}/specs/batch`, { items });
+    if (ok) {
+      showToast(`Добавлено позиций: ${data.data.inserted}`, 'success');
+      closeModal('modal-batch');
+      loadSupSpecs(activeModalProjectId);
+    } else showToast(data.error, 'error');
+  });
 });
 
 document.getElementById('spec-form').addEventListener('submit', async (e) => {
@@ -237,6 +352,7 @@ document.getElementById('spec-form').addEventListener('submit', async (e) => {
     material_name: fd.get('material_name'),
     unit:          fd.get('unit') || undefined,
     quantity:      parseFloat(fd.get('quantity')),
+    unit_price:    parseFloat(fd.get('unit_price')),
   };
 
   const btn = e.target.querySelector('button[type=submit]');
@@ -264,6 +380,69 @@ document.getElementById('btn-submit-specs').addEventListener('click', async () =
     showToast(`Отправлено (${data.data.submitted} позиций)`, 'success');
     loadSupSpecs(activeModalProjectId);
   } else showToast(data.error, 'error');
+});
+
+async function loadFulfillGeneralItems(materialName) {
+  const select = document.getElementById('fulfill-general-item');
+  select.innerHTML = '<option value="">— выберите позицию —</option>';
+
+  const { ok, data } = await apiRequest('GET', '/api/supplier/general-warehouse');
+  if (!ok) return;
+
+  const normalized = (materialName || '').trim().toLowerCase();
+  const rows = data.data.filter((item) => Number(item.qty_total) - Number(item.qty_reserved || 0) > 0);
+  const matched = rows.filter((item) => item.material_name.toLowerCase().includes(normalized));
+  const list = matched.length ? matched : rows;
+
+  select.innerHTML += list.map((item) => {
+    const available = Number(item.qty_total) - Number(item.qty_reserved || 0);
+    return `<option value="${item.id}">${escHtml(item.material_name)} · доступно ${available} ${escHtml(item.unit || '')}</option>`;
+  }).join('');
+}
+
+function toggleFulfillGeneralWrap() {
+  const source = document.getElementById('fulfill-spec-source').value;
+  const wrap = document.getElementById('fulfill-general-wrap');
+  const purchaseWrap = document.getElementById('fulfill-purchase-price-wrap');
+  const select = document.getElementById('fulfill-general-item');
+  const priceInput = document.querySelector('#fulfill-spec-form [name=purchase_price]');
+  wrap.style.display = source === 'company' ? '' : 'none';
+  purchaseWrap.style.display = source === 'purchase' ? '' : 'none';
+  select.required = source === 'company';
+  priceInput.required = source === 'purchase';
+}
+
+document.getElementById('fulfill-spec-source').addEventListener('change', toggleFulfillGeneralWrap);
+
+document.getElementById('fulfill-spec-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!activeFulfillSpecId) return;
+
+  const fd = new FormData(e.target);
+  const body = {
+    source: fd.get('source'),
+    quantity: parseFloat(fd.get('quantity')),
+  };
+  if (fd.get('general_item_id')) body.general_item_id = parseInt(fd.get('general_item_id'), 10);
+  if (fd.get('purchase_price')) body.purchase_price = parseFloat(fd.get('purchase_price'));
+  if (fd.get('unit')) body.unit = fd.get('unit');
+  if (fd.get('notes')) body.notes = fd.get('notes');
+
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true;
+  const { ok, data } = await apiRequest('POST', `/api/supplier/specs/${activeFulfillSpecId}/fulfill`, body);
+  btn.disabled = false;
+  if (ok) {
+    showToast('Материал поступил на склад объекта', 'success');
+    closeModal('modal-fulfill-spec');
+    loadSupSpecs(activeModalProjectId);
+    if (document.getElementById('sup-tab-warehouse').style.display !== 'none') {
+      loadSupWarehouse(activeModalProjectId);
+    }
+    loadGeneralWarehouse();
+  } else {
+    showToast(data.error, 'error');
+  }
 });
 
 // ─── Массовое добавление ВОМ (batch modal) ────────────────────
@@ -298,6 +477,11 @@ function addBatchRow() {
         style="width:100%;min-width:80px;background:var(--bg2);color:var(--text);
                border:1px solid var(--border);border-radius:4px;padding:.35rem .55rem;font-size:.84rem;font-family:inherit;box-sizing:border-box">
     </td>
+    <td style="padding:.2rem .3rem">
+      <input type="number" class="batch-cell batch-price" placeholder="0.00" min="0" step="0.01"
+        style="width:100%;min-width:90px;background:var(--bg2);color:var(--text);
+               border:1px solid var(--border);border-radius:4px;padding:.35rem .55rem;font-size:.84rem;font-family:inherit;box-sizing:border-box">
+    </td>
   `;
   tbody.appendChild(tr);
   updateBatchCounter();
@@ -308,7 +492,7 @@ function updateBatchCounter() {
   const rows = document.querySelectorAll('#batch-tbody tr');
   let filled = 0;
   rows.forEach(tr => {
-    if (tr.querySelector('.batch-name').value.trim() && tr.querySelector('.batch-qty').value) filled++;
+    if (tr.querySelector('.batch-name').value.trim() && tr.querySelector('.batch-qty').value && tr.querySelector('.batch-price').value) filled++;
   });
   const s = filled % 10 === 1 && filled % 100 !== 11 ? 'позиция' : filled % 10 >= 2 && filled % 10 <= 4 && (filled % 100 < 10 || filled % 100 >= 20) ? 'позиции' : 'позиций';
   document.getElementById('batch-counter').textContent = `${filled} ${s} заполнено`;
@@ -387,6 +571,10 @@ document.getElementById('modal-batch').addEventListener('paste', e => {
       const qty = parseFloat(cols[2].replace(',', '.'));
       if (!isNaN(qty)) tr.querySelector('.batch-qty').value = qty;
     }
+    if (cols[3] !== undefined) {
+      const price = parseFloat(cols[3].replace(',', '.'));
+      if (!isNaN(price)) tr.querySelector('.batch-price').value = price;
+    }
   });
   updateBatchCounter();
 });
@@ -402,7 +590,11 @@ document.getElementById('btn-batch-save').addEventListener('click', async () => 
     const name = tr.querySelector('.batch-name').value.trim();
     const unit = tr.querySelector('.batch-unit').value.trim();
     const qty  = parseFloat(tr.querySelector('.batch-qty').value);
-    if (name && qty > 0) items.push({ material_name: name, unit: unit || undefined, quantity: qty });
+    const price = parseFloat(tr.querySelector('.batch-price').value);
+    if (name && qty > 0) {
+      if (Number.isNaN(price) || price < 0) return;
+      items.push({ material_name: name, unit: unit || undefined, quantity: qty, unit_price: price });
+    }
   });
   if (!items.length) { showToast('Заполните хотя бы одну позицию', 'error'); return; }
 
@@ -410,18 +602,6 @@ document.getElementById('btn-batch-save').addEventListener('click', async () => 
   btn.disabled = true; btn.textContent = 'Сохранение...';
   if (batchSaveCallback) await batchSaveCallback(items);
   btn.disabled = false; btn.textContent = 'Сохранить в проект';
-});
-
-document.getElementById('btn-batch-specs').addEventListener('click', () => {
-  const project = projectsList.find(p => p.id == activeModalProjectId);
-  openBatchModal(project?.name || '', 'ВОМ', 'Наименование материала', async (items) => {
-    const { ok, data } = await apiRequest('POST', `/api/supplier/projects/${activeModalProjectId}/specs/batch`, { items });
-    if (ok) {
-      showToast(`Добавлено позиций: ${data.data.inserted}`, 'success');
-      closeModal('modal-batch');
-      loadSupSpecs(activeModalProjectId);
-    } else showToast(data.error, 'error');
-  });
 });
 
 // ─── Документы (в модалке) ────────────────────────────────────
@@ -451,7 +631,13 @@ async function loadGeneralWarehouse() {
         <td>${r.qty_reserved}</td>
         <td style="font-weight:600;color:${available > 0 ? 'var(--success)' : 'var(--muted)'}">${available}</td>
         <td style="color:var(--muted);font-size:.8rem">${escHtml(r.notes || '—')}</td>
-        <td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-outline btn-sm" style="font-size:.78rem"
+            data-action="edit-general" data-id="${r.id}"
+            data-name="${escHtml(r.material_name)}" data-unit="${escHtml(r.unit || '')}"
+            data-qty="${r.qty_total}" data-notes="${escHtml(r.notes || '')}">
+            Ред.
+          </button>
           <button class="btn btn-outline btn-sm" style="font-size:.78rem"
             data-action="transfer" data-id="${r.id}"
             data-name="${escHtml(r.material_name)}" data-unit="${escHtml(r.unit||'')}"
@@ -491,6 +677,21 @@ document.getElementById('add-general-form').addEventListener('submit', async (e)
 });
 
 document.getElementById('general-warehouse-table').addEventListener('click', (e) => {
+  const editBtn = e.target.closest('[data-action="edit-general"]');
+  if (editBtn) {
+    activeEditGeneralId = editBtn.dataset.id;
+    document.getElementById('edit-general-info').innerHTML =
+      `<strong>${escHtml(editBtn.dataset.name)}</strong>`;
+    const form = document.getElementById('edit-general-form');
+    form.reset();
+    form.querySelector('[name=item_id]').value = activeEditGeneralId;
+    form.querySelector('[name=unit]').value = editBtn.dataset.unit || '';
+    form.querySelector('[name=qty_total]').value = editBtn.dataset.qty || '0';
+    form.querySelector('[name=notes]').value = editBtn.dataset.notes || '';
+    openModal('modal-edit-general');
+    return;
+  }
+
   const btn = e.target.closest('[data-action="transfer"]');
   if (!btn) return;
   activeGeneralItemId = btn.dataset.id;
@@ -519,6 +720,29 @@ document.getElementById('transfer-form').addEventListener('submit', async (e) =>
   if (ok) {
     showToast('Материал переведён на склад объекта', 'success');
     closeModal('modal-transfer');
+    loadGeneralWarehouse();
+  } else showToast(data.error, 'error');
+});
+
+document.getElementById('edit-general-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!activeEditGeneralId) return;
+
+  const fd = new FormData(e.target);
+  const body = {
+    unit: fd.get('unit') || undefined,
+    qty_total: parseFloat(fd.get('qty_total')) || 0,
+  };
+  if (fd.get('notes')) body.notes = fd.get('notes');
+
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true;
+  const { ok, data } = await apiRequest('PUT', `/api/supplier/general-warehouse/${activeEditGeneralId}`, body);
+  btn.disabled = false;
+
+  if (ok) {
+    showToast('Позиция обновлена', 'success');
+    closeModal('modal-edit-general');
     loadGeneralWarehouse();
   } else showToast(data.error, 'error');
 });

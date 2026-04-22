@@ -1,0 +1,3 @@
+ALTER TABLE price_catalog
+  ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES users(id),
+  ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;

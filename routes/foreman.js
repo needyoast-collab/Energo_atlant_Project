@@ -11,6 +11,8 @@ const {
   generateStagesFromVOR,
   uploadPhoto,
   getWarehouse,
+  getStageWriteoffs,
+  getStagePhotos,
   writeoffWarehouse,
   getMtrRequests,
   createMtrRequest,
@@ -47,6 +49,8 @@ router.post('/projects/:id/stages/generate-from-vor', generateStagesFromVOR);
 router.post('/projects/:id/stages', createStage);
 router.put('/stages/:id', updateStage);
 router.post('/stages/:id/photos', upload.single('photo'), uploadPhoto);
+router.get('/stages/:id/writeoffs', getStageWriteoffs);
+router.get('/stages/:id/photos', getStagePhotos);
 
 // Склад объекта
 router.get('/projects/:id/warehouse', getWarehouse);

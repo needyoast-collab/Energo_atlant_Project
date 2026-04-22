@@ -24,7 +24,7 @@
       </button>
       <button class="nav-item" data-section="warehouse">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        Склад
+        Склады объектов
       </button>
     </nav>
     <div class="sidebar-footer">
@@ -69,7 +69,7 @@
     <!-- СКЛАД -->
     <div class="dash-section" id="section-warehouse">
       <div class="dash-header">
-        <h1>Склад</h1>
+        <h1>Склады объектов</h1>
       </div>
       <div class="card">
         <div class="table-wrap">
@@ -96,15 +96,19 @@
         <label class="form-label">Код проекта</label>
         <input type="text" class="form-control" name="code" placeholder="PRJ-2026-XXXX" required style="text-transform:uppercase">
       </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Присоединиться</button>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-join">Отмена</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">Присоединиться</button>
+      </div>
     </form>
   </div>
 </div>
 
 <!-- МОДАЛКА: проект (этапы + фото) -->
 <div class="modal-overlay" id="modal-project">
-  <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto">
+  <div class="modal modal-shell" style="max-width:1080px;max-height:90vh">
     <button class="modal-close" data-close="modal-project">×</button>
+    <div class="modal-shell-header">
     <div class="modal-title" id="modal-project-title">Проект</div>
     <div id="modal-project-meta" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
 
@@ -113,10 +117,11 @@
       <button class="btn btn-sm btn-primary" id="tab-btn-stages"    data-tab="stages">Этапы</button>
       <button class="btn btn-sm btn-outline" id="tab-btn-specs"       data-tab="specs">ВОМ</button>
       <button class="btn btn-sm btn-outline" id="tab-btn-work-specs"  data-tab="work-specs">ВОР</button>
-      <button class="btn btn-sm btn-outline" id="tab-btn-warehouse"   data-tab="warehouse">Склад</button>
-      <button class="btn btn-sm btn-outline" id="tab-btn-photos"    data-tab="photos">Фото</button>
+      <button class="btn btn-sm btn-outline" id="tab-btn-warehouse"   data-tab="warehouse">Склад объекта</button>
       <button class="btn btn-sm btn-outline" id="tab-btn-docs"      data-tab="docs">Документы</button>
     </div>
+    </div>
+    <div class="modal-shell-body autohide-scroll">
 
     <!-- Этапы -->
     <div id="tab-stages">
@@ -129,20 +134,27 @@
 
     <!-- Ведомость материалов -->
     <div id="tab-specs" style="display:none">
-      <div style="font-weight:600;font-size:.9rem;margin-bottom:.75rem">Ведомость материалов</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">
+        <div style="font-weight:600;font-size:.9rem">Ведомость материалов</div>
+        <div id="specs-bulk-actions" style="display:none;gap:.5rem;align-items:center;flex-wrap:wrap">
+          <span id="specs-bulk-counter" style="color:var(--muted);font-size:.8rem">0 отмечено</span>
+          <button class="btn btn-outline btn-sm" id="btn-approve-selected-specs" style="font-size:.78rem">Согласовать отмеченные</button>
+          <button class="btn btn-outline btn-sm" id="btn-reject-unchecked-specs" style="font-size:.78rem">Отклонить неотмеченные</button>
+        </div>
+      </div>
       <div id="specs-list"></div>
     </div>
 
     <!-- ВОР: ведомость объёмов работ -->
     <div id="tab-work-specs" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.75rem">
         <div style="font-weight:600;font-size:.9rem">Ведомость объёмов работ</div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap" id="vor-actions">
           <button class="btn btn-outline btn-sm" id="btn-batch-work-specs" style="font-size:.78rem">Массовое добавление</button>
           <button class="btn btn-primary btn-sm" id="btn-add-work-spec" style="font-size:.78rem">+ Создать позицию</button>
-          <button class="btn btn-sm" id="btn-generate-stages"
-            style="font-size:.78rem;background:var(--success);color:#000;border:none;display:none">
-            ⚡ Сформировать этапы
+          <button class="btn btn-outline btn-sm" id="btn-generate-stages"
+            style="font-size:.78rem;display:none">
+            Сформировать этапы
           </button>
         </div>
       </div>
@@ -166,30 +178,6 @@
     <div id="tab-docs" style="display:none">
       <div id="project-docs-list"><span style="color:var(--muted)">Загрузка...</span></div>
     </div>
-
-    <!-- Фото -->
-    <div id="tab-photos" style="display:none">
-      <div class="flex-between mb-2">
-        <span style="font-weight:600;font-size:.9rem">Загрузить фото</span>
-      </div>
-      <form id="upload-photo-form" style="margin-bottom:1rem">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
-          <div class="form-group" style="margin:0">
-            <label class="form-label">Этап</label>
-            <select class="form-control" name="stage_id" id="photo-stage-select">
-              <option value="">— без этапа —</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin:0">
-            <label class="form-label">Фото</label>
-            <input type="file" class="form-control" name="photo" accept="image/*" required style="padding:.4rem .6rem;font-size:.85rem">
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:.5rem">
-          <input type="text" class="form-control" name="description" placeholder="Описание (необязательно)" style="font-size:.85rem">
-        </div>
-        <button type="submit" class="btn btn-outline btn-sm">Загрузить</button>
-      </form>
     </div>
   </div>
 </div>
@@ -218,14 +206,17 @@
           <input type="date" class="form-control" name="planned_end">
         </div>
       </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Создать</button>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-add-stage">Отмена</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">Создать</button>
+      </div>
     </form>
   </div>
 </div>
 
 <!-- МОДАЛКА: редактировать этап -->
 <div class="modal-overlay" id="modal-edit-stage">
-  <div class="modal">
+  <div class="modal" style="max-width:960px">
     <button class="modal-close" data-close="modal-edit-stage">×</button>
     <div class="modal-title">Редактировать этап</div>
     <form id="edit-stage-form">
@@ -305,8 +296,48 @@
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary w-full mt-2">Сохранить</button>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-edit-stage">Отмена</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">Сохранить</button>
+      </div>
     </form>
+    <div id="stage-writeoff-panel" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div style="font-weight:600;font-size:.9rem;margin-bottom:.75rem">Списание материалов на этап</div>
+      <div style="display:grid;grid-template-columns:1.5fr .7fr;gap:.75rem;align-items:end">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Материал со склада объекта</label>
+          <select class="form-control" id="stage-writeoff-item-select">
+            <option value="">— выберите материал —</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Количество</label>
+          <input type="number" class="form-control" id="stage-writeoff-qty" min="0.001" step="0.001" placeholder="0">
+        </div>
+      </div>
+      <div style="margin-top:.75rem;display:flex;justify-content:flex-end">
+        <button class="btn btn-outline" type="button" id="btn-stage-writeoff-add">Списать</button>
+      </div>
+      <div id="stage-writeoff-hint" style="margin-top:.5rem;color:var(--muted);font-size:.8rem">Загрузка материалов...</div>
+      <div id="stage-writeoff-list" style="margin-top:.9rem"></div>
+    </div>
+    <div id="stage-photos-panel" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div style="font-weight:600;font-size:.9rem;margin-bottom:.75rem">Фото этапа</div>
+      <form id="stage-photo-inline-form">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.75rem;align-items:end">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Фото</label>
+            <input type="file" class="form-control" name="photo" accept="image/*" required style="padding:.4rem .6rem;font-size:.85rem">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Описание</label>
+            <input type="text" class="form-control" name="description" placeholder="Краткое описание">
+          </div>
+          <button class="btn btn-outline" type="submit">Загрузить</button>
+        </div>
+      </form>
+      <div id="stage-photos-list" style="margin-top:.9rem"></div>
+    </div>
   </div>
 </div>
 
@@ -344,7 +375,10 @@
         <label class="form-label">Примечание</label>
         <textarea class="form-control" name="notes" rows="2"></textarea>
       </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Отправить заявку</button>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-mtr">Отмена</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">Отправить заявку</button>
+      </div>
     </form>
   </div>
 </div>
@@ -357,10 +391,19 @@
     <div id="writeoff-item-info" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
     <form id="writeoff-form">
       <div class="form-group">
+        <label class="form-label">Этап <span style="color:var(--accent)">*</span></label>
+        <select class="form-control" name="stage_id" id="writeoff-stage-select" required>
+          <option value="">— выберите этап —</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label">Количество к списанию</label>
         <input type="number" class="form-control" name="quantity" required min="0.001" step="0.001">
       </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Списать</button>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-writeoff">Отмена</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">Списать</button>
+      </div>
     </form>
   </div>
 </div>
@@ -385,7 +428,10 @@
           <input type="number" class="form-control" name="quantity" required min="0.001" step="0.001">
         </div>
       </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Добавить</button>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-add-work-spec">Отмена</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">Добавить</button>
+      </div>
     </form>
   </div>
 </div>
@@ -394,14 +440,17 @@
 <div class="modal-overlay" id="modal-reject-spec">
   <div class="modal">
     <button class="modal-close" data-close="modal-reject-spec">×</button>
-    <div class="modal-title">Отклонить позицию</div>
+    <div class="modal-title" id="reject-spec-title">Отклонить позицию</div>
     <div id="reject-spec-info" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
     <form id="reject-spec-form">
       <div class="form-group">
         <label class="form-label">Причина отклонения <span style="color:var(--accent)">*</span></label>
         <textarea class="form-control" name="rejection_note" required rows="3" placeholder="Укажите причину..."></textarea>
       </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Отклонить</button>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-reject-spec">Отмена</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">Отклонить</button>
+      </div>
     </form>
   </div>
 </div>
@@ -412,7 +461,7 @@
     <button class="modal-close" data-close="modal-batch">×</button>
     <div class="modal-title" id="batch-modal-title">Массовое добавление — ВОР</div>
     <div id="batch-modal-subtitle" style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem"></div>
-    <div style="flex:1;overflow-y:auto;min-height:0">
+    <div class="autohide-scroll" style="flex:1;overflow-y:auto;min-height:0">
       <table style="width:100%;border-collapse:collapse">
         <thead>
           <tr style="border-bottom:2px solid var(--border)">

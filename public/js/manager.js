@@ -39,11 +39,22 @@ let requestIdForProject = null;
 let staffList = [];
 let docTypes = {};
 let activeWorkSpecEditId = null;
+let currentKpData = null;
+let coefficientCatalog = [];
+let activeProjectCoefficientIds = [];
+let draftProjectCoefficientIds = [];
+let activeEstimateTab = 'summary';
 
 const REQUEST_DOC_LABELS = {
   tu: 'Технические условия', rd: 'Рабочая документация',
   pd: 'Проектная документация', tz: 'Техническое задание',
   situation_plan: 'Ситуационный план', other: 'Прочее',
+};
+
+const WAREHOUSE_SOURCE_LABELS = {
+  company: 'Склад компании',
+  purchase: 'Закупка',
+  customer: 'Давальческий',
 };
 
 // ─── Инициализация ────────────────────────────────────────────
@@ -72,6 +83,10 @@ initNav(section => {
   if (section === 'projects') loadProjects();
   if (section === 'requests') loadRequests();
   if (section === 'messages') loadMessages();
+  if (section === 'catalog') {
+    switchTab('works');
+    loadCatalog();
+  }
 });
 
 // ─── Воронка ─────────────────────────────────────────────────
@@ -211,7 +226,7 @@ async function openProject(id) {
     </div>
   `;
   document.getElementById('project-status-select').value = project.status;
-  document.getElementById('project-regional-coeff').value = project.regional_coeff || 1.0;
+  document.getElementById('project-regional-coeff-display').textContent = Number(project.regional_coeff || 1).toFixed(3);
   document.getElementById('analyze-result').textContent = '';
   document.getElementById('upload-doc-form').reset();
   document.getElementById('vor-add-form').reset();
@@ -223,11 +238,16 @@ async function openProject(id) {
   generateBtn.disabled = generated;
   generateBtn.style.display = generated ? 'none' : '';
 
-  // Проверка готовности ВОР/ВОМ (простая логика: если они есть, можно строить КП)
   const kpBtn = document.getElementById('btn-open-kp');
-  // Мы можем запрашивать кол-во, но покажем кнопку всегда, а при клике сделаем проверки
   kpBtn.style.display = ['offer', 'negotiation', 'contract', 'lead', 'visit', 'qualification'].includes(project.status) ? '' : 'none';
+  syncKpActionVisibility(kpBtn.style.display !== 'none');
+  kpBtn.disabled = true;
+  kpBtn.title = 'Проверка состава КП...';
+  if (kpBtn.style.display !== 'none') {
+    refreshKpButtonState(project.id);
+  }
 
+  await loadProjectCoefficientSummary(project.id);
   await loadStaff();
   switchProjectTab('main');
   openModal('modal-project');
@@ -241,8 +261,10 @@ function switchProjectTab(tab) {
     panel.style.display = panel.id === `ptab-${tab}` ? '' : 'none';
   });
   if (tab === 'stages') loadManagerStages(activeProjectId);
-  if (tab === 'vor') loadManagerVOR(activeProjectId);
-  if (tab === 'vom') loadManagerSpecs(activeProjectId);
+  if (tab === 'estimate') {
+    loadManagerEstimate(activeProjectId);
+    switchEstimateTab(activeEstimateTab);
+  }
   if (tab === 'warehouse') loadManagerWarehouse(activeProjectId);
   if (tab === 'documents') loadProjectDocs(activeProjectId);
 }
@@ -250,7 +272,20 @@ function switchProjectTab(tab) {
 document.getElementById('modal-project').addEventListener('click', (e) => {
   const tab = e.target.closest('.project-tab');
   if (tab) switchProjectTab(tab.dataset.tab);
+
+  const estimateTab = e.target.closest('[data-estimate-tab]');
+  if (estimateTab) switchEstimateTab(estimateTab.dataset.estimateTab);
 });
+
+function switchEstimateTab(tab) {
+  activeEstimateTab = tab;
+  document.querySelectorAll('[data-estimate-tab]').forEach((btn) => {
+    btn.className = btn.dataset.estimateTab === tab ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  });
+  document.getElementById('estimate-tab-summary').style.display = tab === 'summary' ? '' : 'none';
+  document.getElementById('estimate-tab-works').style.display = tab === 'works' ? '' : 'none';
+  document.getElementById('estimate-tab-materials').style.display = tab === 'materials' ? '' : 'none';
+}
 
 document.getElementById('btn-save-status').addEventListener('click', async () => {
   const status = document.getElementById('project-status-select').value;
@@ -294,17 +329,131 @@ document.getElementById('team-add-rows').addEventListener('click', async (e) => 
   else showToast(data.error, 'error');
 });
 
-document.getElementById('project-regional-coeff').addEventListener('change', async (e) => {
-  const val = parseFloat(e.target.value);
-  if (isNaN(val) || val <= 0) return;
-  const { ok, data } = await apiRequest('PUT', `/api/manager/projects/${activeProjectId}`, { regional_coeff: val });
-  if (ok) {
-    showToast('Коэффициент обновлён', 'success');
-    activeProject.regional_coeff = val;
-    if (document.getElementById('project-status-select').value) {
-      loadManagerVOR(activeProjectId); // перерисуем ВОР чтобы обновить суммы
-    }
-  } else showToast(data.error, 'error');
+function calculateCoefficientTotalByIds(ids) {
+  if (!ids.length) return 1;
+  return ids.reduce((acc, id) => {
+    const item = coefficientCatalog.find((row) => row.id === id);
+    return item ? acc * Number(item.value) : acc;
+  }, 1);
+}
+
+function updateProjectCoefficientSummary(items, total) {
+  activeProjectCoefficientIds = items.map((item) => item.coefficient_id || item.id);
+  if (activeProject) activeProject.regional_coeff = total;
+
+  document.getElementById('project-regional-coeff-display').textContent = Number(total || 1).toFixed(3);
+  document.getElementById('project-coeff-summary').textContent = items.length
+    ? items.map((item) => item.name).join(', ')
+    : 'Коэффициенты не выбраны';
+}
+
+async function loadProjectCoefficientSummary(projectId) {
+  const { ok, data } = await apiRequest('GET', `/api/manager/projects/${projectId}/coefficients`);
+  if (!ok) {
+    document.getElementById('project-regional-coeff-display').textContent = Number(activeProject?.regional_coeff || 1).toFixed(3);
+    document.getElementById('project-coeff-summary').textContent = 'Не удалось загрузить коэффициенты проекта';
+    return;
+  }
+
+  updateProjectCoefficientSummary(data.data.items, data.data.total);
+}
+
+function renderProjectCoefficientRows() {
+  const tbody = document.getElementById('project-coeffs-tbody');
+  const query = (document.getElementById('project-coeff-search').value || '').trim().toLowerCase();
+  const rows = coefficientCatalog.filter((item) => {
+    if (!query) return true;
+    return item.name.toLowerCase().includes(query) || String(item.description || '').toLowerCase().includes(query);
+  });
+
+  tbody.innerHTML = rows.map((item, index) => {
+    const selected = draftProjectCoefficientIds.includes(item.id);
+    return `
+      <tr data-id="${item.id}" style="cursor:pointer;border-bottom:1px solid var(--border);background:${selected ? 'rgba(var(--accent-rgb),.08)' : 'transparent'}">
+        <td style="padding:.55rem .6rem;text-align:center;color:${selected ? 'var(--accent)' : 'var(--muted)'};font-weight:${selected ? '700' : '500'}">${index + 1}</td>
+        <td style="padding:.55rem .6rem">
+          <div style="font-weight:600">${escHtml(item.name)}</div>
+          ${item.description ? `<div style="font-size:.76rem;color:var(--muted);margin-top:.15rem">${escHtml(item.description)}</div>` : ''}
+        </td>
+        <td style="padding:.55rem .6rem;text-align:right;font-weight:700">${Number(item.value).toFixed(3)}</td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="3" class="text-muted" style="padding:.9rem .6rem">Ничего не найдено</td></tr>';
+
+  const total = calculateCoefficientTotalByIds(draftProjectCoefficientIds);
+  document.getElementById('project-coeff-selected').textContent = `Выбрано: ${draftProjectCoefficientIds.length}`;
+  document.getElementById('project-coeff-total').textContent = Number(total).toFixed(3);
+}
+
+async function openProjectCoefficientsModal() {
+  if (!activeProjectId) return;
+
+  const [catalogRes, selectedRes] = await Promise.all([
+    apiRequest('GET', '/api/manager/coefficients'),
+    apiRequest('GET', `/api/manager/projects/${activeProjectId}/coefficients`),
+  ]);
+
+  if (!catalogRes.ok) {
+    showToast(catalogRes.data?.error || 'Не удалось загрузить справочник коэффициентов', 'error');
+    return;
+  }
+
+  if (!selectedRes.ok) {
+    showToast(selectedRes.data?.error || 'Не удалось загрузить коэффициенты проекта', 'error');
+    return;
+  }
+
+  coefficientCatalog = catalogRes.data.data.map((item) => ({
+    ...item,
+    id: Number(item.id),
+    value: Number(item.value),
+  }));
+  draftProjectCoefficientIds = selectedRes.data.data.items.map((item) => Number(item.coefficient_id));
+
+  document.getElementById('project-coeff-modal-subtitle').textContent = activeProject?.name || '';
+  document.getElementById('project-coeff-search').value = '';
+  renderProjectCoefficientRows();
+  openModal('modal-project-coeffs');
+}
+
+document.getElementById('btn-project-coeffs').addEventListener('click', openProjectCoefficientsModal);
+
+document.getElementById('project-coeff-search').addEventListener('input', renderProjectCoefficientRows);
+
+document.getElementById('project-coeffs-tbody').addEventListener('click', (e) => {
+  const row = e.target.closest('tr[data-id]');
+  if (!row) return;
+  const id = Number(row.dataset.id);
+  if (draftProjectCoefficientIds.includes(id)) {
+    draftProjectCoefficientIds = draftProjectCoefficientIds.filter((value) => value !== id);
+  } else {
+    draftProjectCoefficientIds = [...draftProjectCoefficientIds, id];
+  }
+  renderProjectCoefficientRows();
+});
+
+document.getElementById('btn-project-coeffs-save').addEventListener('click', async () => {
+  if (!activeProjectId) return;
+  const btn = document.getElementById('btn-project-coeffs-save');
+  btn.disabled = true;
+  btn.textContent = 'Сохранение...';
+
+  const { ok, data } = await apiRequest('PUT', `/api/manager/projects/${activeProjectId}/coefficients`, {
+    coefficient_ids: draftProjectCoefficientIds,
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Сохранить';
+
+  if (!ok) {
+    showToast(data.error || 'Не удалось сохранить коэффициенты проекта', 'error');
+    return;
+  }
+
+  updateProjectCoefficientSummary(data.data.items, data.data.total);
+  showToast('Коэффициенты проекта обновлены', 'success');
+  closeModal('modal-project-coeffs');
+  loadManagerVOR(activeProjectId);
 });
 
 // ─── Этапы ───────────────────────────────────────────────────
@@ -425,18 +574,75 @@ document.getElementById('stage-form').addEventListener('submit', async (e) => {
 });
 
 // ─── ВОР ─────────────────────────────────────────────────────
+function getVorPriceMeta(ws) {
+  const hasManagerPrice = ws.manager_price !== null && ws.manager_price !== undefined && ws.manager_price !== '';
+  const managerPrice = hasManagerPrice ? Number(ws.manager_price) : null;
+  const catalogPrice = ws.catalog_price !== null && ws.catalog_price !== undefined && ws.catalog_price !== ''
+    ? Number(ws.catalog_price)
+    : null;
+
+  if (managerPrice !== null && !Number.isNaN(managerPrice)) {
+    return {
+      price: managerPrice,
+      source: 'manager',
+      hint: catalogPrice !== null ? 'Ручная цена менеджера' : 'Цена задана менеджером',
+    };
+  }
+
+  if (catalogPrice !== null && !Number.isNaN(catalogPrice) && catalogPrice > 0) {
+    return {
+      price: catalogPrice,
+      source: 'catalog',
+      hint: 'Цена из справочника работ',
+    };
+  }
+
+  return {
+    price: 0,
+    source: 'empty',
+    hint: 'Цена не задана',
+  };
+}
+
+function setVorPriceHint({ catalogPrice = null, isOverride = false } = {}) {
+  const hint = document.getElementById('vor-price-hint');
+  if (!hint) return;
+
+  if (catalogPrice && !isOverride) {
+    hint.textContent = `Если поле пустое, используется цена из утверждённого справочника работ: ${formatMoney(catalogPrice)}.`;
+    return;
+  }
+
+  if (catalogPrice && isOverride) {
+    hint.textContent = `Сейчас задана ручная цена менеджера. Очистите поле и сохраните, чтобы вернуться к цене из справочника: ${formatMoney(catalogPrice)}.`;
+    return;
+  }
+
+  hint.textContent = 'Если поле пустое, используется цена из утверждённого справочника работ.';
+}
+
 function renderVorRow(ws) {
-  const price = ws.manager_price ? Number(ws.manager_price) : 0;
+  const priceMeta = getVorPriceMeta(ws);
+  const price = priceMeta.price;
   const rCoeff = Number(activeProject.regional_coeff || 1.0);
   const sum = price * Number(ws.quantity) * rCoeff;
   const sumStr = sum ? sum.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽' : '—';
+  const priceLabel = price
+    ? `${price.toLocaleString('ru-RU')} ₽`
+    : '<span style="color:red">Не задана</span>';
+  const priceHint = priceMeta.source === 'empty'
+    ? ''
+    : `<div style="font-size:.74rem;color:var(--muted);margin-top:.1rem">${priceMeta.hint}</div>`;
 
   return `
     <tr>
       <td>${escHtml(ws.work_name)}</td>
       <td style="text-align:right">${ws.quantity}</td>
       <td style="color:var(--muted)">${escHtml(ws.unit || '—')}</td>
-      <td style="text-align:right;font-weight:500">${price ? price.toLocaleString('ru-RU') + ' ₽' : '<span style="color:red">Не задана</span>'}</td>
+      <td style="text-align:right;font-weight:500">
+        ${priceLabel}
+        ${priceHint}
+      </td>
       <td style="text-align:right;font-weight:600">${sumStr}</td>
       <td>
         <button class="btn btn-outline btn-sm" style="font-size:.75rem;margin-right:.25rem"
@@ -445,7 +651,8 @@ function renderVorRow(ws) {
           data-work-name="${escHtml(ws.work_name)}"
           data-unit="${escHtml(ws.unit || '')}"
           data-quantity="${ws.quantity}"
-          data-price="${ws.manager_price || ''}">Ред.</button>
+          data-price="${ws.manager_price ?? ''}"
+          data-catalog-price="${ws.catalog_price ?? ''}">Ред.</button>
         <button class="btn btn-sm" style="font-size:.75rem;color:var(--muted);border:1px solid var(--border);background:transparent"
           data-action="delete-vor" data-id="${ws.id}">✕</button>
       </td>
@@ -458,7 +665,11 @@ async function loadManagerVOR(id) {
   container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
   const { ok, data } = await apiRequest('GET', `/api/manager/projects/${id}/work-specs`);
   if (!ok) { container.innerHTML = '<span style="color:var(--muted)">Ошибка загрузки</span>'; return; }
-  if (!data.data.length) { container.innerHTML = '<span style="color:var(--muted)">ВОР пустой</span>'; return; }
+  if (!data.data.length) {
+    container.innerHTML = '<span style="color:var(--muted)">ВОР пустой</span>';
+    refreshKpButtonState(id);
+    return;
+  }
 
   container.innerHTML = `
     <div class="table-wrap">
@@ -477,17 +688,22 @@ async function loadManagerVOR(id) {
       </table>
     </div>
   `;
+  refreshKpButtonState(id);
 }
 
 document.getElementById('vor-list').addEventListener('click', async (e) => {
   const editBtn = e.target.closest('[data-action="edit-vor"]');
   if (editBtn) {
     const form = document.getElementById('vor-add-form');
+    const priceInput = form.querySelector('[name="manager_price"]');
+    const catalogPrice = editBtn.dataset.catalogPrice ? Number(editBtn.dataset.catalogPrice) : null;
     form.style.display = '';
     form.querySelector('[name="work_name"]').value = editBtn.dataset.workName || '';
     form.querySelector('[name="quantity"]').value = editBtn.dataset.quantity || '';
     form.querySelector('[name="unit"]').value = editBtn.dataset.unit || '';
-    form.querySelector('[name="manager_price"]').value = editBtn.dataset.price || '';
+    priceInput.value = editBtn.dataset.price || '';
+    priceInput.placeholder = catalogPrice ? formatMoney(catalogPrice) : 'Из справочника';
+    setVorPriceHint({ catalogPrice, isOverride: Boolean(editBtn.dataset.price) });
     activeWorkSpecEditId = editBtn.dataset.id;
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.textContent = 'Сохранить';
@@ -497,7 +713,7 @@ document.getElementById('vor-list').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-action="delete-vor"]');
   if (!btn) return;
   if (!confirm('Удалить позицию ВОР?')) return;
-  const { ok, data } = await apiRequest('DELETE', `/ api / manager / work - specs / ${btn.dataset.id} `);
+  const { ok, data } = await apiRequest('DELETE', `/api/manager/work-specs/${btn.dataset.id}`);
   if (ok) { showToast('Позиция удалена', 'success'); loadManagerVOR(activeProjectId); }
   else showToast(data.error, 'error');
 });
@@ -506,6 +722,8 @@ document.getElementById('btn-add-vor').addEventListener('click', () => {
   const form = document.getElementById('vor-add-form');
   activeWorkSpecEditId = null;
   form.reset();
+  form.querySelector('[name="manager_price"]').placeholder = 'Из справочника';
+  setVorPriceHint();
   form.querySelector('button[type="submit"]').textContent = 'Добавить';
   form.style.display = form.style.display === 'none' ? '' : 'none';
 });
@@ -514,6 +732,8 @@ document.getElementById('btn-cancel-vor').addEventListener('click', () => {
   activeWorkSpecEditId = null;
   const form = document.getElementById('vor-add-form');
   form.reset();
+  form.querySelector('[name="manager_price"]').placeholder = 'Из справочника';
+  setVorPriceHint();
   form.querySelector('button[type="submit"]').textContent = 'Добавить';
   document.getElementById('vor-add-form').style.display = 'none';
 });
@@ -526,15 +746,21 @@ document.getElementById('vor-add-form').addEventListener('submit', async (e) => 
     quantity: parseFloat(fd.get('quantity')),
   };
   if (fd.get('unit')) body.unit = fd.get('unit');
-  if (fd.get('manager_price')) body.manager_price = parseFloat(fd.get('manager_price'));
+  if (fd.get('manager_price')) {
+    body.manager_price = parseFloat(fd.get('manager_price'));
+  } else if (activeWorkSpecEditId) {
+    body.manager_price = null;
+  }
 
   const isEdit = !!activeWorkSpecEditId;
   const { ok, data } = isEdit
-    ? await apiRequest('PUT', `/ api / manager / work - specs / ${activeWorkSpecEditId} `, body)
-    : await apiRequest('POST', `/ api / manager / projects / ${activeProjectId}/work-specs`, body);
+    ? await apiRequest('PUT', `/api/manager/work-specs/${activeWorkSpecEditId}`, body)
+    : await apiRequest('POST', `/api/manager/projects/${activeProjectId}/work-specs`, body);
   if (ok) {
     showToast(isEdit ? 'Позиция обновлена' : 'Позиция добавлена', 'success');
     e.target.reset();
+    e.target.querySelector('[name="manager_price"]').placeholder = 'Из справочника';
+    setVorPriceHint();
     document.getElementById('vor-add-form').style.display = 'none';
     e.target.querySelector('button[type="submit"]').textContent = 'Добавить';
     activeWorkSpecEditId = null;
@@ -558,7 +784,11 @@ async function loadManagerSpecs(id) {
   container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
   const { ok, data } = await apiRequest('GET', `/api/manager/projects/${id}/specs`);
   if (!ok) { container.innerHTML = '<span style="color:var(--muted)">Ошибка загрузки</span>'; return; }
-  if (!data.data.length) { container.innerHTML = '<span style="color:var(--muted)">Ведомость материалов пуста</span>'; return; }
+  if (!data.data.length) {
+    container.innerHTML = '<span style="color:var(--muted)">Ведомость материалов пуста</span>';
+    refreshKpButtonState(id);
+    return;
+  }
 
   container.innerHTML = `
     <div class="table-wrap">
@@ -567,6 +797,8 @@ async function loadManagerSpecs(id) {
           <th style="color:var(--muted);font-weight:500">Материал</th>
           <th style="color:var(--muted);font-weight:500;text-align:right">Кол-во</th>
           <th style="color:var(--muted);font-weight:500">Ед.</th>
+          <th style="color:var(--muted);font-weight:500;text-align:right">Цена</th>
+          <th style="color:var(--muted);font-weight:500;text-align:right">Сумма</th>
           <th style="color:var(--muted);font-weight:500">Статус</th>
           <th style="color:var(--muted);font-weight:500">Снабженец</th>
         </tr></thead>
@@ -576,6 +808,8 @@ async function loadManagerSpecs(id) {
               <td>${escHtml(s.material_name)}</td>
               <td style="text-align:right">${s.quantity}</td>
               <td style="color:var(--muted)">${escHtml(s.unit || '—')}</td>
+              <td style="text-align:right">${formatMoney(Number(s.unit_price || 0))}</td>
+              <td style="text-align:right;font-weight:600">${formatMoney(Number(s.quantity) * Number(s.unit_price || 0))}</td>
               <td>${badge(s.status)}</td>
               <td style="color:var(--muted);font-size:.8rem">${escHtml(s.supplier_name || '—')}</td>
             </tr>
@@ -584,6 +818,7 @@ async function loadManagerSpecs(id) {
       </table>
     </div>
   `;
+  refreshKpButtonState(id);
 }
 
 // ─── Склад (read-only) ────────────────────────────────────────
@@ -613,13 +848,104 @@ async function loadManagerWarehouse(id) {
               <td style="text-align:right">${item.qty_used}</td>
               <td style="text-align:right;font-weight:600">${item.qty_balance}</td>
               <td style="color:var(--muted)">${escHtml(item.unit || '—')}</td>
-              <td style="color:var(--muted);font-size:.8rem">${escHtml(item.source)}</td>
+              <td style="color:var(--muted);font-size:.8rem">${escHtml(WAREHOUSE_SOURCE_LABELS[item.source] || item.source)}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
     </div>
   `;
+}
+
+async function loadEstimateSummary(id) {
+  const container = document.getElementById('estimate-summary');
+  container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
+
+  const [worksRes, materialsRes] = await Promise.all([
+    apiRequest('GET', `/api/manager/projects/${id}/work-specs`),
+    apiRequest('GET', `/api/manager/projects/${id}/specs`),
+  ]);
+
+  if (!worksRes.ok || !materialsRes.ok) {
+    container.innerHTML = '<span style="color:var(--muted)">Ошибка загрузки</span>';
+    return;
+  }
+
+  const works = worksRes.data.data || [];
+  const materials = materialsRes.data.data || [];
+  const worksBaseTotal = works.reduce((acc, item) => {
+    const price = Number(item.manager_price ?? item.catalog_price ?? 0);
+    return acc + (Number(item.quantity) * price);
+  }, 0);
+  const materialsTotal = materials.reduce((acc, item) => (
+    acc + (Number(item.quantity) * Number(item.unit_price || 0))
+  ), 0);
+  const regionalCoeff = Number(activeProject?.regional_coeff || 1);
+  const worksTotal = parseFloat((worksBaseTotal * regionalCoeff).toFixed(2));
+  const totalPositions = works.length + materials.length;
+  const grandTotal = parseFloat((worksTotal + materialsTotal).toFixed(2));
+
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.95fr);gap:1rem;align-items:stretch">
+      <div class="card" style="padding:1rem 1.1rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+          <div>
+            <div style="color:var(--muted);font-size:.78rem;margin-bottom:.25rem">Итог по проекту</div>
+            <div style="font-size:1.35rem;font-weight:700;line-height:1.1">${formatMoney(grandTotal)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="color:var(--muted);font-size:.78rem;margin-bottom:.25rem">Коэффициент проекта</div>
+            <div style="font-size:1rem;font-weight:700">${regionalCoeff.toFixed(3)}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+          <div>
+            <div style="color:var(--muted);font-size:.74rem;margin-bottom:.2rem">Работы</div>
+            <div style="font-weight:700">${formatMoney(worksTotal)}</div>
+            <div style="color:var(--muted);font-size:.74rem;margin-top:.18rem">Позиций: ${works.length}${regionalCoeff !== 1 ? ` · с кэф. ${regionalCoeff.toFixed(3)}` : ''}</div>
+          </div>
+          <div>
+            <div style="color:var(--muted);font-size:.74rem;margin-bottom:.2rem">Материалы</div>
+            <div style="font-weight:700">${formatMoney(materialsTotal)}</div>
+            <div style="color:var(--muted);font-size:.74rem;margin-top:.18rem">Позиций: ${materials.length}</div>
+          </div>
+          <div>
+            <div style="color:var(--muted);font-size:.74rem;margin-bottom:.2rem">Состав</div>
+            <div style="font-weight:700">${totalPositions}</div>
+            <div style="color:var(--muted);font-size:.74rem;margin-top:.18rem">Всего позиций</div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="padding:1rem 1.1rem">
+        <div style="color:var(--muted);font-size:.78rem;margin-bottom:.45rem">Структура сметы</div>
+        <div style="display:grid;gap:.7rem">
+          <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center">
+            <span style="color:var(--muted)">Работы</span>
+            <strong>${formatMoney(worksTotal)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center">
+            <span style="color:var(--muted)">Материалы</span>
+            <strong>${formatMoney(materialsTotal)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center">
+            <span style="color:var(--muted)">Итог сметы</span>
+            <strong>${formatMoney(grandTotal)}</strong>
+          </div>
+        </div>
+        <div style="margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--border);color:var(--muted);font-size:.76rem;line-height:1.5">
+          Материалы считаются по цене, указанной снабженцем в ведомости материалов. Этот же расчёт используется при формировании КП.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function loadManagerEstimate(id) {
+  await Promise.all([
+    loadManagerVOR(id),
+    loadManagerSpecs(id),
+    loadEstimateSummary(id),
+  ]);
 }
 
 // ─── Документы ───────────────────────────────────────────────
@@ -720,9 +1046,55 @@ function numberToWordsRu(num) {
 }
 
 // ─── ФОРМИРОВАНИЕ И ОТПРАВКА КП ────────────────────────────────
-let currentKpData = null;
+function getKpAvailability(payload) {
+  const hasWorks = payload.works.length > 0;
+  const requiresMaterials = !!payload.project.include_materials;
+  const hasMaterials = payload.materials.length > 0;
+
+  if (!hasWorks) {
+    return { disabled: true, reason: 'Для формирования КП нужно добавить хотя бы одну позицию ВОР' };
+  }
+
+  if (requiresMaterials && !hasMaterials) {
+    return { disabled: true, reason: 'Для формирования КП нужно заполнить ВОМ или отметить, что материалы не требуются' };
+  }
+
+  return { disabled: false, reason: '' };
+}
+
+function syncKpActionVisibility(isVisible) {
+  const action = document.getElementById('estimate-kp-action');
+  if (action) action.style.display = isVisible ? '' : 'none';
+}
+
+async function refreshKpButtonState(projectId) {
+  if (!projectId) return;
+
+  const kpBtn = document.getElementById('btn-open-kp');
+  if (!kpBtn) return;
+  if (kpBtn.style.display === 'none') {
+    syncKpActionVisibility(false);
+    return;
+  }
+
+  const { ok, data } = await apiRequest('GET', `/api/manager/projects/${projectId}/kp-data`);
+  if (!ok) {
+    kpBtn.disabled = true;
+    kpBtn.title = data.error || 'Не удалось проверить данные для КП';
+    syncKpActionVisibility(true);
+    return;
+  }
+
+  const availability = getKpAvailability(data.data);
+  kpBtn.disabled = availability.disabled;
+  kpBtn.title = availability.reason || '';
+  syncKpActionVisibility(true);
+}
 
 document.getElementById('btn-open-kp').addEventListener('click', async () => {
+  const kpBtn = document.getElementById('btn-open-kp');
+  if (kpBtn.disabled) return;
+
   const container = document.getElementById('kp-preview-content');
   container.innerHTML = '<span style="color:var(--muted)">Сбор данных для КП...</span>';
   document.getElementById('kp-markup-input').value = '0';
@@ -732,40 +1104,48 @@ document.getElementById('btn-open-kp').addEventListener('click', async () => {
   openModal('modal-generate-kp');
 
   const { ok, data } = await apiRequest('GET', `/api/manager/projects/${activeProjectId}/kp-data`);
-  if (!ok) { container.innerHTML = `<span style="color:red">Ошибка: ${data.error}</span>`; return; }
+  if (!ok) {
+    container.innerHTML = `<span style="color:red">Ошибка: ${data.error}</span>`;
+    return;
+  }
 
   const payload = data.data;
-  if (!payload.works.length && payload.project.include_materials && !payload.materials.length) {
-    container.innerHTML = '<strong>ВОР и ВОМ пусты. Сначала заполните их.</strong>';
-    return;
-  }
-  if (!payload.works.length && !payload.project.include_materials) {
-    container.innerHTML = '<strong>ВОР пустой. Заполните работы перед формированием КП.</strong>';
+  const availability = getKpAvailability(payload);
+  if (availability.disabled) {
+    container.innerHTML = `<strong>${escHtml(availability.reason)}</strong>`;
+    kpBtn.disabled = true;
+    kpBtn.title = availability.reason;
     return;
   }
 
-  // Считаем суммы
+  const regionalCoeff = Number(payload.project.regional_coeff || 1);
+
   let worksTotal = 0;
-  payload.works.forEach(w => {
-    w.total = parseFloat((w.quantity * w.base_price).toFixed(2));
+  payload.works.forEach((w) => {
+    w.effective_price = Number(w.effective_price || 0);
+    w.total = parseFloat((w.quantity * w.effective_price * regionalCoeff).toFixed(2));
     worksTotal += w.total;
   });
 
   let materialsTotal = 0;
-  payload.materials.forEach(m => {
-    m.total = parseFloat((m.quantity * m.base_price).toFixed(2));
-    materialsTotal += m.total;
-  });
+  if (payload.project.include_materials) {
+    payload.materials.forEach((m) => {
+      m.unit_price = Number(m.unit_price || 0);
+      m.total = parseFloat((m.quantity * m.unit_price).toFixed(2));
+      materialsTotal += m.total;
+    });
+  }
 
   const baseSum = parseFloat((worksTotal + materialsTotal).toFixed(2));
 
   currentKpData = {
     date: new Date().toLocaleDateString('ru-RU'),
-    customerName: payload.project.contact_name || payload.project.customer_name || 'Не указан',
+    customerName: payload.project.contact_name || 'Не указан',
     projectName: payload.project.name,
     projectAddress: payload.project.address || 'Не указан',
     projectCode: payload.project.code,
     include_materials: payload.project.include_materials,
+    regionalCoeff,
     works: payload.works,
     materials: payload.materials,
     worksTotal,
@@ -773,7 +1153,7 @@ document.getElementById('btn-open-kp').addEventListener('click', async () => {
     baseSum,
     baseSumWords: numberToWordsRu(baseSum),
     finalSum: baseSum,
-    finalSumWords: numberToWordsRu(baseSum)
+    finalSumWords: numberToWordsRu(baseSum),
   };
 
   renderKpPreview();
@@ -781,6 +1161,7 @@ document.getElementById('btn-open-kp').addEventListener('click', async () => {
 
 function renderKpPreview() {
   if (!currentKpData) return;
+
   const markup = parseFloat(document.getElementById('kp-markup-input').value) || 0;
   currentKpData.finalSum = parseFloat((currentKpData.baseSum + markup).toFixed(2));
   currentKpData.finalSumWords = numberToWordsRu(currentKpData.finalSum);
@@ -794,7 +1175,7 @@ function renderKpPreview() {
         Дата: <strong>${currentKpData.date}</strong>
       </div>
       <h2 style="text-align:center; margin-bottom:1.5rem; font-size:1.2rem; text-transform:uppercase;">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</h2>
-      
+
       <p style="text-indent: 1.5rem; text-align: justify; margin-bottom: 1rem;">
         ИП Большакова Е.Ф. рассмотрело техническое задание на выполнение строительно-монтажных работ по <strong>"${escHtml(currentKpData.projectName)}"</strong> по адресу <strong>${escHtml(currentKpData.projectAddress)}</strong> и готово принять данный объём в работу в полном соответствии с предъявленными требованиями.
       </p>
@@ -804,19 +1185,84 @@ function renderKpPreview() {
         Общая стоимость работ составляет <strong>${formatMoney(currentKpData.finalSum)}</strong> (<strong>${currentKpData.finalSumWords}</strong>) руб., включая НДС 20%.
       </p>
       <p style="text-indent: 1.5rem; margin-bottom: 2rem;">
-        Детальная ведомость объемов работ ${currentKpData.materials.length > 0 || currentKpData.include_materials ? 'и материалов ' : ''}с разбивкой по позициям прилагается.
+        Детальная ведомость объемов работ ${currentKpData.include_materials ? 'и материалов ' : ''}с разбивкой по позициям приведена ниже.
       </p>
-      
+
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-weight:700; margin-bottom:.75rem;">Ведомость работ</div>
+        <table style="width:100%; border-collapse:collapse; font-size:.92rem;">
+          <thead>
+            <tr>
+              <th style="text-align:left; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Работа</th>
+              <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Кол-во</th>
+              <th style="text-align:left; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Ед.</th>
+              <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Цена</th>
+              <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Сумма</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${currentKpData.works.map((w) => `
+              <tr>
+                <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem;">${escHtml(w.work_name)}</td>
+                <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right;">${w.quantity}</td>
+                <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem;">${escHtml(w.unit || '—')}</td>
+                <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right;">${w.effective_price ? formatMoney(w.effective_price) : '0 ₽'}</td>
+                <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right; font-weight:600;">${formatMoney(w.total)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      ${currentKpData.include_materials ? `
+        <div style="margin-bottom:1.5rem;">
+          <div style="font-weight:700; margin-bottom:.75rem;">Ведомость материалов</div>
+          <table style="width:100%; border-collapse:collapse; font-size:.92rem;">
+            <thead>
+              <tr>
+                <th style="text-align:left; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Материал</th>
+                <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Кол-во</th>
+                <th style="text-align:left; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Ед.</th>
+                <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Цена</th>
+                <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Сумма</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${currentKpData.materials.map((m) => `
+                <tr>
+                  <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem;">${escHtml(m.material_name)}</td>
+                  <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right;">${m.quantity}</td>
+                  <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem;">${escHtml(m.unit || '—')}</td>
+                  <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right;">${m.unit_price ? formatMoney(m.unit_price) : '0 ₽'}</td>
+                  <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right; font-weight:600;">${formatMoney(m.total)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : `
+        <div style="margin-bottom:1.5rem; padding:.9rem 1rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; font-size:.92rem;">
+          Материалы не включены в КП для этого проекта.
+        </div>
+      `}
+
+      <div style="display:grid; gap:.35rem; margin-bottom:1rem; font-size:.95rem;">
+        <div>Работы: <strong>${formatMoney(currentKpData.worksTotal)}</strong></div>
+        ${currentKpData.include_materials ? `<div>Материалы: <strong>${formatMoney(currentKpData.materialsTotal)}</strong></div>` : ''}
+        ${currentKpData.regionalCoeff !== 1 ? `<div>Региональный коэффициент для работ: <strong>${currentKpData.regionalCoeff}</strong></div>` : ''}
+        ${markup ? `<div>Ручная корректировка: <strong>${formatMoney(markup)}</strong></div>` : ''}
+      </div>
+
       <div style="font-size: 0.85rem; color: var(--muted); border-top: 1px dashed #ccc; padding-top: 1rem;">
-        <em>* Предпросмотр текста. Итоговый файл будет сформирован в вашем официальном оформлении из Word-шаблона. Таблицы ВОР также будут добавлены в виде приложения на следующие страницы.</em>
+        <em>* Предпросмотр перед отправкой. Итоговый документ будет сформирован из Word-шаблона и сохранён в документах проекта.</em>
       </div>
     </div>
   `;
 }
 
-document.getElementById('kp-markup-input').addEventListener('input', renderKpPreview);
+document.getElementById('kp-markup-input')?.addEventListener('input', renderKpPreview);
 
-document.getElementById('btn-kp-download').addEventListener('click', async () => {
+document.getElementById('btn-kp-download')?.addEventListener('click', async () => {
   if (!currentKpData) return;
   const btn = document.getElementById('btn-kp-download');
   btn.disabled = true; btn.textContent = 'Подготовка...';
@@ -846,10 +1292,10 @@ document.getElementById('btn-kp-download').addEventListener('click', async () =>
     console.error(e);
     showToast('Сетевая ошибка', 'error');
   }
-  btn.disabled = false; btn.textContent = 'Изменить (Скачать в Word)';
+  btn.disabled = false; btn.textContent = 'Скачать Word (.docx)';
 });
 
-document.getElementById('btn-kp-send').addEventListener('click', async () => {
+document.getElementById('btn-kp-send')?.addEventListener('click', async () => {
   if (!currentKpData) return;
   const btn = document.getElementById('btn-kp-send');
   btn.disabled = true; btn.textContent = 'Отправка...';
@@ -878,7 +1324,7 @@ document.getElementById('btn-kp-send').addEventListener('click', async () => {
 });
 
 // ─── AI-анализ ───────────────────────────────────────────────
-document.getElementById('btn-analyze').addEventListener('click', async () => {
+document.getElementById('btn-analyze')?.addEventListener('click', async () => {
   const btn = document.getElementById('btn-analyze');
   const result = document.getElementById('analyze-result');
   btn.disabled = true; btn.textContent = 'Анализирую...';
@@ -890,13 +1336,30 @@ document.getElementById('btn-analyze').addEventListener('click', async () => {
 });
 
 // ─── Создать проект ───────────────────────────────────────────
-document.getElementById('btn-create-project').addEventListener('click', () => {
+document.getElementById('btn-create-project')?.addEventListener('click', () => {
   document.getElementById('create-project-form').reset();
   openModal('modal-create-project');
 });
 
-document.getElementById('create-project-form').addEventListener('submit', async (e) => {
+const createProjectForm = document.getElementById('create-project-form');
+const createProjectAddressInput = createProjectForm?.querySelector('[name=address]');
+
+createProjectAddressInput?.addEventListener('input', () => {
+  createProjectAddressInput.setCustomValidity('');
+});
+
+createProjectForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
+  const addressInput = e.target.querySelector('[name=address]');
+  const addressValue = String(addressInput?.value || '').trim();
+  if (!addressValue) {
+    addressInput?.setCustomValidity('Заполните это поле.');
+    addressInput?.reportValidity();
+    addressInput?.focus();
+    return;
+  }
+  addressInput?.setCustomValidity('');
+
   const fd = new FormData(e.target);
   const body = Object.fromEntries(fd.entries());
 
@@ -905,8 +1368,10 @@ document.getElementById('create-project-form').addEventListener('submit', async 
   if (workTypes.length) body.work_types = workTypes;
   if (body.contract_value) body.contract_value = parseFloat(body.contract_value);
   else delete body.contract_value;
-  body.include_materials = e.target.querySelector('[name=include_materials]').checked;
+  body.include_materials = e.target.querySelector('[name=include_materials]')?.checked || false;
+  if (requestIdForProject) body.request_id = parseInt(requestIdForProject, 10);
   for (const key of Object.keys(body)) { if (body[key] === '') delete body[key]; }
+  body.address = addressValue;
 
   const btn = e.target.querySelector('button[type=submit]');
   btn.disabled = true;
@@ -949,7 +1414,7 @@ async function loadRequests() {
   `).join('') || '<tr><td colspan="6" class="text-muted">Заявок нет</td></tr>';
 }
 
-document.getElementById('requests-table').addEventListener('click', (e) => {
+document.getElementById('requests-table')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="open-request"]');
   if (!btn) return;
   const { id, status, name, phone, email, message } = btn.dataset;
@@ -982,7 +1447,7 @@ async function loadRequestFiles(id) {
   `;
 }
 
-document.getElementById('btn-request-to-project').addEventListener('click', () => {
+document.getElementById('btn-request-to-project')?.addEventListener('click', () => {
   requestIdForProject = activeRequestId;
   closeModal('modal-request');
   const form = document.getElementById('create-project-form');
@@ -1017,12 +1482,12 @@ async function loadMessages() {
   }).join('') || '<tr><td colspan="4" class="text-muted">Сообщений нет</td></tr>';
 }
 
-document.getElementById('btn-new-message').addEventListener('click', () => {
+document.getElementById('btn-new-message')?.addEventListener('click', () => {
   document.getElementById('new-message-form').reset();
   openModal('modal-new-message');
 });
 
-document.getElementById('new-message-form').addEventListener('submit', async (e) => {
+document.getElementById('new-message-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   const body = Object.fromEntries(fd.entries());
@@ -1041,7 +1506,7 @@ document.getElementById('new-message-form').addEventListener('submit', async (e)
   else showToast(data.error, 'error');
 });
 
-// ─── Автодополнение Справочника ──────────────────────────────
+// ─── Автодополнение Справочника работ ────────────────────────
 let catalogData = [];
 async function initCatalogAutocomplete(role) {
   const { ok, data } = await apiRequest('GET', `/api/${role}/catalog`);
@@ -1093,5 +1558,64 @@ async function initCatalogAutocomplete(role) {
     });
   }
 }
+
+// ─── Справочник работ (Только чтение) ───────────────────────
+async function loadCatalog() {
+  const tbody = document.querySelector('#catalog-table tbody');
+  if (!tbody) return;
+  const q = document.getElementById('catalog-search')?.value || '';
+  tbody.innerHTML = '<tr><td colspan="4" class="text-muted">Загрузка...</td></tr>';
+  
+  const { ok, data } = await apiRequest('GET', `/api/manager/catalog?q=${encodeURIComponent(q)}`);
+  if (!ok) return;
+
+  tbody.innerHTML = data.data.map(c => `
+    <tr>
+      <td>${escHtml(c.item_name)}</td>
+      <td>${escHtml(c.unit)}</td>
+      <td>${Number(c.base_price).toLocaleString('ru-RU')} ₽</td>
+      <td>${c.is_approved ? '<span class="badge badge-green">Утверждено</span>' : '<span class="badge badge-yellow">Модерация</span>'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" class="text-muted">Справочник работ пуст</td></tr>';
+}
+
+async function loadCoefficients() {
+  const tbody = document.querySelector('#coeffs-table tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="3" class="text-muted">Загрузка...</td></tr>';
+  const { ok, data } = await apiRequest('GET', '/api/manager/coefficients');
+  if (!ok) return;
+
+  tbody.innerHTML = data.data.map(c => `
+    <tr>
+      <td>${escHtml(c.name)}</td>
+      <td>${Number(c.value).toFixed(3)}</td>
+      <td class="text-muted" style="font-size:.82rem">${escHtml(c.description || '—')}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="3" class="text-muted">Коэффициенты не заданы</td></tr>';
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => {
+    c.classList.toggle('active', c.id === `tab-${tab}`);
+  });
+  if (tab === 'works') loadCatalog();
+  if (tab === 'coeffs') loadCoefficients();
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  if (btn.closest('#section-catalog')) {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  }
+});
+
+let catalogSearchTimeout;
+document.getElementById('catalog-search')?.addEventListener('input', (e) => {
+  clearTimeout(catalogSearchTimeout);
+  catalogSearchTimeout = setTimeout(() => loadCatalog(), 500);
+});
 
 init();

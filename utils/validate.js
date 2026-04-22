@@ -2,13 +2,48 @@ const { z } = require('zod');
 
 const registerSchema = z.object({
   name: z.string().min(2).max(100),
-  email: z.string().email(),
+  email: z.string().trim().optional().or(z.literal('')),
+  login: z.string().min(3).max(50),
+  phone: z.string().trim().optional().or(z.literal('')),
   password: z.string().min(8).max(100),
   role: z.enum(['customer', 'partner']),
+}).superRefine((data, ctx) => {
+  const hasEmail = Boolean(String(data.email || '').trim());
+  const hasPhone = Boolean(String(data.phone || '').trim());
+
+  if (!hasEmail && !hasPhone) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['email'],
+      message: 'Укажите email или телефон',
+    });
+  }
+
+  if (hasEmail) {
+    const emailCheck = z.string().email().safeParse(String(data.email).trim());
+    if (!emailCheck.success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['email'],
+        message: 'Укажите корректный email',
+      });
+    }
+  }
+
+  if (hasPhone) {
+    const phone = String(data.phone).trim();
+    if (phone.length < 10 || phone.length > 20) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['phone'],
+        message: 'Укажите корректный номер телефона',
+      });
+    }
+  }
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  login: z.string().min(1),
   password: z.string().min(1),
 });
 
@@ -44,6 +79,7 @@ const mtrSchema = z.object({
 
 const writeoffSchema = z.object({
   quantity: z.number().positive(),
+  stage_id: z.number().int().positive(),
 });
 
 // --- supplier ---
@@ -62,6 +98,7 @@ const addGeneralWarehouseSchema = z.object({
 });
 
 const updateGeneralWarehouseSchema = z.object({
+  unit: z.string().max(20).optional(),
   qty_total: z.number().min(0).optional(),
   qty_reserved: z.number().min(0).optional(),
   notes: z.string().max(1000).optional(),
@@ -79,19 +116,46 @@ const addProjectWarehouseSchema = z.object({
   unit: z.string().max(20).optional(),
   qty_total: z.number().min(0).default(0),
   source: z.enum(['purchase', 'customer']),
+  purchase_price: z.number().nonnegative().optional(),
   notes: z.string().max(1000).optional(),
+});
+
+const fulfillSpecSchema = z.object({
+  source: z.enum(['company', 'purchase', 'customer']),
+  quantity: z.number().positive(),
+  general_item_id: z.number().int().positive().optional(),
+  purchase_price: z.number().nonnegative().optional(),
+  unit: z.string().max(20).optional(),
+  notes: z.string().max(1000).optional(),
+}).superRefine((data, ctx) => {
+  if (data.source === 'company' && !data.general_item_id) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['general_item_id'],
+      message: 'Выберите позицию общего склада',
+    });
+  }
+  if (data.source === 'purchase' && data.purchase_price === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['purchase_price'],
+      message: 'Укажите цену закупки',
+    });
+  }
 });
 
 const addSpecSchema = z.object({
   material_name: z.string().min(1).max(200),
   unit: z.string().max(20).optional(),
   quantity: z.number().positive(),
+  unit_price: z.number().nonnegative(),
 });
 
 const updateSpecSchema = z.object({
   material_name: z.string().min(1).max(200).optional(),
   unit: z.string().max(20).optional(),
   quantity: z.number().positive().optional(),
+  unit_price: z.number().nonnegative().optional(),
 });
 
 const rejectSpecSchema = z.object({
@@ -102,6 +166,7 @@ const batchSpecItemSchema = z.object({
   material_name: z.string().min(1).max(200),
   unit: z.string().max(20).optional(),
   quantity: z.number().positive(),
+  unit_price: z.number().nonnegative(),
 });
 
 const batchSpecSchema = z.object({
@@ -112,12 +177,14 @@ const addWorkSpecSchema = z.object({
   work_name: z.string().min(1).max(200),
   unit: z.string().max(20).optional(),
   quantity: z.number().positive(),
+  manager_price: z.number().nonnegative().optional(),
 });
 
 const updateWorkSpecSchema = z.object({
   work_name: z.string().min(1).max(200).optional(),
   unit: z.string().max(20).optional(),
   quantity: z.number().positive().optional(),
+  manager_price: z.number().nonnegative().nullable().optional(),
 });
 
 const batchWorkSpecItemSchema = z.object({
@@ -185,9 +252,11 @@ const managerUploadDocSchema = z.object({
 
 const createProjectSchema = z.object({
   name: z.string().min(2).max(200),
+  request_id: z.number().int().positive().optional(),
   description: z.string().max(2000).optional(),
-  address: z.string().max(300).optional(),
+  address: z.string().trim().min(1, 'Укажите адрес объекта').max(300),
   contract_value: z.number().positive().optional(),
+  include_materials: z.boolean().optional(),
   object_type: z.enum(['промышленный', 'жилой', 'инфраструктурный', 'прочее']).optional(),
   voltage_class: z.enum(['0.4', '6', '10', '35', '110']).optional(),
   work_types: z.array(z.string()).optional(),
@@ -206,6 +275,8 @@ const updateProjectSchema = z.object({
   description: z.string().max(2000).optional(),
   address: z.string().max(300).optional(),
   contract_value: z.number().positive().optional(),
+  include_materials: z.boolean().optional(),
+  regional_coeff: z.number().positive().optional(),
   object_type: z.enum(['промышленный', 'жилой', 'инфраструктурный', 'прочее']).optional(),
   voltage_class: z.enum(['0.4', '6', '10', '35', '110']).optional(),
   work_types: z.array(z.string()).optional(),
@@ -253,6 +324,7 @@ module.exports = {
   updateGeneralWarehouseSchema,
   transferToProjectSchema,
   addProjectWarehouseSchema,
+  fulfillSpecSchema,
   addSpecSchema,
   updateSpecSchema,
   rejectSpecSchema,
