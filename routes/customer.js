@@ -21,11 +21,14 @@ const upload = multer({
       'application/x-dwg',
       'application/x-autocad',
       'image/x-dwg',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
     ];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Недопустимый формат файла. Разрешены: Word, Excel, PDF, DWG'));
+      cb(new Error('Недопустимый формат файла. Разрешены: Word, Excel, PDF, DWG, JPG, PNG, WEBP'));
     }
   },
 });

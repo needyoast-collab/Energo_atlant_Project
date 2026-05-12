@@ -1,4 +1,6 @@
 let currentUser = null;
+let usersList = [];
+let activeUsersTab = 'active';
 const PROJECT_STATUS_LABELS = {
   lead: 'Лид',
   qualification: 'Квалификация',
@@ -15,10 +17,15 @@ const PROGRESS_LABELS = { green: 'Завершён', yellow: 'В работе', 
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
-  currentUser = await requireAuth('admin');
-  if (!currentUser) return;
-  document.getElementById('user-name').textContent = currentUser.name;
-  loadMetrics();
+  try {
+    currentUser = await requireAuth('admin');
+    if (!currentUser) return;
+    document.getElementById('user-name').textContent = currentUser.name;
+    renderUserAvatar(currentUser);
+    await loadMetrics();
+  } finally {
+    window.hidePreloader?.();
+  }
 }
 
 // ─── Навигация ────────────────────────────────────────────────
@@ -139,14 +146,27 @@ async function loadProjectHistory() {
 async function loadUsers() {
   const { ok, data } = await apiRequest('GET', '/api/admin/users');
   if (!ok) return;
+  usersList = data.data || [];
+  renderUsers();
+}
 
+function renderUsers() {
   const ROLE_LABELS = {
     admin: 'Администратор', manager: 'Менеджер', foreman: 'Прораб',
     supplier: 'Снабженец', pto: 'ПТО', customer: 'Заказчик', partner: 'Партнёр'
   };
 
+  document.querySelectorAll('[data-users-tab]').forEach((btn) => {
+    btn.className = btn.dataset.usersTab === activeUsersTab ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  });
+
   const tbody = document.querySelector('#users-table tbody');
-  tbody.innerHTML = data.data.map(u => `
+  const list = usersList.filter((user) => activeUsersTab === 'deleted' ? user.is_deleted : !user.is_deleted);
+  const emptyText = activeUsersTab === 'deleted'
+    ? 'Удалённых пользователей нет'
+    : 'Действующих пользователей нет';
+
+  tbody.innerHTML = list.map(u => `
     <tr>
       <td>${escHtml(u.name)}</td>
       <td>${escHtml(u.email)}</td>
@@ -159,13 +179,20 @@ async function loadUsers() {
       <td>
         <div class="flex gap-1">
           ${!u.is_deleted ? `<button class="btn btn-sm btn-outline" data-action="edit" data-id="${u.id}" data-name="${escHtml(u.name)}" data-email="${escHtml(u.email)}" data-role="${u.role}">Изменить</button>` : ''}
-          ${!u.is_deleted ? `<button class="btn btn-sm btn-danger" data-action="delete" data-id="${u.id}">Удалить</button>` : ''}
+          ${!u.is_deleted && u.role !== 'admin' ? `<button class="btn btn-sm btn-danger" data-action="delete" data-id="${u.id}">Удалить</button>` : ''}
           ${u.is_deleted ? `<button class="btn btn-sm btn-outline" data-action="restore" data-id="${u.id}">Восстановить</button>` : ''}
         </div>
       </td>
     </tr>
-  `).join('');
+  `).join('') || `<tr><td colspan="5" class="text-muted">${emptyText}</td></tr>`;
 }
+
+document.querySelectorAll('[data-users-tab]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    activeUsersTab = btn.dataset.usersTab;
+    renderUsers();
+  });
+});
 
 // ─── Делегирование: таблица пользователей ────────────────────
 document.getElementById('users-table').addEventListener('click', async (e) => {

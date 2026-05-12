@@ -6,6 +6,8 @@
   <script>const COMING_SOON = false; if (COMING_SOON) window.location.href = '/';</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Регистрация — ЭнергоАтлант</title>
+  <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
   <style>
     .auth-wrap {
@@ -173,9 +175,18 @@
 
         <form id="register-form">
           <input type="hidden" name="role" value="customer">
+          <input type="hidden" name="name" id="full-name">
           <div class="form-group">
-            <label class="form-label">Имя и фамилия</label>
-            <input type="text" class="form-control" name="name" placeholder="Иван Иванов" required>
+            <label class="form-label">Фамилия</label>
+            <input type="text" class="form-control" name="last_name" placeholder="Иванов" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Имя</label>
+            <input type="text" class="form-control" name="first_name" placeholder="Иван" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Отчество</label>
+            <input type="text" class="form-control" name="patronymic" placeholder="Иванович" required>
           </div>
 
           <div class="form-group">
@@ -336,9 +347,19 @@
     document.getElementById('register-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
+      const lastName = String(fd.get('last_name') || '').trim();
+      const firstName = String(fd.get('first_name') || '').trim();
+      const patronymic = String(fd.get('patronymic') || '').trim();
       const phone = String(fd.get('phone') || '');
       const email = String(fd.get('email') || '').trim();
       const phoneDigits = phone.replace(/\D/g, '');
+      const fullName = [lastName, firstName, patronymic].filter(Boolean).join(' ');
+
+      if (!lastName || !firstName || !patronymic) {
+        showToast('Укажите фамилию, имя и отчество', 'error');
+        e.target.querySelector(!lastName ? '[name=last_name]' : !firstName ? '[name=first_name]' : '[name=patronymic]').focus();
+        return;
+      }
 
       if (!email && !phoneDigits) {
         showToast('Укажите email или телефон', 'error');
@@ -356,7 +377,13 @@
       btn.disabled = true;
       btn.textContent = 'Отправка...';
 
-      const { ok, data } = await apiRequest('POST', '/api/auth/register', Object.fromEntries(fd.entries()));
+      const payload = Object.fromEntries(fd.entries());
+      payload.name = fullName;
+      delete payload.first_name;
+      delete payload.last_name;
+      delete payload.patronymic;
+
+      const { ok, data } = await apiRequest('POST', '/api/auth/register', payload);
 
       if (ok) {
         registerVerificationState.userId = data.data.id;

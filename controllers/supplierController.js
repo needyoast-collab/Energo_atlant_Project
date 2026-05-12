@@ -9,6 +9,7 @@ const {
   transferToProjectSchema,
   addProjectWarehouseSchema,
   fulfillSpecSchema,
+  batchFulfillSpecsSchema,
   addSpecSchema,
   updateSpecSchema,
   rejectSpecSchema,
@@ -524,6 +525,108 @@ async function fulfillSpec(req, res, next) {
   }
 }
 
+// POST /api/supplier/projects/:id/specs/fulfill-batch
+async function batchFulfillSpecs(req, res, next) {
+  try {
+    const parsed = batchFulfillSpecsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
+    const { id } = req.params;
+    const projectId = Number(id);
+    const isMember = await checkMembership(projectId, req.session.userId);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
+
+    const { source, items, notes } = parsed.data;
+    const ids = items.map((item) => item.spec_id);
+    const specResult = await pool.query(
+      `SELECT ms.id, ms.project_id, ms.supplier_id, ms.material_name, ms.unit, ms.quantity, ms.status,
+              COALESCE(ws.supplied_qty, 0) AS supplied_qty
+       FROM material_specs ms
+       LEFT JOIN (
+         SELECT spec_id, SUM(qty_total) AS supplied_qty
+         FROM warehouse_project
+         WHERE spec_id IS NOT NULL
+         GROUP BY spec_id
+       ) ws ON ws.spec_id = ms.id
+       WHERE ms.id = ANY($1::int[]) AND ms.project_id = $2 AND ms.is_deleted = FALSE`,
+      [ids, projectId]
+    );
+
+    const specsById = new Map(specResult.rows.map((spec) => [Number(spec.id), spec]));
+    if (specsById.size !== ids.length) {
+      return res.status(404).json({ success: false, error: 'Некоторые позиции ведомости не найдены' });
+    }
+
+    for (const item of items) {
+      const spec = specsById.get(item.spec_id);
+      if (spec.supplier_id !== req.session.userId) {
+        return res.status(403).json({ success: false, error: 'Нет доступа к одной из позиций' });
+      }
+      if (spec.status !== 'approved') {
+        return res.status(400).json({ success: false, error: `Позиция «${spec.material_name}» ещё не согласована` });
+      }
+
+      const remaining = Number(spec.quantity) - Number(spec.supplied_qty || 0);
+      if (item.quantity > remaining) {
+        return res.status(400).json({ success: false, error: `По «${spec.material_name}» осталось обеспечить: ${remaining}` });
+      }
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const item of items) {
+        const spec = specsById.get(item.spec_id);
+        await client.query(
+          `INSERT INTO warehouse_project
+           (project_id, material_name, unit, qty_total, source, purchase_price, notes, spec_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            projectId,
+            spec.material_name,
+            spec.unit || null,
+            item.quantity,
+            source,
+            source === 'purchase' ? item.purchase_price : null,
+            notes || null,
+            item.spec_id,
+          ]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    const foremen = await pool.query(
+      `SELECT user_id
+       FROM project_members
+       WHERE project_id = $1 AND role = 'foreman'`,
+      [projectId]
+    );
+
+    const message = items.length === 1
+      ? `На склад объекта поступил материал «${specsById.get(items[0].spec_id).material_name}»`
+      : `На склад объекта поступили материалы по ВОМ: ${items.length} поз.`;
+
+    await Promise.all(foremen.rows.map((row) => sendNotification({
+      userId: row.user_id,
+      projectId,
+      type: 'mtr',
+      message,
+    })));
+
+    return res.status(201).json({ success: true, data: { inserted: items.length } });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 // POST /api/supplier/projects/:id/specs
 async function addSpec(req, res, next) {
   try {
@@ -702,6 +805,7 @@ module.exports = {
   updateSpec,
   deleteSpec,
   fulfillSpec,
+  batchFulfillSpecs,
   submitSpecs,
   batchAddSpecs,
 };

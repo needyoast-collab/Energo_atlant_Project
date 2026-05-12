@@ -159,6 +159,8 @@ async function uploadDocument(req, res, next) {
         userId:    uid,
         projectId: parseInt(id),
         type:      'document',
+        entityType: 'document',
+        entityId:   result.rows[0].id,
         message:   `Загружен новый документ ИД: ${doc_type}`,
       })
     ));

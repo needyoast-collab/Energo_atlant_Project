@@ -5,6 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Админ — ЭнергоАтлант</title>
+  <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 
@@ -71,9 +73,12 @@
         </button>
       </nav>
       <div class="sidebar-footer">
-        <div class="sidebar-user">
-          <strong id="user-name">—</strong>
-          <span>Администратор</span>
+        <div class="sidebar-user-row">
+          <a class="sidebar-avatar" id="sidebar-avatar" href="/profile.html" title="Профиль" aria-label="Открыть профиль">—</a>
+          <div class="sidebar-user">
+            <strong id="user-name">—</strong>
+            <span>Администратор</span>
+          </div>
         </div>
         <button class="btn btn-outline btn-sm w-full" id="logout-btn">Выйти</button>
       </div>
@@ -130,6 +135,10 @@
         </div>
 
         <div class="card">
+          <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+            <button class="btn btn-sm btn-primary" data-users-tab="active">Действующие</button>
+            <button class="btn btn-sm btn-outline" data-users-tab="deleted">Удалённые</button>
+          </div>
           <div class="table-wrap">
             <table id="users-table">
               <thead>
@@ -294,7 +303,7 @@
             <h2>База работ</h2>
             <div style="display:flex;gap:.5rem">
               <input type="text" class="form-control" id="catalog-search" placeholder="Поиск по названию..." style="max-width:300px">
-              <button class="btn btn-primary btn-sm" id="btn-catalog-bulk-open">+ Добавить / Импорт из Excel</button>
+              <button class="btn btn-primary btn-sm" id="btn-catalog-bulk-open">+ Добавить позицию</button>
             </div>
           </div>
           <div class="card">
@@ -344,10 +353,12 @@
 
   <!-- МОДАЛКА: создать пользователя -->
   <div class="modal-overlay" id="modal-create-user">
-    <div class="modal">
+    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
       <button class="modal-close" data-close="modal-create-user">×</button>
-      <div class="modal-title">Создать пользователя</div>
-      <form id="create-user-form">
+      <div class="modal-shell-header">
+        <div class="modal-title">Создать пользователя</div>
+      </div>
+      <form id="create-user-form" class="modal-shell-body autohide-scroll">
         <div class="form-group">
           <label class="form-label">Имя</label>
           <input type="text" class="form-control" name="name" required>
@@ -372,17 +383,22 @@
             <option value="partner">Партнёр</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-primary w-full mt-2">Создать</button>
       </form>
+      <div class="modal-shell-actions">
+        <button type="button" class="btn btn-outline" data-close="modal-create-user">Отмена</button>
+        <button type="submit" form="create-user-form" class="btn btn-primary">Создать</button>
+      </div>
     </div>
   </div>
 
   <!-- МОДАЛКА: редактировать пользователя -->
   <div class="modal-overlay" id="modal-edit-user">
-    <div class="modal">
+    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
       <button class="modal-close" data-close="modal-edit-user">×</button>
-      <div class="modal-title">Редактировать пользователя</div>
-      <form id="edit-user-form">
+      <div class="modal-shell-header">
+        <div class="modal-title">Редактировать пользователя</div>
+      </div>
+      <form id="edit-user-form" class="modal-shell-body autohide-scroll">
         <input type="hidden" name="id">
         <div class="form-group">
           <label class="form-label">Имя</label>
@@ -404,17 +420,22 @@
             <option value="partner">Партнёр</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-primary w-full mt-2">Сохранить</button>
       </form>
+      <div class="modal-shell-actions">
+        <button type="button" class="btn btn-outline" data-close="modal-edit-user">Отмена</button>
+        <button type="submit" form="edit-user-form" class="btn btn-primary">Сохранить</button>
+      </div>
     </div>
   </div>
 
   <!-- МОДАЛКА: Редактировать работу -->
   <div class="modal-overlay" id="modal-edit-catalog">
-    <div class="modal" style="max-width:480px">
+    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
       <button class="modal-close" data-close="modal-edit-catalog">×</button>
-      <div class="modal-title">Редактировать работу</div>
-      <form id="edit-catalog-form">
+      <div class="modal-shell-header">
+        <div class="modal-title">Редактировать работу</div>
+      </div>
+      <form id="edit-catalog-form" class="modal-shell-body autohide-scroll">
         <input type="hidden" name="id">
         <div class="form-group">
           <label class="form-label">Наименование</label>
@@ -430,25 +451,29 @@
             <input type="number" class="form-control" name="base_price" step="0.01" required>
           </div>
         </div>
-        <div style="display:flex;gap:.75rem;margin-top:1rem">
-          <button type="button" class="btn btn-danger" id="btn-catalog-delete-modal" style="flex:1">Удалить</button>
-          <button type="submit" class="btn btn-primary" style="flex:1">Сохранить</button>
-        </div>
       </form>
+      <div class="modal-shell-actions">
+        <button type="button" class="btn btn-danger" id="btn-catalog-delete-modal">Удалить</button>
+        <div class="modal-shell-actions-main">
+          <button type="button" class="btn btn-outline" data-close="modal-edit-catalog">Отмена</button>
+          <button type="submit" form="edit-catalog-form" class="btn btn-primary">Сохранить</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- МОДАЛКА: Массовое добавление (Excel) -->
+  <!-- МОДАЛКА: добавить позиции справочника -->
   <div class="modal-overlay" id="modal-catalog-bulk">
-    <div class="modal" id="catalog-batch-modal-box" style="max-width:900px;max-height:72vh;display:flex;flex-direction:column;padding:2rem;transition:max-height .22s ease">
+    <div class="modal modal-shell modal-shell-lg" id="catalog-batch-modal-box" style="max-height:72vh;transition:max-height .22s ease">
       <button class="modal-close" data-close="modal-catalog-bulk">×</button>
-      <div class="modal-title">Массовое добавление — Справочник работ</div>
-      <div style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem">
-        Скопируйте 3 колонки из Excel: <strong style="color:var(--text)">Наименование</strong>, <strong style="color:var(--text)">Ед. изм.</strong>, <strong style="color:var(--text)">Цена</strong>.
-        Вставка распределится по строкам автоматически. Если работа уже существует, её данные обновятся.
+      <div class="modal-shell-header">
+        <div class="modal-title">Добавить позиции — Справочник работ</div>
+        <div class="modal-subtitle">
+          Скопируйте 3 колонки из Excel: <strong style="color:var(--text)">Наименование</strong>, <strong style="color:var(--text)">Ед. изм.</strong>, <strong style="color:var(--text)">Цена</strong>.
+          Вставка распределится по строкам автоматически. Если работа уже существует, её данные обновятся.
+        </div>
       </div>
-      <form id="catalog-bulk-form" style="display:flex;flex-direction:column;flex:1;min-height:0">
-        <div style="flex:1;overflow-y:auto;min-height:0">
+      <form id="catalog-bulk-form" class="modal-shell-body autohide-scroll">
           <table style="width:100%;border-collapse:collapse">
             <thead>
               <tr style="border-bottom:2px solid var(--border)">
@@ -460,27 +485,28 @@
             </thead>
             <tbody id="catalog-batch-tbody"></tbody>
           </table>
-        </div>
         <div style="margin-top:.75rem">
           <button type="button" class="btn btn-outline btn-sm" id="btn-catalog-batch-add-row" style="font-size:.82rem">+ Добавить строку</button>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
-          <div id="bulk-preview-count" class="text-muted" style="font-size:.85rem">0 позиций заполнено</div>
-          <div style="display:flex;gap:.5rem">
-            <button type="button" class="btn btn-outline" data-close="modal-catalog-bulk">Отмена</button>
-            <button type="submit" class="btn btn-primary" id="btn-catalog-batch-save">Импортировать в базу</button>
-          </div>
-        </div>
       </form>
+      <div class="modal-shell-actions" style="justify-content:space-between;align-items:center">
+        <div id="bulk-preview-count" class="text-muted" style="font-size:.85rem">0 позиций заполнено</div>
+        <div class="modal-shell-actions-main">
+          <button type="button" class="btn btn-outline" data-close="modal-catalog-bulk">Отмена</button>
+          <button type="submit" form="catalog-bulk-form" class="btn btn-primary" id="btn-catalog-batch-save">Импортировать в базу</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- МОДАЛКА: Редактировать коэффициент -->
   <div class="modal-overlay" id="modal-edit-coeff">
-    <div class="modal" style="max-width:440px">
+    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
       <button class="modal-close" data-close="modal-edit-coeff">×</button>
-      <div class="modal-title" id="coeff-modal-title">Редактировать коэффициент</div>
-      <form id="edit-coeff-form">
+      <div class="modal-shell-header">
+        <div class="modal-title" id="coeff-modal-title">Редактировать коэффициент</div>
+      </div>
+      <form id="edit-coeff-form" class="modal-shell-body autohide-scroll">
         <input type="hidden" name="id">
         <div class="form-group">
           <label class="form-label">Название</label>
@@ -494,8 +520,11 @@
           <label class="form-label">Описание</label>
           <textarea class="form-control" name="description" rows="3"></textarea>
         </div>
-        <button type="submit" class="btn btn-primary w-full mt-2">Сохранить</button>
       </form>
+      <div class="modal-shell-actions">
+        <button type="button" class="btn btn-outline" data-close="modal-edit-coeff">Отмена</button>
+        <button type="submit" form="edit-coeff-form" class="btn btn-primary">Сохранить</button>
+      </div>
     </div>
   </div>
 

@@ -5,6 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Заказчик — ЭнергоАтлант</title>
+  <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
   <style>
     /* ── Карточки объектов заказчика ── */
@@ -154,9 +156,12 @@
         </button>
       </nav>
       <div class="sidebar-footer">
-        <div class="sidebar-user">
-          <strong id="user-name">—</strong>
-          <span>Заказчик</span>
+        <div class="sidebar-user-row">
+          <a class="sidebar-avatar" id="sidebar-avatar" href="/profile.html" title="Профиль" aria-label="Открыть профиль">—</a>
+          <div class="sidebar-user">
+            <strong id="user-name">—</strong>
+            <span>Заказчик</span>
+          </div>
         </div>
         <div class="notif-wrap">
           <button class="notif-bell-btn" id="notif-bell-btn">
@@ -225,14 +230,16 @@
 
   <!-- МОДАЛКА: оставить заявку -->
   <div class="modal-overlay" id="modal-request">
-    <div class="modal">
+    <div class="modal modal-shell modal-shell-md" style="max-height:90vh">
       <button class="modal-close" data-close="modal-request">×</button>
-      <div class="modal-title">Новая заявка</div>
-      <form id="request-form">
+      <div class="modal-shell-header">
+        <div class="modal-title">Новая заявка</div>
+      </div>
+      <form id="request-form" class="modal-shell-body autohide-scroll">
         <div class="form-group">
           <label class="form-label">Телефон для связи</label>
           <label id="request-use-account-phone-wrap" style="display:none;align-items:center;gap:.55rem;margin:.55rem 0 .75rem;color:var(--muted);font-size:.85rem;cursor:pointer">
-            <input type="checkbox" id="request-use-account-phone" style="width:1rem;height:1rem">
+            <input type="checkbox" id="request-use-account-phone">
             Использовать номер телефона аккаунта
           </label>
           <input type="tel" class="form-control" name="phone" placeholder="+7 999 000 00 00">
@@ -243,7 +250,7 @@
             placeholder="Опишите объект, вид работ, сроки..."></textarea>
         </div>
         <div class="form-group">
-          <label class="form-label">Документы <span
+          <label class="form-label">Документы и фото <span
               style="color:var(--muted);font-weight:400;font-size:.8rem">(необязательно)</span></label>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
             <select class="form-control" id="req-doc-type" style="flex:1;min-width:160px">
@@ -257,7 +264,7 @@
             </select>
             <label class="btn btn-outline btn-sm" for="req-file-input"
               style="cursor:pointer;white-space:nowrap;margin:0">Выбрать файл</label>
-            <input type="file" id="req-file-input" accept=".pdf,.dwg,.doc,.docx,.xls,.xlsx" style="display:none">
+            <input type="file" id="req-file-input" accept=".pdf,.dwg,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" style="display:none">
             <button type="button" class="btn btn-outline btn-sm" id="btn-add-file">Добавить</button>
           </div>
           <div id="req-selected-filename" style="font-size:.8rem;color:var(--muted);margin-top:.3rem;display:none">
@@ -265,26 +272,32 @@
           <div id="req-file-error" style="color:var(--danger);font-size:.8rem;margin-top:.3rem;display:none"></div>
           <div id="req-files-list" style="margin-top:.5rem"></div>
         </div>
-        <button type="submit" class="btn btn-primary w-full mt-2">Отправить</button>
       </form>
+      <div class="modal-shell-actions">
+        <button type="button" class="btn btn-outline" data-close="modal-request">Отмена</button>
+        <button type="submit" form="request-form" class="btn btn-primary">Отправить</button>
+      </div>
     </div>
   </div>
 
   <!-- МОДАЛКА: войти по коду -->
   <div class="modal-overlay" id="modal-join">
-    <div class="modal">
+    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
       <button class="modal-close" data-close="modal-join">×</button>
-      <div class="modal-title">Войти в проект</div>
-      <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.25rem">Введите код проекта, который дал вам менеджер
-      </p>
-      <form id="join-form">
+      <div class="modal-shell-header">
+        <div class="modal-title">Войти в проект</div>
+        <div class="modal-subtitle">Введите код проекта, который дал вам менеджер</div>
+      </div>
+      <form id="join-form" class="modal-shell-body autohide-scroll">
         <div class="form-group">
           <label class="form-label">Код проекта</label>
-          <input type="text" class="form-control" name="code" placeholder="PRJ-2026-XXXX" required
-            style="text-transform:uppercase">
+          <input type="text" class="form-control" name="code" data-mask="project-code" placeholder="PRJ-____-____" required>
         </div>
-        <button type="submit" class="btn btn-primary w-full mt-2">Подключиться</button>
       </form>
+      <div class="modal-shell-actions">
+        <button type="button" class="btn btn-outline" data-close="modal-join">Отмена</button>
+        <button type="submit" form="join-form" class="btn btn-primary">Подключиться</button>
+      </div>
     </div>
   </div>
 
@@ -327,39 +340,45 @@
 
   <!-- МОДАЛКА: детали этапа -->
   <div class="modal-overlay" id="modal-stage-detail">
-    <div class="modal" style="max-width:580px;max-height:90vh;overflow-y:auto">
+    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
       <button class="modal-close" data-close="modal-stage-detail">×</button>
-      <div id="stage-detail-body"></div>
+      <div id="stage-detail-body" class="modal-shell-body autohide-scroll" style="padding-top:2rem"></div>
     </div>
   </div>
 
   <!-- МОДАЛКА: согласование этапа не_выполнено -->
   <div class="modal-overlay" id="modal-approve-stage">
-    <div class="modal">
+    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
       <button class="modal-close" data-close="modal-approve-stage">×</button>
-      <div class="modal-title">Согласование этапа</div>
-      <div id="approve-stage-name" style="font-weight:600;margin-bottom:.75rem"></div>
-      <div style="margin-bottom:1rem">
-        <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem">Примечание прораба:</div>
-        <div id="approve-stage-note" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem;
-               font-size:.88rem;color:var(--text);line-height:1.5"></div>
+      <div class="modal-shell-header">
+        <div class="modal-title">Согласование этапа</div>
       </div>
-      <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem">
-        Нажимая «Согласовать», вы подтверждаете, что ознакомлены с причиной невыполнения этапа.
-      </p>
-      <div style="display:flex;gap:.5rem">
-        <button class="btn btn-outline" style="flex:1" data-close="modal-approve-stage">Отмена</button>
-        <button class="btn btn-primary" style="flex:1" id="btn-confirm-approve">Согласовать</button>
+      <div class="modal-shell-body autohide-scroll">
+        <div id="approve-stage-name" style="font-weight:600;margin-bottom:.75rem"></div>
+        <div style="margin-bottom:1rem">
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem">Примечание прораба:</div>
+          <div id="approve-stage-note" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem;
+                 font-size:.88rem;color:var(--text);line-height:1.5"></div>
+        </div>
+        <p style="color:var(--muted);font-size:.85rem;margin-bottom:0">
+          Нажимая «Согласовать», вы подтверждаете, что ознакомлены с причиной невыполнения этапа.
+        </p>
+      </div>
+      <div class="modal-shell-actions">
+        <button class="btn btn-outline" data-close="modal-approve-stage">Отмена</button>
+        <button class="btn btn-primary" id="btn-confirm-approve">Согласовать</button>
       </div>
     </div>
   </div>
 
   <!-- МОДАЛКА: новое сообщение -->
   <div class="modal-overlay" id="modal-new-message">
-    <div class="modal">
+    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
       <button class="modal-close" data-close="modal-new-message">×</button>
-      <div class="modal-title">Новое сообщение</div>
-      <form id="new-message-form">
+      <div class="modal-shell-header">
+        <div class="modal-title">Новое сообщение</div>
+      </div>
+      <form id="new-message-form" class="modal-shell-body autohide-scroll">
         <div class="form-group">
           <label class="form-label">Email получателя</label>
           <input type="email" class="form-control" name="receiver_email" required placeholder="manager@energoatlant.ru">
@@ -372,8 +391,11 @@
           <label class="form-label">Сообщение</label>
           <textarea class="form-control" name="body" rows="4" required></textarea>
         </div>
-        <button type="submit" class="btn btn-primary w-full mt-2">Отправить</button>
       </form>
+      <div class="modal-shell-actions">
+        <button type="button" class="btn btn-outline" data-close="modal-new-message">Отмена</button>
+        <button type="submit" form="new-message-form" class="btn btn-primary">Отправить</button>
+      </div>
     </div>
   </div>
 

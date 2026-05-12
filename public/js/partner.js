@@ -3,15 +3,20 @@ let statsData = null;
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
-  currentUser = await requireAuth('partner');
-  if (!currentUser) return;
-  document.getElementById('user-name').textContent = currentUser.name;
+  try {
+    currentUser = await requireAuth('partner');
+    if (!currentUser) return;
+    document.getElementById('user-name').textContent = currentUser.name;
+    renderUserAvatar(currentUser);
 
-  // Реф. ссылка
-  const refLink = `${window.location.origin}/register.html?ref=${currentUser.id}`;
-  document.getElementById('ref-link').value = refLink;
+    // Реф. ссылка
+    const refLink = `${window.location.origin}/register.html?ref=${currentUser.id}`;
+    document.getElementById('ref-link').value = refLink;
 
-  loadStats();
+    await loadStats();
+  } finally {
+    window.hidePreloader?.();
+  }
 }
 
 // ─── Навигация ────────────────────────────────────────────────

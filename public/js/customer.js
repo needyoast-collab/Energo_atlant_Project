@@ -3,6 +3,9 @@ let projectsList = [];
 let activeProjectId = null;
 let stagesCache = [];
 let requestManualPhone = '';
+let pendingDocumentHighlightId = null;
+// projectId (string) → array of unread document notification ids
+let unreadDocNotifs = {};
 
 const VOR_STATUS_LABELS = { planned: 'Запланировано', done: 'Выполнено', not_done: 'Не выполнено' };
 
@@ -60,12 +63,17 @@ const WAREHOUSE_SOURCE_LABELS = {
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
-  currentUser = await requireAuth('customer');
-  if (!currentUser) return;
-  document.getElementById('user-name').textContent = currentUser.name;
-  initNotificationBell();
-  initRequestPhonePrefill();
-  loadProjects();
+  try {
+    currentUser = await requireAuth('customer');
+    if (!currentUser) return;
+    document.getElementById('user-name').textContent = currentUser.name;
+    renderUserAvatar(currentUser);
+    initNotificationBell();
+    initRequestPhonePrefill();
+    await loadProjects();
+  } finally {
+    window.hidePreloader?.();
+  }
 }
 
 // ─── Навигация ────────────────────────────────────────────────
@@ -75,9 +83,23 @@ initNav(section => {
 
 // ─── Проекты ─────────────────────────────────────────────────
 async function loadProjects() {
-  const { ok, data } = await apiRequest('GET', '/api/customer/projects');
-  if (!ok) return;
-  projectsList = data.data;
+  const [projRes, notifRes] = await Promise.all([
+    apiRequest('GET', '/api/customer/projects'),
+    apiRequest('GET', '/api/notifications'),
+  ]);
+  if (!projRes.ok) return;
+  projectsList = projRes.data.data;
+
+  unreadDocNotifs = {};
+  if (notifRes.ok) {
+    (notifRes.data.data || []).forEach(n => {
+      if (n.type === 'document' && !n.is_read && n.project_id) {
+        const key = String(n.project_id);
+        if (!unreadDocNotifs[key]) unreadDocNotifs[key] = [];
+        unreadDocNotifs[key].push(n.id);
+      }
+    });
+  }
 
   const container = document.getElementById('projects-list');
   if (!projectsList.length) {
@@ -93,7 +115,11 @@ async function loadProjects() {
   container.innerHTML = projectsList.map(p => {
     const stageTotal = parseInt(p.stage_total) || 0;
     const stageDone = parseInt(p.stage_done) || 0;
-    const pct = stageTotal ? Math.round(stageDone / stageTotal * 100) : 0;
+    const workPlanTotal = Number(p.work_plan_total || 0);
+    const workActualTotal = Number(p.work_actual_total || 0);
+    const pct = workPlanTotal > 0
+      ? Math.min(100, Math.round(workActualTotal / workPlanTotal * 100))
+      : stageTotal ? Math.round(stageDone / stageTotal * 100) : 0;
     const managerName = p.manager_name || 'Менеджер назначен';
     const isActive = p.status === 'work';
 
@@ -122,8 +148,11 @@ async function loadProjects() {
           <div class="pcc-stat-lbl">фото</div>
         </div>
         <div class="pcc-stat">
-          <div class="pcc-stat-val">${p.doc_count}</div>
-          <div class="pcc-stat-lbl">актов ИД</div>
+          <div class="pcc-stat-val" style="position:relative;display:inline-block">
+            ${p.doc_count}
+            ${unreadDocNotifs[String(p.id)]?.length ? `<span class="doc-new-dot" data-project-id="${p.id}"></span>` : ''}
+          </div>
+          <div class="pcc-stat-lbl">документов</div>
         </div>
         <div class="pcc-stat">
           <div class="pcc-stat-val">${stageDone}<span style="font-size:.9rem;color:var(--muted)">/${stageTotal}</span></div>
@@ -138,10 +167,9 @@ async function loadProjects() {
   }).join('');
 }
 
-document.getElementById('projects-list').addEventListener('click', async (e) => {
-  const card = e.target.closest('[data-action="open-project"]');
-  if (!card) return;
-  activeProjectId = card.dataset.id;
+async function openCustomerProject(projectId, tab = 'stages', notification = null) {
+  activeProjectId = projectId;
+  pendingDocumentHighlightId = notification?.entity_type === 'document' ? String(notification.entity_id || '') : null;
   const project = projectsList.find(p => p.id == activeProjectId);
   if (!project) return;
 
@@ -156,19 +184,72 @@ document.getElementById('projects-list').addEventListener('click', async (e) => 
     ${project.manager_name ? `<div style="color:var(--muted);font-size:.85rem">Менеджер: <strong style="color:var(--text)">${escHtml(project.manager_name)}</strong></div>` : ''}
   `;
 
-  switchTab('stages');
-  await loadStages(activeProjectId);
+  switchTab(tab);
   openModal('modal-project');
+  if (tab === 'documents') {
+    await loadDocuments(activeProjectId);
+    await clearDocDot(activeProjectId);
+    return;
+  }
+  if (tab === 'warehouse') {
+    await loadWarehouse(activeProjectId);
+    return;
+  }
+  await loadStages(activeProjectId);
+
+  if (notification?.entity_type === 'stage' && notification.entity_id) {
+    const stage = stagesCache.find(s => String(s.id) === String(notification.entity_id));
+    if (stage) openStageDetailModal(stage);
+    return;
+  }
+
+  const stageName = extractStageNameFromNotification(notification?.message || '');
+  if (stageName) {
+    const stage = stagesCache.find(s => s.name === stageName);
+    if (stage) openStageDetailModal(stage);
+  }
+}
+
+function extractStageNameFromNotification(message) {
+  const quoted = message.match(/Этап «(.+?)»/);
+  if (quoted) return quoted[1];
+  const afterColon = message.match(/по этапу:\s*(.+)$/i);
+  return afterColon ? afterColon[1].trim() : '';
+}
+
+document.getElementById('projects-list').addEventListener('click', async (e) => {
+  const card = e.target.closest('[data-action="open-project"]');
+  if (!card) return;
+  await openCustomerProject(card.dataset.id);
+});
+
+document.addEventListener('notification:open', async (e) => {
+  const notification = e.detail;
+  if (!notification?.project_id) return;
+  const tab = notification.type === 'document' ? 'documents' : 'stages';
+  await openCustomerProject(notification.project_id, tab, notification);
 });
 
 // ─── Вкладки ─────────────────────────────────────────────────
 document.querySelectorAll('[data-tab]').forEach(btn => {
   btn.addEventListener('click', async () => {
     switchTab(btn.dataset.tab);
-    if (btn.dataset.tab === 'documents') loadDocuments(activeProjectId);
+    if (btn.dataset.tab === 'documents') {
+      loadDocuments(activeProjectId);
+      clearDocDot(activeProjectId);
+    }
     if (btn.dataset.tab === 'warehouse') loadWarehouse(activeProjectId);
   });
 });
+
+async function clearDocDot(projectId) {
+  const key = String(projectId);
+  const ids = unreadDocNotifs[key];
+  if (!ids?.length) return;
+  delete unreadDocNotifs[key];
+  document.querySelectorAll(`.doc-new-dot[data-project-id="${projectId}"]`).forEach(el => el.remove());
+  await Promise.all(ids.map(id => apiRequest('PUT', `/api/notifications/${id}/read`)));
+}
 
 function switchTab(tab) {
   document.getElementById('tab-stages').style.display = tab === 'stages' ? '' : 'none';
@@ -188,16 +269,14 @@ async function loadStages(id) {
   const total = stages.length;
 
   const vorStages = stages.filter(s => s.is_from_vor && Number(s.planned_value) > 0);
-  let pct, progressSub;
+  let pct;
   if (vorStages.length) {
     const sumPlan = vorStages.reduce((a, s) => a + Number(s.planned_value), 0);
     const sumActual = vorStages.reduce((a, s) => a + Number(s.actual_value || 0), 0);
     pct = sumPlan > 0 ? Math.min(100, Math.round(sumActual / sumPlan * 100)) : 0;
-    progressSub = `Выполнено: ${sumActual.toFixed(2)} из ${sumPlan.toFixed(2)} (объём работ)`;
   } else {
     const done = stages.filter(s => s.status === 'done').length;
     pct = total ? Math.round(done / total * 100) : 0;
-    progressSub = `${done} из ${total} этапов завершено`;
   }
 
   document.getElementById('stages-progress').innerHTML = total ? `
@@ -209,7 +288,6 @@ async function loadStages(id) {
       <div style="height:6px;background:var(--border);border-radius:9999px;overflow:hidden">
         <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:9999px;transition:width .5s"></div>
       </div>
-      <div style="color:var(--muted);font-size:.8rem;margin-top:.4rem">${progressSub}</div>
     </div>
   ` : '';
 
@@ -228,13 +306,15 @@ async function loadStages(id) {
     let subInfo = '';
     if (s.is_from_vor) {
       subInfo = `${s.actual_value != null ? s.actual_value : 0} / ${s.planned_value} ${escHtml(s.unit || '')}`;
-      if (s.planned_date) subInfo += ` · план: ${formatDate(s.planned_date)}`;
+      if (s.planned_start && s.planned_end) subInfo += ` · план: ${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}`;
+      else if (s.planned_date) subInfo += ` · план: ${formatDate(s.planned_date)}`;
       if (s.actual_date) subInfo += ` · факт: ${formatDate(s.actual_date)}`;
     } else {
       if (s.planned_start) subInfo += `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}`;
       if (s.actual_end) subInfo += ` · Сдан: ${formatDate(s.actual_end)}`;
       if (s.photo_count > 0) subInfo += ` · 📷 ${s.photo_count} фото`;
     }
+    if (s.note && !s.is_from_vor) subInfo += ` · пояснение: ${escHtml(s.note)}`;
 
     const statusBadge = isNotDone
       ? `<span class="badge badge-red" style="font-size:.72rem">${isAgreed ? 'Согласовано' : 'Требует согласования'}</span>`
@@ -278,8 +358,9 @@ function openStageDetailModal(s) {
   if (s.is_from_vor) {
     detailRows += row('Объём (план)', `${s.planned_value} ${escHtml(s.unit || '')}`);
     detailRows += row('Объём (факт)', `${s.actual_value != null ? s.actual_value : 0} ${escHtml(s.unit || '')}`);
-    if (s.planned_date) detailRows += row('Плановая дата', formatDate(s.planned_date));
-    if (s.actual_date) detailRows += row('Фактическая дата', formatDate(s.actual_date));
+    if (s.planned_start && s.planned_end) detailRows += row('Плановый период', `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}`);
+    else if (s.planned_date) detailRows += row('Плановое окончание', formatDate(s.planned_date));
+    if (s.actual_date) detailRows += row('Фактическое окончание', formatDate(s.actual_date));
   } else {
     if (s.planned_start) detailRows += row('Период', `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}`);
     if (s.actual_end) detailRows += row('Сдан', formatDate(s.actual_end));
@@ -287,7 +368,7 @@ function openStageDetailModal(s) {
 
   const noteBlock = s.note
     ? `<div style="margin-top:1rem">
-         <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem">Примечание прораба</div>
+         <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem">Пояснение</div>
          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem;
                      font-size:.88rem;line-height:1.5${isNotDone ? ';border-color:var(--danger)' : ''}">${escHtml(s.note)}</div>
        </div>`
@@ -380,7 +461,7 @@ async function loadDocuments(id) {
   }
 
   container.innerHTML = data.data.map(doc => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border)">
+    <div data-doc-id="${doc.id}" style="display:flex;align-items:center;justify-content:space-between;padding:.6rem;border:1px solid transparent;border-bottom-color:var(--border);border-radius:8px">
       <div>
         <div style="font-weight:600;font-size:.9rem">${escHtml(DOC_LABELS[doc.doc_type] || doc.doc_type)}</div>
         <div style="color:var(--muted);font-size:.8rem">
@@ -394,6 +475,15 @@ async function loadDocuments(id) {
       </a>
     </div>
   `).join('');
+
+  if (pendingDocumentHighlightId) {
+    const target = container.querySelector(`[data-doc-id="${pendingDocumentHighlightId}"]`);
+    if (target) {
+      target.classList.add('entity-highlight');
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+    pendingDocumentHighlightId = null;
+  }
 }
 
 // ─── Материалы (склад) ───────────────────────────────────────
@@ -465,7 +555,7 @@ function renderFilesList() {
   const fileInput = document.getElementById('req-file-input');
   const fileNameEl = document.getElementById('req-selected-filename');
   const errorEl = document.getElementById('req-file-error');
-  const ALLOWED = ['pdf', 'dwg', 'doc', 'docx', 'xls', 'xlsx'];
+  const ALLOWED = ['pdf', 'dwg', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'webp'];
   const MAX = 130 * 1024 * 1024;
 
   fileInput.addEventListener('change', () => {
@@ -485,7 +575,7 @@ function renderFilesList() {
     }
     const ext = file.name.split('.').pop().toLowerCase();
     if (!ALLOWED.includes(ext)) {
-      errorEl.textContent = 'Недопустимый формат. Разрешены: PDF, DWG, DOC, DOCX, XLS, XLSX';
+      errorEl.textContent = 'Недопустимый формат. Разрешены: PDF, DWG, DOC, DOCX, XLS, XLSX, JPG, PNG, WEBP';
       errorEl.style.display = ''; return;
     }
     if (file.size > MAX) {

@@ -1,6 +1,15 @@
 const argon2 = require('argon2');
 const { pool } = require('../config/database');
-const { createUserSchema, updateUserSchema, updatePayoutSchema } = require('../utils/validate');
+const {
+  createUserSchema,
+  updateUserSchema,
+  updatePayoutSchema,
+  batchCatalogSchema,
+  updateCatalogItemSchema,
+  approveCatalogItemSchema,
+  createCoefficientSchema,
+  updateCoefficientSchema,
+} = require('../utils/validate');
 
 // GET /api/admin/users
 async function getUsers(req, res, next) {
@@ -98,12 +107,25 @@ async function deleteUser(req, res, next) {
 
     const result = await pool.query(
       `UPDATE users SET is_deleted = TRUE
-       WHERE id = $1 AND is_deleted = FALSE
+       WHERE id = $1
+         AND role <> 'admin'
+         AND is_deleted = FALSE
        RETURNING id`,
       [id]
     );
 
     if (!result.rows[0]) {
+      const user = await pool.query(
+        `SELECT id, role, is_deleted
+         FROM users
+         WHERE id = $1`,
+        [id]
+      );
+
+      if (user.rows[0]?.role === 'admin') {
+        return res.status(400).json({ success: false, error: 'Администратора нельзя удалить' });
+      }
+
       return res.status(404).json({ success: false, error: 'Пользователь не найден' });
     }
 
@@ -416,27 +438,33 @@ async function getCatalog(req, res, next) {
 // Принимает { items: [{ item_name, unit, base_price }, ...] }
 async function addCatalogBulk(req, res, next) {
   try {
-    const { items } = req.body;
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'Пустой список' });
+    const parsed = batchCatalogSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
     }
 
-    let added = 0;
-    for (const item of items) {
-      if (!item.item_name || !item.unit) continue;
-      
-      const price = parseFloat(item.base_price) || 0;
-      await pool.query(
-        `INSERT INTO price_catalog (item_type, item_name, unit, base_price, is_approved, added_by)
-         VALUES ('work', $1, $2, $3, TRUE, $4)
-         ON CONFLICT (item_name) DO UPDATE 
-         SET unit = EXCLUDED.unit, base_price = EXCLUDED.base_price, is_approved = TRUE, updated_at = NOW()`,
-        [item.item_name.trim(), item.unit.trim(), price, req.session.userId]
-      );
-      added++;
+    const { items } = parsed.data;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const item of items) {
+        await client.query(
+          `INSERT INTO price_catalog (item_type, item_name, unit, base_price, is_approved, added_by)
+           VALUES ('work', $1, $2, $3, TRUE, $4)
+           ON CONFLICT (item_name) DO UPDATE
+           SET unit = EXCLUDED.unit, base_price = EXCLUDED.base_price, is_approved = TRUE, updated_at = NOW()`,
+          [item.item_name.trim(), item.unit.trim(), item.base_price ?? 0, req.session.userId]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-    
-    return res.json({ success: true, message: `Добавлено/обновлено: ${added}` });
+
+    return res.json({ success: true, message: `Добавлено/обновлено: ${items.length}` });
   } catch (err) {
     return next(err);
   }
@@ -445,17 +473,22 @@ async function addCatalogBulk(req, res, next) {
 // PUT /api/admin/catalog/:id
 async function updateCatalogItem(req, res, next) {
   try {
+    const parsed = updateCatalogItemSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
     const { id } = req.params;
-    const { item_name, unit, base_price } = req.body;
-    
+    const { item_name, unit, base_price } = parsed.data;
+
     const result = await pool.query(
-      `UPDATE price_catalog 
+      `UPDATE price_catalog
        SET item_name = $1, unit = $2, base_price = $3, updated_at = NOW()
        WHERE id = $4
        RETURNING id, item_type, item_name, unit, base_price, is_approved, added_by, approved_by, approved_at, created_at, updated_at`,
       [item_name, unit, base_price, id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Не найдено' });
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Не найдено' });
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     return next(err);
@@ -465,16 +498,21 @@ async function updateCatalogItem(req, res, next) {
 // POST /api/admin/catalog/:id/approve
 async function approveCatalogItem(req, res, next) {
   try {
+    const parsed = approveCatalogItemSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
     const { id } = req.params;
-    const { base_price } = req.body;
+    const { base_price } = parsed.data;
     const result = await pool.query(
-      `UPDATE price_catalog 
+      `UPDATE price_catalog
        SET base_price = COALESCE($1, base_price), is_approved = TRUE, approved_at = NOW(), approved_by = $2, updated_at = NOW()
        WHERE id = $3
        RETURNING id, item_type, item_name, unit, base_price, is_approved, added_by, approved_by, approved_at, created_at, updated_at`,
-      [base_price, req.session.userId, id]
+      [base_price ?? null, req.session.userId, id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Не найдено' });
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Не найдено' });
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     return next(err);
@@ -485,7 +523,12 @@ async function approveCatalogItem(req, res, next) {
 async function deleteCatalogItem(req, res, next) {
   try {
     const { id } = req.params;
-    await pool.query('DELETE FROM price_catalog WHERE id = $1', [id]);
+    const numId = parseInt(id, 10);
+    if (!Number.isInteger(numId) || numId <= 0) {
+      return res.status(400).json({ success: false, error: 'Неверный id' });
+    }
+    const result = await pool.query('DELETE FROM price_catalog WHERE id = $1 RETURNING id', [numId]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Не найдено' });
     return res.json({ success: true });
   } catch (err) {
     return next(err);
@@ -511,12 +554,17 @@ async function getCoefficients(req, res, next) {
 // POST /api/admin/coefficients
 async function createCoefficient(req, res, next) {
   try {
-    const { name, value, description } = req.body;
+    const parsed = createCoefficientSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
+    const { name, value, description } = parsed.data;
     const result = await pool.query(
       `INSERT INTO price_coefficients (name, value, description)
        VALUES ($1, $2, $3)
        RETURNING id, name, value, description, created_at`,
-      [name, value, description]
+      [name, value, description ?? null]
     );
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -527,16 +575,21 @@ async function createCoefficient(req, res, next) {
 // PUT /api/admin/coefficients/:id
 async function updateCoefficient(req, res, next) {
   try {
+    const parsed = updateCoefficientSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
     const { id } = req.params;
-    const { name, value, description } = req.body;
+    const { name, value, description } = parsed.data;
     const result = await pool.query(
       `UPDATE price_coefficients
-       SET name = $1, value = $2, description = $3
+       SET name = COALESCE($1, name), value = COALESCE($2, value), description = COALESCE($3, description)
        WHERE id = $4
        RETURNING id, name, value, description, created_at`,
-      [name, value, description, id]
+      [name ?? null, value ?? null, description ?? null, id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Не найдено' });
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Не найдено' });
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     return next(err);
@@ -547,7 +600,12 @@ async function updateCoefficient(req, res, next) {
 async function deleteCoefficient(req, res, next) {
   try {
     const { id } = req.params;
-    await pool.query('DELETE FROM price_coefficients WHERE id = $1', [id]);
+    const numId = parseInt(id, 10);
+    if (!Number.isInteger(numId) || numId <= 0) {
+      return res.status(400).json({ success: false, error: 'Неверный id' });
+    }
+    const result = await pool.query('DELETE FROM price_coefficients WHERE id = $1 RETURNING id', [numId]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Не найдено' });
     return res.json({ success: true });
   } catch (err) {
     return next(err);

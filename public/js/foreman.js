@@ -15,6 +15,10 @@ let activeSpecId      = null;
 let activeWriteoffProjectId = null;
 let rejectSpecMode = 'single';
 let stageWriteoffItems = [];
+let calendarPlan = null;
+let calendarRangeDraft = null;
+let foremanPageMode = window.FOREMAN_PAGE_MODE || 'dashboard';
+let isForemanProjectPage = foremanPageMode === 'project';
 
 function getPendingSpecCheckboxes() {
   return Array.from(document.querySelectorAll('#specs-list .spec-approve-checkbox'));
@@ -32,24 +36,46 @@ function updateSpecBulkActions() {
   }
 
   const checkedCount = checkboxes.filter((input) => input.checked).length;
+  const selectAll = document.getElementById('spec-select-all');
+  if (selectAll) {
+    selectAll.checked = checkedCount === checkboxes.length;
+    selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+  }
   actionWrap.style.display = 'flex';
   counter.textContent = `${checkedCount} отмечено из ${checkboxes.length}`;
 }
 
 // ─── Инициализация ────────────────────────────────────────────
-async function init() {
-  currentUser = await requireAuth('foreman');
-  if (!currentUser) return;
-  document.getElementById('user-name').textContent = currentUser.name;
-  initCatalogAutocomplete('foreman');
-  loadProjects();
+async function init(mode = window.FOREMAN_PAGE_MODE || 'dashboard') {
+  try {
+    foremanPageMode = mode;
+    isForemanProjectPage = foremanPageMode === 'project';
+    currentUser = await requireAuth('foreman');
+    if (!currentUser) return;
+    document.getElementById('user-name').textContent = currentUser.name;
+    renderUserAvatar(currentUser);
+    initCatalogAutocomplete('foreman');
+    const context = getForemanContext();
+    window.initForemanModeNavigation?.(context);
+    await loadProjects();
+    await window.initForemanAfterProjects?.(context);
+  } finally {
+    window.hidePreloader?.();
+  }
 }
 
-// ─── Навигация ────────────────────────────────────────────────
-initNav(section => {
-  if (section === 'mtr')       loadMtrAll();
-  if (section === 'warehouse') loadWarehouseAll();
-});
+function getForemanContext() {
+  return {
+    ensureProjects: async () => {
+      if (!projectsList.length) await loadProjects();
+      return projectsList;
+    },
+    reloadProjects: loadProjects,
+    openProject,
+    sourceLabels: SOURCE_LABELS,
+    startWarehouseWriteoff,
+  };
+}
 
 // ─── Проекты ─────────────────────────────────────────────────
 async function loadProjects() {
@@ -58,63 +84,319 @@ async function loadProjects() {
   projectsList = data.data;
 
   const container = document.getElementById('projects-list');
+  if (!container) return;
   if (!projectsList.length) {
     container.innerHTML = `<div class="card" style="color:var(--muted);text-align:center;padding:2rem">
       Нет проектов. Войдите по коду от менеджера.</div>`;
     return;
   }
-  container.innerHTML = projectsList.map(p => `
-    <div class="card" style="cursor:pointer" data-action="open-project" data-id="${p.id}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
-        <div class="card-title" style="margin:0;font-size:1.1rem">${escHtml(p.name)}</div>
-        ${badge(p.status)}
+  container.innerHTML = `
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Код</th>
+              <th>Проект</th>
+              <th>Адрес</th>
+              <th>Менеджер</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${projectsList.map(p => `
+              <tr style="cursor:pointer" data-action="open-project" data-id="${p.id}">
+                <td style="color:var(--muted);white-space:nowrap">${escHtml(p.code)}</td>
+                <td><strong>${escHtml(p.name)}</strong></td>
+                <td style="color:var(--muted)">${escHtml(p.address || '—')}</td>
+                <td style="color:var(--muted)">${escHtml(p.manager_name || '—')}</td>
+                <td>${badge(p.status)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
       </div>
-      <div style="color:var(--muted);font-size:.82rem;margin-bottom:.25rem">${escHtml(p.code)}</div>
-      ${p.address ? `<div style="color:var(--muted);font-size:.82rem">📍 ${escHtml(p.address)}</div>` : ''}
-      ${p.manager_name ? `<div style="color:var(--muted);font-size:.82rem;margin-top:.5rem">Менеджер: ${escHtml(p.manager_name)}</div>` : ''}
-    </div>
-  `).join('');
+    </div>`;
 }
-
-document.getElementById('projects-list').addEventListener('click', (e) => {
-  const card = e.target.closest('[data-action="open-project"]');
-  if (!card) return;
-  openProject(card.dataset.id);
-});
 
 async function openProject(id) {
   activeProjectId = id;
   const project = projectsList.find(p => p.id == id);
   if (!project) return;
 
-  document.getElementById('modal-project-title').textContent = project.name;
-  document.getElementById('modal-project-meta').innerHTML =
-    `${badge(project.status)} <span style="margin-left:.5rem">${escHtml(project.code)}</span>` +
-    (project.address ? ` · 📍 ${escHtml(project.address)}` : '');
+  const titleEl = document.getElementById(isForemanProjectPage ? 'project-title' : 'modal-project-title');
+  const metaEl = document.getElementById(isForemanProjectPage ? 'project-meta' : 'modal-project-meta');
+  document.getElementById('foreman-project')?.classList.add('is-ready');
 
-  switchTab('stages');
+  titleEl.textContent = project.name;
+  document.getElementById('sidebar-project-title').textContent = project.name;
+  metaEl.innerHTML = isForemanProjectPage
+    ? `
+      ${badge(project.status)}
+      <span>${escHtml(project.code)}</span>
+      ${project.address ? `<span>${escHtml(project.address)}</span>` : ''}
+      ${project.manager_name ? `<span>Менеджер: ${escHtml(project.manager_name)}</span>` : ''}
+    `
+    : `${badge(project.status)} <span style="margin-left:.5rem">${escHtml(project.code)}</span>` +
+      (project.address ? ` · 📍 ${escHtml(project.address)}` : '');
+
+  const initialTab = isForemanProjectPage
+    ? new URLSearchParams(window.location.search).get('tab') || 'stages'
+    : 'stages';
+  switchTab(TABS.includes(initialTab) ? initialTab : 'stages', false);
+  if (!isForemanProjectPage) openModal('modal-project');
   await loadStages(id);
-  openModal('modal-project');
+  if (isForemanProjectPage) {
+    requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0 }));
+  }
 }
 
-// ─── Вкладки в модалке проекта ───────────────────────────────
-const TABS = ['stages', 'specs', 'work-specs', 'warehouse', 'docs'];
+// ─── Вкладки проекта ─────────────────────────────────────────
+const TABS = ['stages', 'calendar', 'specs', 'work-specs', 'warehouse', 'docs'];
 
 document.querySelectorAll('[data-tab]').forEach(btn => {
-  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab, true));
 });
 
-function switchTab(tab) {
+function switchTab(tab, updateUrl = false) {
+  if (isForemanProjectPage) {
+    document.querySelectorAll('.sidebar .nav-item.active').forEach((item) => {
+      item.classList.remove('active');
+    });
+  }
+
   TABS.forEach(t => {
     document.getElementById(`tab-${t}`).style.display = t === tab ? '' : 'none';
-    document.getElementById(`tab-btn-${t}`).className =
-      t === tab ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+    const btn = document.getElementById(`tab-btn-${t}`);
+    if (btn.classList.contains('project-nav-item')) {
+      btn.classList.toggle('active', t === tab);
+    } else {
+      btn.className = t === tab ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+    }
   });
+  if (isForemanProjectPage && updateUrl) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState(null, '', url.toString());
+  }
   if (tab === 'specs')       loadProjectSpecs(activeProjectId);
+  if (tab === 'calendar')    loadCalendarPlan(activeProjectId);
   if (tab === 'work-specs')  loadWorkSpecs(activeProjectId);
   if (tab === 'warehouse')   loadProjectWarehouse(activeProjectId);
   if (tab === 'docs')        loadProjectDocs(activeProjectId);
 }
+
+// ─── Календарный план ────────────────────────────────────────
+function addCalendarDays(dateOnly, days) {
+  const [year, month, day] = String(dateOnly).slice(0, 10).split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  const nextYear = date.getFullYear();
+  const nextMonth = String(date.getMonth() + 1).padStart(2, '0');
+  const nextDay = String(date.getDate()).padStart(2, '0');
+  return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
+function calendarDayIndex(dateOnly) {
+  if (!calendarPlan?.calendar_start || !dateOnly) return null;
+  const [fromYear, fromMonth, fromDay] = String(calendarPlan.calendar_start).slice(0, 10).split('-').map(Number);
+  const [toYear, toMonth, toDay] = String(dateOnly).slice(0, 10).split('-').map(Number);
+  const from = new Date(fromYear, fromMonth - 1, fromDay);
+  const to = new Date(toYear, toMonth - 1, toDay);
+  return Math.round((to - from) / 86400000) + 1;
+}
+
+function getCalendarItemRange(item) {
+  const start = calendarDayIndex(item.planned_start);
+  const end = calendarDayIndex(item.planned_end);
+  if (!start || !end) return null;
+  if (end < 1 || start > calendarPlan.duration_days) return null;
+  return {
+    start: Math.max(1, Math.min(start, end)),
+    end: Math.min(calendarPlan.duration_days, Math.max(start, end)),
+  };
+}
+
+async function loadCalendarPlan(id) {
+  calendarRangeDraft = null;
+  const container = document.getElementById('calendar-plan-list');
+  container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
+  const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${id}/calendar-plan`);
+  if (!ok) {
+    container.innerHTML = '<span style="color:var(--danger)">Ошибка загрузки календарного плана</span>';
+    return;
+  }
+  calendarPlan = data.data;
+  updateCalendarSummary();
+  renderCalendarPlan();
+}
+
+function updateCalendarSummary() {
+  const summary = document.getElementById('calendar-plan-summary');
+  if (!summary || !calendarPlan) return;
+  const items = calendarPlan.items || [];
+  const planned = items.filter(item => item.planned_start && item.planned_end).length;
+  summary.innerHTML = items.length
+    ? `План сформирован: <strong style="color:var(--text)">${items.length}</strong> строк, запланировано <strong style="color:var(--text)">${planned}</strong>. Старт календаря: ${formatDate(calendarPlan.calendar_start)}, горизонт: ${calendarPlan.duration_days} дней.`
+    : 'Календарный план ещё не сформирован. Нажмите кнопку справа.';
+}
+
+function renderCalendarPlan() {
+  const container = document.getElementById('calendar-plan-list');
+  const days = Array.from({ length: calendarPlan.duration_days }, (_, i) => i + 1);
+  const items = calendarPlan.items || [];
+
+  if (!items.length) {
+    container.innerHTML = `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:1rem;color:var(--muted);font-size:.9rem">
+        Календарный план ещё не сформирован. Нажмите «Сформировать план», чтобы добавить мобилизацию и строки из ВОР.
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="calendar-plan-toolbar">
+      <div class="calendar-plan-legend">
+        <span><i class="calendar-legend-work"></i>Работы</span>
+        <span><i class="calendar-legend-mobilization"></i>Мобилизация</span>
+        <span><i class="calendar-legend-draft"></i>Первый клик</span>
+      </div>
+      <div class="calendar-plan-hint">Кликните первый и последний день в одной строке.</div>
+    </div>
+    <div class="calendar-plan-shell">
+      <div style="display:grid;grid-template-columns:310px 90px 88px repeat(${days.length},34px);min-width:${488 + days.length * 34}px">
+        <div class="calendar-plan-head calendar-plan-sticky-left">Наименование работ</div>
+        <div class="calendar-plan-head">Выполнение</div>
+        <div class="calendar-plan-head">Приёмка</div>
+        ${days.map(day => `
+          <div class="calendar-plan-day-head ${day % 7 === 1 ? 'week-start' : ''}">
+            <div>${day}</div>
+            <span>${formatCalendarDayLabel(day)}</span>
+          </div>
+        `).join('')}
+        ${items.map(item => renderCalendarRow(item, days)).join('')}
+      </div>
+    </div>`;
+}
+
+function renderCalendarRow(item, days) {
+  const range = getCalendarItemRange(item);
+  const isMobilization = item.is_calendar_mobilization;
+  const actual = item.actual_date || item.actual_end;
+  const title = isMobilization
+    ? `<div class="calendar-stage-name calendar-stage-name-fixed">${escHtml(item.name)}</div>`
+    : `<div class="calendar-stage-name">${escHtml(item.name)}</div>`;
+  const dates = item.planned_start && item.planned_end
+    ? `${formatDate(item.planned_start)} — ${formatDate(item.planned_end)}`
+    : 'Диапазон не задан';
+  const progress = item.planned_value
+    ? Math.min(100, Math.round((Number(item.actual_value || 0) / Number(item.planned_value)) * 100))
+    : (item.status === 'done' ? 100 : 0);
+  const statusLabel = VOR_STATUS_LABELS[item.status] || item.status || '—';
+
+  return `
+    <div class="calendar-plan-left calendar-plan-sticky-left ${isMobilization ? 'is-mobilization' : ''}">
+      ${title}
+      <div class="calendar-stage-meta">${dates}${actual ? ` · факт: ${formatDate(actual)}` : ''}</div>
+      <div class="calendar-stage-status">${escHtml(statusLabel)}</div>
+    </div>
+    <div class="calendar-plan-meta">${progress}%</div>
+    <div class="calendar-plan-meta">${actual ? formatDate(actual) : '—'}</div>
+    ${days.map(day => {
+      const selected = range && day >= range.start && day <= range.end;
+      const isStart = selected && day === range.start;
+      const isEnd = selected && day === range.end;
+      return `
+        <button type="button"
+          class="calendar-cell ${selected ? 'selected' : ''} ${isStart ? 'range-start' : ''} ${isEnd ? 'range-end' : ''} ${isMobilization ? 'mobilization' : ''} ${day % 7 === 1 ? 'week-start' : ''}"
+          data-id="${item.id}"
+          data-day="${day}"
+          title="${escHtml(item.name)} · день ${day}">
+          <span></span>
+        </button>`;
+    }).join('')}`;
+}
+
+function formatCalendarDayLabel(day) {
+  if (!calendarPlan?.calendar_start) return '';
+  const dateOnly = addCalendarDays(calendarPlan.calendar_start, day - 1);
+  const [, month, date] = dateOnly.split('-');
+  return `${date}.${month}`;
+}
+
+async function saveCalendarRange(itemId, startDay, endDay) {
+  const item = calendarPlan.items.find(row => String(row.id) === String(itemId));
+  if (!item) return;
+  const from = Math.min(startDay, endDay);
+  const to = Math.max(startDay, endDay);
+  const body = {
+    planned_start: addCalendarDays(calendarPlan.calendar_start, from - 1),
+    planned_end: addCalendarDays(calendarPlan.calendar_start, to - 1),
+  };
+  const { ok, data } = await apiRequest('PUT', `/api/foreman/calendar-plan/items/${itemId}`, body);
+  if (!ok) {
+    showToast(data.error, 'error');
+    return;
+  }
+  showToast('Диапазон сохранён', 'success');
+  await loadCalendarPlan(activeProjectId);
+}
+
+document.getElementById('calendar-plan-list').addEventListener('click', async (e) => {
+  const cell = e.target.closest('.calendar-cell');
+  if (!cell) return;
+  const itemId = cell.dataset.id;
+  const day = parseInt(cell.dataset.day, 10);
+
+  if (!calendarRangeDraft || calendarRangeDraft.itemId !== itemId) {
+    calendarRangeDraft = { itemId, day };
+    document.querySelectorAll('.calendar-cell.range-draft').forEach((draftCell) => draftCell.classList.remove('range-draft'));
+    cell.classList.add('range-draft');
+    showToast('Выберите последний день диапазона', 'info');
+    return;
+  }
+
+  await saveCalendarRange(itemId, calendarRangeDraft.day, day);
+  calendarRangeDraft = null;
+});
+
+document.getElementById('btn-generate-calendar-plan').addEventListener('click', async () => {
+  const { ok, data } = await apiRequest('POST', `/api/foreman/projects/${activeProjectId}/calendar-plan/generate`);
+  if (!ok) {
+    showToast(data.error, 'error');
+    return;
+  }
+  calendarPlan = data.data;
+  updateCalendarSummary();
+  renderCalendarPlan();
+  const count = calendarPlan.items?.length || 0;
+  showToast(`Календарный план сформирован: ${count} строк`, 'success');
+});
+
+document.getElementById('btn-export-calendar-plan').addEventListener('click', () => {
+  if (!calendarPlan?.items?.length) {
+    showToast('Сначала сформируйте календарный план', 'error');
+    return;
+  }
+  const rows = [
+    ['Этап', 'Плановое начало', 'Плановое окончание', 'Фактическое окончание', 'Статус'],
+    ...calendarPlan.items.map(item => [
+      item.name,
+      item.planned_start ? formatDate(item.planned_start) : '',
+      item.planned_end ? formatDate(item.planned_end) : '',
+      item.actual_date || item.actual_end ? formatDate(item.actual_date || item.actual_end) : '',
+      VOR_STATUS_LABELS[item.status] || item.status,
+    ]),
+  ];
+  const csv = rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `calendar-plan-${activeProjectId}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
 
 // ─── Этапы ───────────────────────────────────────────────────
 async function loadStages(id) {
@@ -122,12 +404,13 @@ async function loadStages(id) {
   if (!ok) return;
 
   const list = document.getElementById('stages-list');
-  if (!data.data.length) {
-    list.innerHTML = '<div style="color:var(--muted);font-size:.9rem">Этапов нет. Добавьте первый.</div>';
+  const visibleStages = data.data.filter(s => !s.is_calendar_mobilization);
+  if (!visibleStages.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:.9rem">Этапов нет. Сформируйте этапы из ВОР.</div>';
     return;
   }
 
-  const vorStages = data.data.filter(s => s.is_from_vor && Number(s.planned_value) > 0);
+  const vorStages = visibleStages.filter(s => s.is_from_vor && Number(s.planned_value) > 0);
   let progressHtml = '';
   if (vorStages.length) {
     const sumPlan   = vorStages.reduce((a, s) => a + Number(s.planned_value), 0);
@@ -145,14 +428,14 @@ async function loadStages(id) {
       </div>`;
   }
 
-  list.innerHTML = progressHtml + data.data.map(s => {
+  list.innerHTML = progressHtml + visibleStages.map(s => {
     const isVor = s.is_from_vor;
     const statusLabel = isVor ? (VOR_STATUS_LABELS[s.status] || s.status) : s.status;
     const subInfo = isVor
       ? `${s.actual_value != null ? s.actual_value : 0} / ${s.planned_value} ${escHtml(s.unit || '')}`
         + (s.note ? ` · <span style="color:var(--danger)">${escHtml(s.note)}</span>` : '')
       : (s.planned_start ? `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}` : '')
-        + (s.actual_end ? ` · Факт: ${formatDate(s.actual_end)}` : '');
+        + (s.actual_end ? ` · Факт. окончание: ${formatDate(s.actual_end)}` : '');
 
     return `
     <div class="stage-item">
@@ -210,6 +493,7 @@ document.getElementById('stages-list').addEventListener('click', async (e) => {
     f.planned_start.value = btn.dataset.ps;
     f.planned_end.value   = btn.dataset.pe;
     f.actual_end.value    = btn.dataset.ae;
+    updateRegularStageDateRequirements();
   }
   await loadStageWriteoffPanel(btn.dataset.id, activeProjectId);
   openModal('modal-edit-stage');
@@ -217,8 +501,34 @@ document.getElementById('stages-list').addEventListener('click', async (e) => {
 
 function updateNoteRequired() {
   const isNotDone = document.getElementById('edit-stage-status-vor').value === 'not_done';
-  document.getElementById('edit-stage-note-required').style.display = isNotDone ? '' : 'none';
+  const isDone = document.getElementById('edit-stage-status-vor').value === 'done';
+  const form = document.getElementById('edit-stage-form');
+  const plannedDate = form.planned_date.value;
+  const actualDate = form.actual_date.value;
+  const isLate = plannedDate && actualDate && actualDate > plannedDate;
+  document.getElementById('edit-stage-note-required').style.display = (isNotDone || isLate) ? '' : 'none';
+  form.note.required = isNotDone || isLate;
+  form.actual_date.required = isDone;
+  document.getElementById('edit-stage-actual-date-required').style.display = isDone ? '' : 'none';
 }
+
+function updateRegularStageDateRequirements() {
+  const isDone = document.getElementById('edit-stage-status-regular').value === 'done';
+  const form = document.getElementById('edit-stage-form');
+  const plannedEnd = form.planned_end.value;
+  const actualEnd = form.actual_end.value;
+  const isLate = plannedEnd && actualEnd && actualEnd > plannedEnd;
+  form.actual_end.required = isDone;
+  form.note.required = isLate;
+  document.getElementById('edit-stage-actual-end-required').style.display = isDone ? '' : 'none';
+  document.getElementById('edit-stage-note-required').style.display = isLate ? '' : 'none';
+}
+
+document.getElementById('edit-stage-status-regular').addEventListener('change', updateRegularStageDateRequirements);
+document.getElementById('edit-stage-form').planned_end.addEventListener('change', updateRegularStageDateRequirements);
+document.getElementById('edit-stage-form').actual_end.addEventListener('change', updateRegularStageDateRequirements);
+document.getElementById('edit-stage-form').planned_date.addEventListener('change', updateNoteRequired);
+document.getElementById('edit-stage-form').actual_date.addEventListener('change', updateNoteRequired);
 
 document.getElementById('btn-add-stage').addEventListener('click', () => {
   document.getElementById('add-stage-form').reset();
@@ -230,8 +540,6 @@ document.getElementById('add-stage-form').addEventListener('submit', async (e) =
   const fd = new FormData(e.target);
   const body = Object.fromEntries(fd.entries());
   body.order_num = parseInt(body.order_num) || 0;
-  if (!body.planned_start) delete body.planned_start;
-  if (!body.planned_end)   delete body.planned_end;
 
   const { ok, data } = await apiRequest('POST', `/api/foreman/projects/${activeProjectId}/stages`, body);
   if (ok) {
@@ -262,6 +570,14 @@ document.getElementById('edit-stage-form').addEventListener('submit', async (e) 
       showToast('Заполните примечание для статуса «Не выполнено»', 'error');
       return;
     }
+    if (status === 'done' && !fd.get('actual_date')) {
+      showToast('Для выполненной работы укажите фактическое окончание', 'error');
+      return;
+    }
+    if (pd && ad && ad > pd && !note) {
+      showToast('При просрочке укажите пояснение в примечании', 'error');
+      return;
+    }
   } else {
     body.name = document.getElementById('edit-stage-name').value;
     body.status = document.getElementById('edit-stage-status-regular').value;
@@ -269,9 +585,20 @@ document.getElementById('edit-stage-form').addEventListener('submit', async (e) 
     const plannedEnd = fd.get('planned_end');
     const actualEnd = fd.get('actual_end');
 
+    if (body.status === 'done' && !actualEnd) {
+      showToast('Для завершённого этапа укажите фактическое окончание', 'error');
+      return;
+    }
+    const note = fd.get('note');
+    if (plannedEnd && actualEnd && actualEnd > plannedEnd && !note) {
+      showToast('При просрочке укажите пояснение в примечании', 'error');
+      return;
+    }
+
     if (plannedStart) body.planned_start = plannedStart;
     if (plannedEnd) body.planned_end = plannedEnd;
     if (actualEnd) body.actual_end = actualEnd;
+    if (note) body.note = note;
   }
 
   const { ok, data } = await apiRequest('PUT', `/api/foreman/stages/${activeStageId}`, body);
@@ -294,6 +621,7 @@ async function loadProjectSpecs(id) {
   }
 
   const specs = data.data;
+  const hasPendingSpecs = specs.some((s) => s.status === 'pending_approval');
   if (!specs.length) {
     container.innerHTML = '<div style="color:var(--muted)">Ведомость пуста. Снабженец ещё не отправил материалы.</div>';
     updateSpecBulkActions();
@@ -302,16 +630,28 @@ async function loadProjectSpecs(id) {
 
   container.innerHTML = `
     <div class="table-wrap">
-      <div style="position:sticky;top:0;z-index:3;background:var(--bg);border-bottom:1px solid var(--border)">
-        <div style="display:grid;grid-template-columns:42% 14% 14% 14% 16%;gap:0;align-items:center">
-          <div style="padding:.75rem 1rem;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em">Материал</div>
-          <div style="padding:.75rem 1rem;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;text-align:right">Нужно</div>
-          <div style="padding:.75rem 1rem;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;text-align:right">Поступило</div>
-          <div style="padding:.75rem 1rem;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;text-align:right">Осталось</div>
-          <div style="padding:.75rem 1rem;color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em">Статус</div>
-        </div>
-      </div>
       <table>
+        <colgroup>
+          <col style="width:42%">
+          <col style="width:14%">
+          <col style="width:14%">
+          <col style="width:14%">
+          <col style="width:16%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>
+              <label style="display:flex;align-items:center;gap:.65rem">
+                ${hasPendingSpecs ? '<input type="checkbox" id="spec-select-all" aria-label="Выбрать все позиции ВОМ">' : '<span style="width:16px;display:inline-block"></span>'}
+                <span>Материал</span>
+              </label>
+            </th>
+            <th style="text-align:right">Нужно</th>
+            <th style="text-align:right">Поступило</th>
+            <th style="text-align:right">Осталось</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
         <tbody>
           ${specs.map((s) => `
             <tr>
@@ -382,8 +722,17 @@ document.getElementById('specs-list').addEventListener('click', async (e) => {
 });
 
 document.getElementById('specs-list').addEventListener('change', (e) => {
-  if (!e.target.classList.contains('spec-approve-checkbox')) return;
-  updateSpecBulkActions();
+  if (e.target.id === 'spec-select-all') {
+    getPendingSpecCheckboxes().forEach((input) => {
+      input.checked = e.target.checked;
+    });
+    updateSpecBulkActions();
+    return;
+  }
+
+  if (e.target.classList.contains('spec-approve-checkbox')) {
+    updateSpecBulkActions();
+  }
 });
 
 document.getElementById('btn-approve-selected-specs').addEventListener('click', async () => {
@@ -474,14 +823,15 @@ async function loadWorkSpecs(id) {
 
   const project = projectsList.find(p => p.id == id);
   const generated = project?.stages_generated;
+  const kpSent = Boolean(project?.kp_sent_at);
 
   const btnGenerate = document.getElementById('btn-generate-stages');
   const btnAdd      = document.getElementById('btn-add-work-spec');
-  const btnBatch    = document.getElementById('btn-batch-work-specs');
 
   btnGenerate.style.display = (!generated && data.data.length) ? '' : 'none';
+  btnGenerate.disabled = !kpSent;
+  btnGenerate.title = kpSent ? '' : 'Сначала менеджер должен отправить КП заказчику';
   btnAdd.style.display      = generated ? 'none' : '';
-  btnBatch.style.display    = generated ? 'none' : '';
 
   const specs = data.data;
   if (!specs.length) {
@@ -491,6 +841,8 @@ async function loadWorkSpecs(id) {
 
   const readonly = generated
     ? '<div style="color:var(--muted);font-size:.82rem;margin-bottom:.75rem">ВОР заблокирован — этапы уже сформированы.</div>'
+    : !kpSent
+      ? '<div style="color:var(--muted);font-size:.82rem;margin-bottom:.75rem">Этапы можно сформировать после отправки КП заказчику.</div>'
     : '';
 
   container.innerHTML = readonly + `
@@ -516,6 +868,11 @@ async function loadWorkSpecs(id) {
 }
 
 document.getElementById('btn-generate-stages').addEventListener('click', async () => {
+  const project = projectsList.find(p => p.id == activeProjectId);
+  if (!project?.kp_sent_at) {
+    showToast('Сначала менеджер должен отправить КП заказчику', 'error');
+    return;
+  }
   if (!confirm('Этапы будут сформированы из ВОР. ВОР станет недоступен для редактирования. Продолжить?')) return;
   const btn = document.getElementById('btn-generate-stages');
   btn.disabled = true;
@@ -531,31 +888,18 @@ document.getElementById('btn-generate-stages').addEventListener('click', async (
 });
 
 document.getElementById('btn-add-work-spec').addEventListener('click', () => {
-  document.getElementById('add-work-spec-form').reset();
-  openModal('modal-add-work-spec');
+  const project = projectsList.find(p => p.id == activeProjectId);
+  openBatchModal(project?.name || '', 'ВОР', 'Наименование работы', async (items) => {
+    const { ok, data } = await apiRequest('POST', `/api/foreman/projects/${activeProjectId}/work-specs/batch`, { items });
+    if (ok) {
+      showToast(`Добавлено позиций: ${data.data.inserted}`, 'success');
+      closeModal('modal-batch');
+      loadWorkSpecs(activeProjectId);
+    } else showToast(data.error, 'error');
+  });
 });
 
-document.getElementById('add-work-spec-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const body = {
-    work_name: fd.get('work_name'),
-    quantity:  parseFloat(fd.get('quantity')),
-  };
-  if (fd.get('unit')) body.unit = fd.get('unit');
-
-  const btn = e.target.querySelector('button[type=submit]');
-  btn.disabled = true;
-  const { ok, data } = await apiRequest('POST', `/api/foreman/projects/${activeProjectId}/work-specs`, body);
-  btn.disabled = false;
-  if (ok) {
-    showToast('Позиция добавлена', 'success');
-    closeModal('modal-add-work-spec');
-    loadWorkSpecs(activeProjectId);
-  } else showToast(data.error, 'error');
-});
-
-// ─── Массовое добавление ВОР (batch modal) ────────────────────
+// ─── Табличное добавление ВОР ─────────────────────────────────
 const BATCH_UNITS = ['шт', 'м', 'м²', 'км', 'компл', 'рул', 'кг', 'т', 'л'];
 let batchSaveCallback = null;
 
@@ -604,7 +948,7 @@ function updateBatchCounter() {
 }
 
 function openBatchModal(projectName, type, namePlaceholder, saveCallback) {
-  document.getElementById('batch-modal-title').textContent = `Массовое добавление — ${type}`;
+  document.getElementById('batch-modal-title').textContent = `Добавить позиции — ${type}`;
   document.getElementById('batch-modal-subtitle').textContent = projectName;
   batchSaveCallback = saveCallback;
 
@@ -695,21 +1039,14 @@ document.getElementById('btn-batch-save').addEventListener('click', async () => 
   btn.disabled = false; btn.textContent = 'Сохранить в проект';
 });
 
-document.getElementById('btn-batch-work-specs').addEventListener('click', () => {
-  const project = projectsList.find(p => p.id == activeProjectId);
-  openBatchModal(project?.name || '', 'ВОР', 'Наименование работы', async (items) => {
-    const { ok, data } = await apiRequest('POST', `/api/foreman/projects/${activeProjectId}/work-specs/batch`, { items });
-    if (ok) {
-      showToast(`Добавлено позиций: ${data.data.inserted}`, 'success');
-      closeModal('modal-batch');
-      loadWorkSpecs(activeProjectId);
-    } else showToast(data.error, 'error');
-  });
-});
+// ─── Склад объекта (вкладка проекта) ─────────────────────────
+function getProjectWarehouseTable() {
+  return document.getElementById(isForemanProjectPage ? 'project-warehouse-table' : 'modal-warehouse-table');
+}
 
-// ─── Склад объекта (вкладка в модалке) ───────────────────────
 async function loadProjectWarehouse(id) {
-  const tbody = document.querySelector('#modal-warehouse-table tbody');
+  const tbody = getProjectWarehouseTable()?.querySelector('tbody');
+  if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">Загрузка...</td></tr>';
   const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${id}/warehouse`);
   if (!ok) { tbody.innerHTML = '<tr><td colspan="6" style="color:var(--danger)">Ошибка загрузки</td></tr>'; return; }
@@ -735,18 +1072,13 @@ async function loadProjectWarehouse(id) {
   `).join('');
 }
 
-document.getElementById('modal-warehouse-table').addEventListener('click', (e) => {
+getProjectWarehouseTable()?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="writeoff"]');
   if (!btn) return;
-  activeWarehouseId = btn.dataset.id;
-  activeWriteoffProjectId = activeProjectId;
-  document.getElementById('writeoff-item-info').innerHTML =
-    `<strong>${escHtml(btn.dataset.name)}</strong> · Доступно: <strong>${btn.dataset.available} ${escHtml(btn.dataset.unit)}</strong>`;
-  document.getElementById('writeoff-form').reset();
-  populateWriteoffStages(activeProjectId).then(() => openModal('modal-writeoff'));
+  startWarehouseWriteoff(btn, activeProjectId);
 });
 
-// ─── Документы (вкладка в модалке) ────────────────────────────
+// ─── Документы (вкладка проекта) ──────────────────────────────
 async function loadProjectDocs(id) {
   const container = document.getElementById('project-docs-list');
   container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
@@ -755,62 +1087,32 @@ async function loadProjectDocs(id) {
   renderTechDocs(container, data.data);
 }
 
-// ─── Заявки МТР (секция сайдбара) ────────────────────────────
-async function loadMtrAll() {
-  if (!projectsList.length) await loadProjects();
-
-  const sel = document.getElementById('mtr-project-select');
-  sel.innerHTML = projectsList.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
-
-  const tbody = document.querySelector('#mtr-table tbody');
-  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">Загрузка...</td></tr>';
-
-  const allRows = [];
-  for (const p of projectsList) {
-    const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${p.id}/mtr-requests`);
-    if (ok) data.data.forEach(r => allRows.push({ ...r, project_name: p.name }));
-  }
-
-  if (!allRows.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">Заявок нет</td></tr>';
-    return;
-  }
-  tbody.innerHTML = allRows.map(r => `
-    <tr>
-      <td>
-        <strong>${escHtml(r.material_name)}</strong>
-        <div style="color:var(--muted);font-size:.78rem">${escHtml(r.project_name)}</div>
-        ${r.notes ? `<div style="color:var(--muted);font-size:.8rem">${escHtml(r.notes)}</div>` : ''}
-      </td>
-      <td>${r.quantity} ${escHtml(r.unit || '')}</td>
-      <td style="color:var(--muted);font-size:.85rem">${escHtml(r.stage_name || '—')}</td>
-      <td>${badge(r.status)}</td>
-      <td style="color:var(--muted);font-size:.85rem">${formatDate(r.created_at)}</td>
-    </tr>
-  `).join('');
-}
-
-document.getElementById('btn-create-mtr').addEventListener('click', async () => {
+document.getElementById('btn-create-mtr')?.addEventListener('click', async () => {
   if (!projectsList.length) await loadProjects();
   const sel = document.getElementById('mtr-project-select');
-  sel.innerHTML = projectsList.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  if (!sel) return;
+  const availableProjects = isForemanProjectPage && activeProjectId
+    ? projectsList.filter(p => p.id == activeProjectId)
+    : projectsList;
+  sel.innerHTML = availableProjects.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
   await updateMtrStages();
   document.getElementById('mtr-form').reset();
   openModal('modal-mtr');
 });
 
-document.getElementById('mtr-project-select').addEventListener('change', updateMtrStages);
+document.getElementById('mtr-project-select')?.addEventListener('change', updateMtrStages);
 
 async function updateMtrStages() {
-  const projectId = document.getElementById('mtr-project-select').value;
+  const projectId = document.getElementById('mtr-project-select')?.value;
   if (!projectId) return;
   const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${projectId}/stages`);
   const sel = document.getElementById('mtr-stage-select');
+  if (!sel) return;
   sel.innerHTML = '<option value="">— без этапа —</option>';
   if (ok) sel.innerHTML += data.data.map(s => `<option value="${s.id}">${escHtml(s.name)}</option>`).join('');
 }
 
-document.getElementById('mtr-form').addEventListener('submit', async (e) => {
+document.getElementById('mtr-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   const body = Object.fromEntries(fd.entries());
@@ -826,60 +1128,8 @@ document.getElementById('mtr-form').addEventListener('submit', async (e) => {
   if (ok) {
     showToast('Заявка отправлена', 'success');
     closeModal('modal-mtr');
-    if (document.getElementById('section-mtr').classList.contains('active')) loadMtrAll();
+    if (document.getElementById('section-mtr')?.classList.contains('active')) window.foremanDashboardLoadMtrAll?.();
   } else showToast(data.error, 'error');
-});
-
-// ─── Склад (секция сайдбара — все проекты) ────────────────────
-async function loadWarehouseAll() {
-  if (!projectsList.length) await loadProjects();
-  const tbody = document.querySelector('#warehouse-table tbody');
-  tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Загрузка...</td></tr>';
-
-  const allRows = [];
-  for (const p of projectsList) {
-    const { ok, data } = await apiRequest('GET', `/api/foreman/projects/${p.id}/warehouse`);
-    if (ok) data.data.forEach(r => allRows.push({ ...r, project_name: p.name, project_id: p.id }));
-  }
-
-  if (!allRows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Склад пуст</td></tr>';
-    return;
-  }
-  tbody.innerHTML = allRows.map(r => `
-    <tr>
-      <td>
-        <strong>${escHtml(r.material_name)}</strong>
-        <div style="color:var(--muted);font-size:.78rem">${escHtml(r.project_name)}</div>
-      </td>
-      <td>${escHtml(r.unit || '—')}</td>
-      <td>${r.qty_total}</td>
-      <td>${r.qty_used}</td>
-      <td style="font-weight:600;color:${Number(r.qty_balance) > 0 ? 'var(--success)' : Number(r.qty_balance) < 0 ? 'var(--danger)' : 'var(--muted)'}">
-        ${r.qty_balance}
-      </td>
-      <td style="color:var(--muted);font-size:.8rem">${escHtml(SOURCE_LABELS[r.source] || r.source)}</td>
-      <td>
-        <button class="btn btn-outline btn-sm" data-action="writeoff"
-          data-id="${r.id}" data-name="${escHtml(r.material_name)}"
-          data-unit="${escHtml(r.unit||'')}" data-available="${r.qty_balance}"
-          data-project-id="${r.project_id || ''}">
-          Списать
-        </button>
-      </td>
-    </tr>
-  `).join('');
-}
-
-document.getElementById('warehouse-table').addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-action="writeoff"]');
-  if (!btn) return;
-  activeWarehouseId = btn.dataset.id;
-  activeWriteoffProjectId = btn.dataset.projectId;
-  document.getElementById('writeoff-item-info').innerHTML =
-    `<strong>${escHtml(btn.dataset.name)}</strong> · Доступно: <strong>${btn.dataset.available} ${escHtml(btn.dataset.unit)}</strong>`;
-  document.getElementById('writeoff-form').reset();
-  populateWriteoffStages(btn.dataset.projectId).then(() => openModal('modal-writeoff'));
 });
 
 document.getElementById('writeoff-form').addEventListener('submit', async (e) => {
@@ -895,10 +1145,19 @@ document.getElementById('writeoff-form').addEventListener('submit', async (e) =>
     if (document.getElementById('tab-warehouse').style.display !== 'none') {
       loadProjectWarehouse(activeProjectId);
     } else {
-      loadWarehouseAll();
+      window.foremanDashboardLoadWarehouseAll?.();
     }
   } else showToast(data.error, 'error');
 });
+
+function startWarehouseWriteoff(btn, projectId) {
+  activeWarehouseId = btn.dataset.id;
+  activeWriteoffProjectId = projectId;
+  document.getElementById('writeoff-item-info').innerHTML =
+    `<strong>${escHtml(btn.dataset.name)}</strong> · Доступно: <strong>${btn.dataset.available} ${escHtml(btn.dataset.unit)}</strong>`;
+  document.getElementById('writeoff-form').reset();
+  populateWriteoffStages(projectId).then(() => openModal('modal-writeoff'));
+}
 
 async function populateWriteoffStages(projectId) {
   const select = document.getElementById('writeoff-stage-select');
@@ -1016,20 +1275,41 @@ async function loadStagePhotos(stageId) {
   list.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.75rem">
       ${data.data.map((photo) => `
-        <a href="${photo.url}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
-          <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--bg2)">
+        <div style="position:relative;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--bg2)">
+          <button type="button" data-action="delete-stage-photo" data-id="${photo.id}" title="Удалить фото"
+            style="position:absolute;top:.4rem;right:.4rem;z-index:2;width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(6,10,16,.82);color:#fff;line-height:1;cursor:pointer">×</button>
+          <a href="${photo.url}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
             <img src="${photo.url}" alt="${escHtml(photo.description || 'Фото этапа')}"
               style="width:100%;height:120px;object-fit:cover;display:block">
             <div style="padding:.55rem .6rem">
               <div style="font-size:.75rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(photo.description || 'Без описания')}</div>
               <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">${formatDate(photo.uploaded_at)}</div>
             </div>
-          </div>
-        </a>
+          </a>
+        </div>
       `).join('')}
     </div>
   `;
 }
+
+document.getElementById('stage-photos-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action="delete-stage-photo"]');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (!confirm('Удалить фото этапа?')) return;
+
+  btn.disabled = true;
+  const { ok, data } = await apiRequest('DELETE', `/api/foreman/photos/${btn.dataset.id}`);
+  if (!ok) {
+    btn.disabled = false;
+    showToast(data.error, 'error');
+    return;
+  }
+
+  showToast('Фото удалено', 'success');
+  loadStagePhotos(activeStageId);
+});
 
 document.getElementById('stage-photo-inline-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -1062,23 +1342,6 @@ document.getElementById('stage-photo-inline-form').addEventListener('submit', as
   e.target.reset();
   showToast('Фото загружено', 'success');
   loadStagePhotos(activeStageId);
-});
-
-// ─── Присоединиться по коду ───────────────────────────────────
-document.getElementById('btn-join-project').addEventListener('click', () => {
-  document.getElementById('join-form').reset();
-  openModal('modal-join');
-});
-
-document.getElementById('join-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const code = new FormData(e.target).get('code').toUpperCase();
-  const { ok, data } = await apiRequest('POST', '/api/foreman/projects/join', { code });
-  if (ok) {
-    showToast(`Вы добавлены в проект «${data.data.name}»`, 'success');
-    closeModal('modal-join');
-    loadProjects();
-  } else showToast(data.error, 'error');
 });
 
 // ─── Автодополнение Справочника ──────────────────────────────
@@ -1134,4 +1397,4 @@ async function initCatalogAutocomplete(role) {
   }
 }
 
-init();
+window.initForeman = init;

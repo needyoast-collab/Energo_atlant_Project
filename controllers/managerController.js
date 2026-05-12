@@ -39,11 +39,54 @@ function isAdminSession(req) {
   return req.session.userRole === ROLES.ADMIN;
 }
 
+function toDateOnly(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return String(value).slice(0, 10);
+}
+
 function formatHistoryValue(value) {
   if (value === undefined) return null;
   if (value === null) return null;
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+}
+
+async function getProjectWorkProgress(projectId) {
+  const result = await pool.query(
+    `SELECT COUNT(*) AS stage_total,
+            COUNT(*) FILTER (WHERE status = 'done') AS stage_done,
+            COALESCE(SUM(planned_value) FILTER (WHERE is_from_vor = TRUE AND planned_value > 0), 0) AS work_plan_total,
+            COALESCE(SUM(COALESCE(actual_value, 0)) FILTER (WHERE is_from_vor = TRUE AND planned_value > 0), 0) AS work_actual_total
+     FROM project_stages
+     WHERE project_id = $1 AND is_deleted = FALSE`,
+    [projectId]
+  );
+
+  const progress = result.rows[0] || {};
+  const stageTotal = Number(progress.stage_total || 0);
+  const stageDone = Number(progress.stage_done || 0);
+  const workPlanTotal = Number(progress.work_plan_total || 0);
+  const workActualTotal = Number(progress.work_actual_total || 0);
+
+  if (workPlanTotal > 0) {
+    const percent = Math.min(100, Math.round((workActualTotal / workPlanTotal) * 100));
+    return {
+      percent,
+      isComplete: workActualTotal >= workPlanTotal,
+    };
+  }
+
+  const percent = stageTotal > 0 ? Math.round((stageDone / stageTotal) * 100) : 0;
+  return {
+    percent,
+    isComplete: stageTotal > 0 && stageDone === stageTotal,
+  };
 }
 
 async function logProjectHistory({
@@ -314,7 +357,7 @@ async function getProjects(req, res, next) {
 
     const result = await pool.query(
       `SELECT p.id, p.code, p.name, p.status, p.address, p.contract_value,
-              p.include_materials, p.regional_coeff, p.stages_generated, p.created_at,
+              p.include_materials, p.regional_coeff, p.stages_generated, p.kp_sent_at, p.created_at,
               u.id as manager_id, u.name as manager_name,
               COALESCE(st.stage_total, 0)::int AS stage_total,
               COALESCE(st.stage_done, 0)::int AS stage_done,
@@ -360,7 +403,7 @@ async function getProject(req, res, next) {
               p.include_materials, p.regional_coeff,
               p.object_type, p.voltage_class, p.work_types, p.lead_source,
               p.contact_name, p.contact_phone, p.contact_email, p.contact_org,
-              p.planned_start, p.planned_end, p.notes, p.stages_generated, p.created_at,
+              p.contract_signed_at, p.planned_start, p.planned_end, p.notes, p.stages_generated, p.kp_sent_at, p.created_at,
               u.name as manager_name,
               (SELECT COUNT(*) FROM project_stages ps WHERE ps.project_id = p.id AND ps.is_deleted = FALSE)::int AS stage_total,
               (SELECT COUNT(*) FROM project_stages ps WHERE ps.project_id = p.id AND ps.is_deleted = FALSE AND ps.status = 'done')::int AS stage_done
@@ -371,7 +414,34 @@ async function getProject(req, res, next) {
       values
     );
     if (!result.rows[0]) return res.status(404).json({ success: false, error: 'Проект не найден' });
-    return res.json({ success: true, data: result.rows[0] });
+    const project = result.rows[0];
+    const team = await pool.query(
+      `SELECT pm.user_id, pm.role, u.name, u.email
+       FROM project_members pm
+       JOIN users u ON u.id = pm.user_id
+       WHERE pm.project_id = $1 AND u.is_deleted = FALSE
+       ORDER BY
+         CASE pm.role
+           WHEN 'foreman' THEN 1
+           WHEN 'pto' THEN 2
+           WHEN 'supplier' THEN 3
+           WHEN 'customer' THEN 4
+           ELSE 5
+         END,
+         u.name ASC`,
+      [id]
+    );
+    return res.json({
+      success: true,
+      data: {
+        ...project,
+        team: team.rows,
+        contract_signed_at: toDateOnly(project.contract_signed_at),
+        planned_start: toDateOnly(project.planned_start),
+        planned_end: toDateOnly(project.planned_end),
+        kp_sent_at: toDateOnly(project.kp_sent_at),
+      },
+    });
   } catch (err) {
     return next(err);
   }
@@ -389,7 +459,7 @@ async function createProject(req, res, next) {
       name, request_id, description, address, contract_value, include_materials,
       object_type, voltage_class, work_types, lead_source,
       contact_name, contact_phone, contact_email, contact_org,
-      planned_start, planned_end, notes,
+      contract_signed_at, planned_start, planned_end, notes,
     } = parsed.data;
     const code = await generateProjectCode();
 
@@ -399,9 +469,9 @@ async function createProject(req, res, next) {
          include_materials,
          object_type, voltage_class, work_types, lead_source,
          contact_name, contact_phone, contact_email, contact_org,
-         planned_start, planned_end, notes, manager_id
+         contract_signed_at, planned_start, planned_end, notes, manager_id
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        RETURNING id, code, name, status, address, contract_value, include_materials, regional_coeff, created_at`,
       [
         code, name, description || null, address || null, contract_value || null, include_materials ?? true,
@@ -409,7 +479,7 @@ async function createProject(req, res, next) {
         work_types ? JSON.stringify(work_types) : null,
         lead_source || null,
         contact_name || null, contact_phone || null, contact_email || null, contact_org || null,
-        planned_start || null, planned_end || null, notes || null,
+        contract_signed_at || null, planned_start || null, planned_end || null, notes || null,
         req.session.userId,
       ]
     );
@@ -447,7 +517,7 @@ async function updateProject(req, res, next) {
               include_materials, regional_coeff,
               object_type, voltage_class, work_types, lead_source,
               contact_name, contact_phone, contact_email, contact_org,
-              planned_start, planned_end, notes, manager_id
+              contract_signed_at, planned_start, planned_end, notes, manager_id
        FROM projects
        WHERE id = $1 AND is_deleted = FALSE`,
       [id]
@@ -455,6 +525,24 @@ async function updateProject(req, res, next) {
     if (!before.rows[0]) {
       return res.status(404).json({ success: false, error: 'Проект не найден' });
     }
+
+    const nextStatus = parsed.data.status || before.rows[0].status;
+    const nextContractSignedAt = parsed.data.contract_signed_at || before.rows[0].contract_signed_at;
+
+    if ((nextStatus === 'contract' || nextStatus === 'work' || nextStatus === 'won') && !nextContractSignedAt) {
+      return res.status(400).json({ success: false, error: 'Укажите дату подписания договора' });
+    }
+
+    if (parsed.data.status === 'won') {
+      const progress = await getProjectWorkProgress(id);
+      if (!progress.isComplete) {
+        return res.status(400).json({
+          success: false,
+          error: `Нельзя завершить проект: готовность работ ${progress.percent}%. Сначала завершите этапы.`,
+        });
+      }
+    }
+
     const fields = [];
     const values = [];
     let idx = 1;
@@ -693,7 +781,7 @@ async function analyzeProject(req, res, next) {
     const stages = await pool.query(
       `SELECT name, status, planned_start, planned_end, actual_end
        FROM project_stages
-       WHERE w.project_id = $1 AND w.is_deleted = FALSE
+       WHERE project_id = $1 AND is_deleted = FALSE
        ORDER BY order_num`,
       [id]
     );
@@ -778,6 +866,19 @@ async function uploadDocument(req, res, next) {
       newValue: doc_type,
       details: `Загружен документ ${req.file.originalname}`,
     });
+
+    const members = await pool.query(
+      `SELECT user_id FROM project_members WHERE project_id = $1 AND role = 'customer'`,
+      [id]
+    );
+    members.rows.forEach(r => sendNotification({
+      userId:    r.user_id,
+      projectId: parseInt(id),
+      type:      'document',
+      entityType: 'document',
+      entityId:   result.rows[0].id,
+      message:   `Загружен новый документ: ${req.file.originalname}`,
+    }));
 
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -963,13 +1064,34 @@ async function updateStage(req, res, next) {
     const { stageId } = req.params;
     const stage = await pool.query(
       `SELECT project_id, name, status, order_num, planned_start, planned_end, actual_end,
-              planned_value, actual_value, planned_date, actual_date, note
+              is_from_vor, planned_value, actual_value, planned_date, actual_date, note
        FROM project_stages WHERE id = $1 AND is_deleted = FALSE`,
       [stageId]
     );
     if (!stage.rows[0]) return res.status(404).json({ success: false, error: 'Этап не найден' });
     const access = await ensureManagerProjectAccess(stage.rows[0].project_id, req, res);
     if (!access) return;
+
+    const currentStage = stage.rows[0];
+    const nextStatus = parsed.data.status || currentStage.status;
+    const nextNote = parsed.data.note !== undefined ? parsed.data.note : currentStage.note;
+    const nextPlannedEnd = parsed.data.planned_end || currentStage.planned_end;
+    const nextActualEnd = parsed.data.actual_end || currentStage.actual_end;
+    const nextPlannedDate = parsed.data.planned_date || currentStage.planned_date;
+    const nextActualDate = parsed.data.actual_date || currentStage.actual_date;
+    const hasNote = Boolean(String(nextNote || '').trim());
+    if (nextStatus === 'done' && currentStage.is_from_vor && !nextActualDate) {
+      return res.status(400).json({ success: false, error: 'Для выполненной работы укажите фактическое окончание' });
+    }
+    if (nextStatus === 'done' && !currentStage.is_from_vor && !nextActualEnd) {
+      return res.status(400).json({ success: false, error: 'Для завершённого этапа укажите фактическое окончание' });
+    }
+    if (currentStage.is_from_vor && nextPlannedDate && nextActualDate && nextActualDate > nextPlannedDate && !hasNote) {
+      return res.status(400).json({ success: false, error: 'При просрочке укажите пояснение в примечании' });
+    }
+    if (!currentStage.is_from_vor && nextPlannedEnd && nextActualEnd && nextActualEnd > nextPlannedEnd && !hasNote) {
+      return res.status(400).json({ success: false, error: 'При просрочке укажите пояснение в примечании' });
+    }
 
     const fields = [];
     const values = [];
@@ -1088,9 +1210,9 @@ async function addWorkSpec(req, res, next) {
     });
 
     await syncPendingCatalogWork({
-      workName,
+      workName: work_name,
       unit,
-      managerPrice,
+      managerPrice: manager_price,
       addedBy: req.session.userId,
     });
 
@@ -1202,10 +1324,13 @@ async function generateStagesFromVOR(req, res, next) {
     const access = await ensureManagerProjectAccess(id, req, res);
     if (!access) return;
     const project = await pool.query(
-      `SELECT stages_generated FROM projects WHERE id = $1 AND is_deleted = FALSE`,
+      `SELECT stages_generated, kp_sent_at FROM projects WHERE id = $1 AND is_deleted = FALSE`,
       [id]
     );
     if (!project.rows[0]) return res.status(404).json({ success: false, error: 'Проект не найден' });
+    if (!project.rows[0].kp_sent_at) {
+      return res.status(400).json({ success: false, error: 'Сначала отправьте КП заказчику' });
+    }
     if (project.rows[0].stages_generated) {
       return res.status(400).json({ success: false, error: 'Этапы уже сформированы' });
     }
@@ -1289,6 +1414,7 @@ async function getProjectSpecs(req, res, next) {
        FROM material_specs ms
        LEFT JOIN users u ON u.id = ms.supplier_id
        WHERE ms.project_id = $1 AND ms.is_deleted = FALSE
+        AND ms.status <> 'draft'
        ORDER BY ms.created_at`,
       [id]
     );

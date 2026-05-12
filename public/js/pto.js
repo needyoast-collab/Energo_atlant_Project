@@ -6,11 +6,15 @@ let docTypes = {};
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
-  currentUser = await requireAuth('pto');
-  if (!currentUser) return;
-  document.getElementById('user-name').textContent = currentUser.name;
-  await loadDocTypes();
-  await loadProjects();
+  try {
+    currentUser = await requireAuth('pto');
+    if (!currentUser) return;
+    document.getElementById('user-name').textContent = currentUser.name;
+    renderUserAvatar(currentUser);
+    await Promise.allSettled([loadDocTypes(), loadProjects()]);
+  } finally {
+    window.hidePreloader?.();
+  }
 }
 
 async function loadDocTypes() {
@@ -71,8 +75,8 @@ document.getElementById('projects-list').addEventListener('click', async (e) => 
      ${project.address ? ` · 📍 ${escHtml(project.address)}` : ''}`;
 
   switchPtoTab('stages');
-  await loadStages(id);
   openModal('modal-project');
+  await loadStages(id);
 });
 
 function switchPtoTab(tab) {

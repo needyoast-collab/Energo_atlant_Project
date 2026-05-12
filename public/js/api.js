@@ -106,3 +106,31 @@ function escHtml(str) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
+
+// ─── Маска кода проекта PRJ-0000-0000 ────────────────────────
+(function () {
+  const SEL = 'input[data-mask="project-code"]';
+
+  function applyProjectCodeMask(input) {
+    IMask(input, {
+      mask: 'PRJ-0000-0000',
+      lazy: false,
+      prepare: (str) => str.toUpperCase(),
+    });
+    input.removeAttribute('style'); // убираем CSS text-transform:uppercase — IMask делает это сам
+  }
+
+  function init() {
+    document.querySelectorAll(SEL).forEach(applyProjectCodeMask);
+    new MutationObserver(mutations => {
+      mutations.forEach(m => m.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        if (node.matches(SEL)) applyProjectCodeMask(node);
+        node.querySelectorAll && node.querySelectorAll(SEL).forEach(applyProjectCodeMask);
+      }));
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();

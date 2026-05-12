@@ -24,6 +24,25 @@ function initNav(onSection) {
   });
 }
 
+function renderUserAvatar(user) {
+  const container = document.getElementById('sidebar-avatar');
+  if (!container || !user) return;
+
+  if (user.avatar_url) {
+    container.innerHTML = `<img src="${user.avatar_url}" alt="">`;
+    return;
+  }
+
+  const initials = String(user.name || user.login || user.email || '—')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+  container.textContent = initials || '—';
+}
+
 // Закрытие модалки по клику на оверлей или кнопку [data-close]
 document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
@@ -84,7 +103,13 @@ function initNotificationBell() {
       return;
     }
     list.innerHTML = notifications.slice(0, 30).map(n => `
-      <div class="notif-item ${n.is_read ? '' : 'unread'}">
+      <div class="notif-item ${n.is_read ? '' : 'unread'}"
+           data-id="${n.id}"
+           data-type="${escHtml(n.type || '')}"
+           data-project-id="${n.project_id || ''}"
+           data-entity-type="${escHtml(n.entity_type || '')}"
+           data-entity-id="${n.entity_id || ''}"
+           data-message="${escHtml(n.message || '')}">
         <div>${escHtml(n.message)}</div>
         <div class="notif-item-time">${formatDateTime(n.created_at)}</div>
       </div>
@@ -112,6 +137,28 @@ function initNotificationBell() {
     await Promise.all(unread.map(n => apiRequest('PUT', `/api/notifications/${n.id}/read`)));
     await loadNotifications();
     renderNotifications();
+  });
+
+  list.addEventListener('click', async (e) => {
+    const item = e.target.closest('.notif-item');
+    if (!item) return;
+
+    const notification = notifications.find(n => String(n.id) === item.dataset.id);
+    if (!notification) return;
+
+    if (!notification.is_read) {
+      await apiRequest('PUT', `/api/notifications/${notification.id}/read`);
+      notification.is_read = true;
+      item.classList.remove('unread');
+      const unread = notifications.filter(n => !n.is_read).length;
+      if (unread > 0) badge.textContent = unread > 99 ? '99+' : unread;
+      else badge.classList.add('hidden');
+    }
+
+    if (notification.project_id) {
+      dropdown.classList.remove('open');
+      document.dispatchEvent(new CustomEvent('notification:open', { detail: notification }));
+    }
   });
 
   // Начальная загрузка счётчика

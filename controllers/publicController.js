@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { pool } = require('../config/database');
+const { notifyManagersAboutRequest } = require('../utils/notifications');
 
 const requestSchema = z.object({
   name:    z.string().min(1).max(100).optional(),
@@ -27,6 +28,13 @@ async function createRequest(req, res, next) {
        RETURNING id, created_at`,
       [name || null, phone || null, email || null, message || null]
     );
+
+    await notifyManagersAboutRequest({
+      requestId: result.rows[0].id,
+      name,
+      phone,
+      email,
+    });
 
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {

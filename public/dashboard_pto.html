@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ПТО — ЭнергоАтлант</title>
+  <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="grid-bg">
@@ -24,10 +26,13 @@
       </button>
     </nav>
     <div class="sidebar-footer">
-      <div class="sidebar-user">
-        <strong id="user-name">—</strong>
-        <span>ПТО</span>
-      </div>
+      <div class="sidebar-user-row">
+          <a class="sidebar-avatar" id="sidebar-avatar" href="/profile.html" title="Профиль" aria-label="Открыть профиль">—</a>
+          <div class="sidebar-user">
+            <strong id="user-name">—</strong>
+            <span>ПТО</span>
+          </div>
+        </div>
       <button class="btn btn-outline btn-sm w-full" id="logout-btn">Выйти</button>
     </div>
   </aside>
@@ -89,16 +94,21 @@
 
 <!-- МОДАЛКА: войти по коду -->
 <div class="modal-overlay" id="modal-join">
-  <div class="modal">
+  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
     <button class="modal-close" data-close="modal-join">×</button>
-    <div class="modal-title">Войти в проект</div>
-    <form id="join-form">
+    <div class="modal-shell-header">
+      <div class="modal-title">Войти в проект</div>
+    </div>
+    <form id="join-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
         <label class="form-label">Код проекта</label>
-        <input type="text" class="form-control" name="code" placeholder="PRJ-2026-XXXX" required style="text-transform:uppercase">
+        <input type="text" class="form-control" name="code" data-mask="project-code" placeholder="PRJ-____-____" required>
       </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Присоединиться</button>
     </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-join">Отмена</button>
+      <button type="submit" form="join-form" class="btn btn-primary">Присоединиться</button>
+    </div>
   </div>
 </div>
 
@@ -133,6 +143,7 @@
 </div>
 
 <div id="toast-container"></div>
+<script src="https://unpkg.com/imask"></script>
 <script src="/js/preloader.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>

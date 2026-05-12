@@ -1,8 +1,17 @@
 const argon2 = require('argon2');
 const { pool } = require('../config/database');
-const { registerSchema, loginSchema } = require('../utils/validate');
+const {
+  registerSchema,
+  loginSchema,
+  updateProfileSchema,
+  changePasswordSchema,
+} = require('../utils/validate');
 const { sendSms } = require('../utils/sms');
 const { sendEmail } = require('../utils/email');
+const { getSignedDownloadUrl } = require('../utils/signedUrl');
+const { DeleteObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { s3, BUCKET } = require('../config/storage');
+const { randomUUID } = require('crypto');
 const {
   normalizeEmail,
   normalizeLogin,
@@ -11,6 +20,7 @@ const {
   normalizeAuthContact,
   isValidPhone,
 } = require('../utils/authIdentity');
+const { createMobileToken, MOBILE_TOKEN_TTL_SECONDS } = require('../utils/mobileToken');
 
 const DEV_RESET_CODE = '123456';
 const DEV_REGISTRATION_CODE = '123456';
@@ -48,7 +58,7 @@ function buildUserLookupCondition(contact, startIndex = 1) {
 }
 
 function getResetCode() {
-  if (process.env.SMSRU_API_ID) {
+  if (process.env.SMSRU_API_ID || process.env.SMTP_USER) {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
@@ -133,6 +143,125 @@ function getRegistrationChannel(data) {
   return { type: null, email: null, phone: null };
 }
 
+function getRegistrationContact(user) {
+  const type = user.phone ? 'phone' : 'email';
+  return {
+    verification_type: type,
+    verification_contact: user.phone || user.email,
+  };
+}
+
+function buildRegistrationUserData(user) {
+  const contact = getRegistrationContact(user);
+  return {
+    id: user.id,
+    role: user.role,
+    name: user.name,
+    email: user.email,
+    login: user.login,
+    phone: user.phone,
+    is_verified: user.is_verified,
+    created_at: user.created_at,
+    ...contact,
+  };
+}
+
+async function buildUserProfileData(user) {
+  return {
+    id: user.id,
+    role: user.role,
+    name: user.name,
+    email: user.email,
+    login: user.login,
+    phone: user.phone,
+    is_verified: user.is_verified,
+    created_at: user.created_at,
+    avatar_url: user.avatar_file_key ? await getSignedDownloadUrl(user.avatar_file_key) : null,
+  };
+}
+
+async function issueRegistrationCode(user) {
+  const contact = getRegistrationContact(user);
+  const verificationCode = getRegistrationCode(contact.verification_type);
+  const verificationExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+  await pool.query(
+    `UPDATE users
+     SET verification_code = $1,
+         verification_expires = $2
+     WHERE id = $3`,
+    [verificationCode, verificationExpires, user.id]
+  );
+
+  await deliverRegistrationCode(
+    { email: user.email, phone: user.phone },
+    contact.verification_type,
+    verificationCode
+  );
+
+  const verificationMessage = contact.verification_type === 'phone'
+    ? 'Код подтверждения отправлен по телефону'
+    : 'Код подтверждения отправлен на email';
+
+  return (verificationCode === DEV_REGISTRATION_CODE && process.env.NODE_ENV !== 'production')
+    ? `${verificationMessage}. Тестовый код: 123456`
+    : verificationMessage;
+}
+
+async function authenticateUserByPassword(login, password) {
+  const lookup = buildUserLookupCondition(login);
+
+  const result = await pool.query(
+    `SELECT id, role, name, email, login, phone, password_hash, is_verified, is_deleted
+     FROM users
+     WHERE ${lookup.sql}`,
+    lookup.params
+  );
+
+  const user = result.rows[0];
+
+  if (!user || !(await argon2.verify(user.password_hash, password))) {
+    return {
+      status: 401,
+      body: { success: false, error: 'Неверные данные для входа или пароль' },
+    };
+  }
+
+  if (user.is_deleted) {
+    return {
+      status: 403,
+      body: { success: false, error: 'Аккаунт удалён' },
+    };
+  }
+
+  if (!user.is_verified) {
+    return {
+      status: 403,
+      body: {
+        success: false,
+        error: 'Подтвердите регистрацию по коду из email или SMS',
+        data: {
+          requiresVerification: true,
+          ...buildRegistrationUserData(user),
+        },
+      },
+    };
+  }
+
+  return { user };
+}
+
+function buildLoginUserData(user) {
+  return {
+    id: user.id,
+    role: user.role,
+    name: user.name,
+    email: user.email,
+    login: user.login,
+    phone: user.phone,
+  };
+}
+
 async function register(req, res, next) {
   try {
     const parsed = registerSchema.safeParse(req.body);
@@ -164,14 +293,40 @@ async function register(req, res, next) {
     }
 
     const existing = await pool.query(
-      `SELECT id
+      `SELECT id, role, name, email, login, phone, is_verified, is_deleted, created_at
        FROM users
        WHERE ${uniquenessChecks.join(' OR ')}`,
       uniquenessParams
     );
     if (existing.rows.length > 0) {
-      let msg = 'Email, логин или телефон уже заняты';
-      return res.status(400).json({ success: false, error: msg });
+      const activeVerified = existing.rows.find(user => user.is_verified && !user.is_deleted);
+      if (activeVerified) {
+        return res.status(400).json({ success: false, error: 'Email, логин или телефон уже заняты' });
+      }
+
+      const deletedUser = existing.rows.find(user => user.is_deleted);
+      if (deletedUser) {
+        return res.status(400).json({ success: false, error: 'Аккаунт с такими данными был удалён. Обратитесь к администратору' });
+      }
+
+      const pendingUser = existing.rows[0];
+      const password_hash = await argon2.hash(password, { type: argon2.argon2id });
+      const updated = await pool.query(
+        `UPDATE users
+         SET name = $1,
+             role = $2,
+             password_hash = $3
+         WHERE id = $4
+         RETURNING id, role, name, email, login, phone, is_verified, created_at`,
+        [name.trim(), role, password_hash, pendingUser.id]
+      );
+      const message = await issueRegistrationCode(updated.rows[0]);
+
+      return res.json({
+        success: true,
+        data: buildRegistrationUserData(updated.rows[0]),
+        message: `Регистрация уже начата. ${message}`,
+      });
     }
 
     const password_hash = await argon2.hash(password, { type: argon2.argon2id });
@@ -195,16 +350,14 @@ async function register(req, res, next) {
       ? 'Код подтверждения отправлен по телефону'
       : 'Код подтверждения отправлен на email';
 
-    const devMessage = verificationCode === DEV_REGISTRATION_CODE
+    const devMessage = (verificationCode === DEV_REGISTRATION_CODE && process.env.NODE_ENV !== 'production')
       ? `${verificationMessage}. Тестовый код: 123456`
       : verificationMessage;
 
     return res.status(201).json({
       success: true,
       data: {
-        ...result.rows[0],
-        verification_contact: normalizedEmail || normalizedPhone,
-        verification_type: channel.type,
+        ...buildRegistrationUserData(result.rows[0]),
       },
       message: devMessage,
     });
@@ -220,42 +373,71 @@ async function login(req, res, next) {
       return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
     }
 
-    const { login, password } = parsed.data;
-    const lookup = buildUserLookupCondition(login);
-
-    const result = await pool.query(
-      `SELECT id, role, name, email, login, phone, password_hash, is_verified, is_deleted
-       FROM users
-       WHERE ${lookup.sql}`,
-      lookup.params
-    );
-
-    const user = result.rows[0];
-
-    if (!user || !(await argon2.verify(user.password_hash, password))) {
-      return res.status(401).json({ success: false, error: 'Неверные данные для входа или пароль' });
+    const authResult = await authenticateUserByPassword(parsed.data.login, parsed.data.password);
+    if (!authResult.user) {
+      return res.status(authResult.status).json(authResult.body);
     }
-
-    if (user.is_deleted) {
-      return res.status(403).json({ success: false, error: 'Аккаунт удалён' });
-    }
-
-    if (!user.is_verified) {
-      return res.status(403).json({ success: false, error: 'Подтвердите регистрацию по коду из email или SMS' });
-    }
+    const { user } = authResult;
 
     req.session.userId = user.id;
     req.session.userRole = user.role;
 
+    if (typeof req.resetLoginRateLimit === 'function') {
+      try {
+        await req.resetLoginRateLimit();
+      } catch (err) {
+        console.warn('[AUTH] Не удалось сбросить лимит входа:', err.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: buildLoginUserData(user),
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function mobileLogin(req, res, next) {
+  try {
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
+    const authResult = await authenticateUserByPassword(parsed.data.login, parsed.data.password);
+    if (!authResult.user) {
+      return res.status(authResult.status).json(authResult.body);
+    }
+    const { user } = authResult;
+    const token = createMobileToken(user);
+
+    if (typeof req.resetLoginRateLimit === 'function') {
+      try {
+        await req.resetLoginRateLimit();
+      } catch (err) {
+        console.warn('[AUTH] Не удалось сбросить лимит входа:', err.message);
+      }
+    }
+
     return res.json({
       success: true,
       data: {
-        id: user.id,
-        role: user.role,
-        name: user.name,
-        email: user.email,
+        token,
+        token_type: 'Bearer',
+        expires_in: MOBILE_TOKEN_TTL_SECONDS,
+        user: buildLoginUserData(user),
       },
     });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function mobileLogout(req, res, next) {
+  try {
+    return res.json({ success: true });
   } catch (err) {
     return next(err);
   }
@@ -276,7 +458,7 @@ async function logout(req, res, next) {
 async function me(req, res, next) {
   try {
     const result = await pool.query(
-      `SELECT id, role, name, email, phone, is_verified, created_at
+      `SELECT id, role, name, email, login, phone, is_verified, avatar_file_key, created_at
        FROM users WHERE id = $1 AND is_deleted = FALSE`,
       [req.session.userId]
     );
@@ -285,7 +467,158 @@ async function me(req, res, next) {
       return res.status(404).json({ success: false, error: 'Пользователь не найден' });
     }
 
-    return res.json({ success: true, data: result.rows[0] });
+    return res.json({ success: true, data: await buildUserProfileData(result.rows[0]) });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function updateProfile(req, res, next) {
+  try {
+    const parsed = updateProfileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
+    const { name, phone } = parsed.data;
+    const normalizedPhone = phone ? normalizePhone(phone) : null;
+
+    if (phone && !normalizedPhone) {
+      return res.status(400).json({ success: false, error: 'Укажите корректный номер телефона' });
+    }
+
+    if (normalizedPhone) {
+      const existing = await pool.query(
+        `SELECT id
+         FROM users
+         WHERE regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') = $1
+           AND id <> $2
+           AND is_deleted = FALSE`,
+        [normalizePhoneDigits(normalizedPhone), req.session.userId]
+      );
+      if (existing.rows[0]) {
+        return res.status(400).json({ success: false, error: 'Этот телефон уже используется' });
+      }
+    }
+
+    const result = await pool.query(
+      `UPDATE users
+       SET name = $1,
+           phone = $2
+       WHERE id = $3 AND is_deleted = FALSE
+       RETURNING id, role, name, email, login, phone, is_verified, avatar_file_key, created_at`,
+      [name.trim(), normalizedPhone, req.session.userId]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(404).json({ success: false, error: 'Пользователь не найден' });
+    }
+
+    return res.json({ success: true, data: await buildUserProfileData(result.rows[0]), message: 'Профиль обновлён' });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function uploadAvatar(req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Файл не загружен' });
+    }
+
+    if (!s3) {
+      return res.status(503).json({ success: false, error: 'Хранилище файлов недоступно' });
+    }
+
+    const current = await pool.query(
+      `SELECT avatar_file_key
+       FROM users
+       WHERE id = $1 AND is_deleted = FALSE`,
+      [req.session.userId]
+    );
+    if (!current.rows[0]) {
+      return res.status(404).json({ success: false, error: 'Пользователь не найден' });
+    }
+
+    const extByMime = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+    };
+    const ext = extByMime[req.file.mimetype] || 'jpg';
+    const fileKey = `avatars/${req.session.userId}/${randomUUID()}.${ext}`;
+
+    await s3.send(new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: fileKey,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    }));
+
+    await pool.query(
+      `UPDATE users
+       SET avatar_file_key = $1
+       WHERE id = $2`,
+      [fileKey, req.session.userId]
+    );
+
+    if (current.rows[0].avatar_file_key) {
+      try {
+        await s3.send(new DeleteObjectCommand({
+          Bucket: BUCKET,
+          Key: current.rows[0].avatar_file_key,
+        }));
+      } catch (err) {
+        console.warn('[AUTH] Не удалось удалить старый аватар:', err.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        avatar_url: await getSignedDownloadUrl(fileKey),
+      },
+      message: 'Аватар обновлён',
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function changePassword(req, res, next) {
+  try {
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
+    const { current_password, new_password } = parsed.data;
+    const result = await pool.query(
+      `SELECT id, password_hash
+       FROM users
+       WHERE id = $1 AND is_deleted = FALSE`,
+      [req.session.userId]
+    );
+
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Пользователь не найден' });
+    }
+
+    const validPassword = await argon2.verify(user.password_hash, current_password);
+    if (!validPassword) {
+      return res.status(400).json({ success: false, error: 'Текущий пароль указан неверно' });
+    }
+
+    const passwordHash = await argon2.hash(new_password, { type: argon2.argon2id });
+    await pool.query(
+      `UPDATE users
+       SET password_hash = $1
+       WHERE id = $2`,
+      [passwordHash, req.session.userId]
+    );
+
+    return res.json({ success: true, message: 'Пароль изменён' });
   } catch (err) {
     return next(err);
   }
@@ -321,7 +654,7 @@ async function forgotPassword(req, res, next) {
 
     await deliverResetCode(user, normalizedContact.type, code);
 
-    const responseMessage = process.env.SMSRU_API_ID
+    const responseMessage = (process.env.SMSRU_API_ID || process.env.SMTP_USER)
       ? 'Код отправлен'
       : 'Код отправлен. Тестовый код: 123456';
 
@@ -338,7 +671,7 @@ async function verifyCode(req, res, next) {
     const lookup = buildUserLookupCondition(contact, 1);
 
     const result = await pool.query(
-      `SELECT id
+      `SELECT id, email, phone, is_verified
        FROM users
        WHERE ${lookup.sql}
          AND reset_code = $${lookup.nextIndex}
@@ -378,15 +711,25 @@ async function resetPassword(req, res, next) {
       return res.status(400).json({ success: false, error: 'Сессия восстановления истекла' });
     }
 
-    const userId = result.rows[0].id;
+    const user = result.rows[0];
     const password_hash = await argon2.hash(password, { type: argon2.argon2id });
 
     await pool.query(
       'UPDATE users SET password_hash = $1, reset_code = NULL, reset_expires = NULL WHERE id = $2',
-      [password_hash, userId]
+      [password_hash, user.id]
     );
 
-    return res.json({ success: true, message: 'Пароль успешно изменен' });
+    return res.json({
+      success: true,
+      data: user.is_verified
+        ? { requiresVerification: false }
+        : {
+            requiresVerification: true,
+            id: user.id,
+            ...getRegistrationContact(user),
+          },
+      message: 'Пароль успешно изменен',
+    });
   } catch (err) {
     return next(err);
   }
@@ -424,16 +767,20 @@ async function verifyRegistration(req, res, next) {
 
 async function resendRegistrationCode(req, res, next) {
   try {
-    const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).json({ success: false, error: 'Укажите пользователя' });
+    const { userId, contact } = req.body;
+    if (!userId && !contact) {
+      return res.status(400).json({ success: false, error: 'Укажите пользователя или контакт' });
     }
 
+    const lookup = userId
+      ? { sql: 'id = $1', params: [userId] }
+      : buildUserLookupCondition(contact);
+
     const result = await pool.query(
-      `SELECT id, email, phone, is_verified, is_deleted
+      `SELECT id, role, name, email, login, phone, is_verified, is_deleted, created_at
        FROM users
-       WHERE id = $1`,
-      [userId]
+       WHERE ${lookup.sql}`,
+      lookup.params
     );
 
     const user = result.rows[0];
@@ -446,36 +793,31 @@ async function resendRegistrationCode(req, res, next) {
       return res.status(400).json({ success: false, error: 'Регистрация уже подтверждена' });
     }
 
-    const contactType = user.phone ? 'phone' : 'email';
-    const verificationCode = getRegistrationCode(contactType);
-    const verificationExpires = new Date(Date.now() + 15 * 60 * 1000);
+    const devMessage = await issueRegistrationCode(user);
 
-    await pool.query(
-      `UPDATE users
-       SET verification_code = $1,
-           verification_expires = $2
-       WHERE id = $3`,
-      [verificationCode, verificationExpires, user.id]
-    );
-
-    await deliverRegistrationCode(
-      { email: user.email, phone: user.phone },
-      contactType,
-      verificationCode
-    );
-
-    const verificationMessage = contactType === 'phone'
-      ? 'Код подтверждения отправлен по телефону'
-      : 'Код подтверждения отправлен на email';
-
-    const devMessage = verificationCode === DEV_REGISTRATION_CODE
-      ? `${verificationMessage}. Тестовый код: 123456`
-      : verificationMessage;
-
-    return res.json({ success: true, message: devMessage });
+    return res.json({
+      success: true,
+      data: buildRegistrationUserData(user),
+      message: devMessage,
+    });
   } catch (err) {
     return next(err);
   }
 }
 
-module.exports = { register, login, logout, me, forgotPassword, verifyCode, resetPassword, verifyRegistration, resendRegistrationCode };
+module.exports = {
+  register,
+  login,
+  mobileLogin,
+  mobileLogout,
+  logout,
+  me,
+  updateProfile,
+  changePassword,
+  uploadAvatar,
+  forgotPassword,
+  verifyCode,
+  resetPassword,
+  verifyRegistration,
+  resendRegistrationCode,
+};

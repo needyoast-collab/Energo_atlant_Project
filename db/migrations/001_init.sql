@@ -121,6 +121,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   user_id    INTEGER NOT NULL REFERENCES users(id),
   project_id INTEGER REFERENCES projects(id),
   type       VARCHAR(30) NOT NULL CHECK (type IN ('photo','document','status','message','mtr')),
+  entity_type VARCHAR(30),
+  entity_id   INTEGER,
   message    TEXT NOT NULL,
   is_read    BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()

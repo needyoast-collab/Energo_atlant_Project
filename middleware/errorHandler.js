@@ -1,6 +1,10 @@
 function errorHandler(err, req, res, next) {
   console.error('[ERROR]', err.message, err.stack);
 
+  if (res.headersSent) {
+    return next(err);
+  }
+
   const status = err.status || 500;
   const message = process.env.NODE_ENV === 'production' && status === 500
     ? 'Внутренняя ошибка сервера'

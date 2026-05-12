@@ -6,18 +6,21 @@ const { s3, BUCKET } = require('../config/storage');
 const { ROLES } = require('../middleware/auth');
 const { checkMembership, makeJoinProject } = require('../utils/project');
 const { createRequestSchema } = require('../utils/validate');
-const { sendNotification } = require('../utils/notifications');
+const { sendNotification, notifyManagersAboutRequest } = require('../utils/notifications');
 
-const ALLOWED_EXTS = ['pdf', 'dwg', 'doc', 'docx', 'xls', 'xlsx'];
+const ALLOWED_EXTS = ['pdf', 'dwg', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'webp'];
 
 // GET /api/customer/projects
 async function getProjects(req, res, next) {
   try {
     const result = await pool.query(
-      `SELECT p.id, p.code, p.name, p.status, p.address, p.contract_value, p.created_at,
+      `SELECT p.id, p.code, p.name, p.status, p.address, p.contract_value,
+              p.planned_start, p.planned_end, p.created_at,
               u.name AS manager_name,
               COALESCE(st.total, 0)       AS stage_total,
               COALESCE(st.done, 0)        AS stage_done,
+              COALESCE(vor.work_plan_total, 0)   AS work_plan_total,
+              COALESCE(vor.work_actual_total, 0) AS work_actual_total,
               COALESCE(ph.photo_count, 0) AS photo_count,
               COALESCE(dc.doc_count, 0)   AS doc_count
        FROM projects p
@@ -30,6 +33,14 @@ async function getProjects(req, res, next) {
          FROM project_stages WHERE is_deleted = FALSE
          GROUP BY project_id
        ) st ON st.project_id = p.id
+       LEFT JOIN (
+         SELECT project_id,
+                SUM(planned_value) FILTER (WHERE is_from_vor = TRUE AND planned_value > 0) AS work_plan_total,
+                SUM(COALESCE(actual_value, 0)) FILTER (WHERE is_from_vor = TRUE AND planned_value > 0) AS work_actual_total
+         FROM project_stages
+         WHERE is_deleted = FALSE
+         GROUP BY project_id
+       ) vor ON vor.project_id = p.id
        LEFT JOIN (
          SELECT ps.project_id, COUNT(sp.id) AS photo_count
          FROM project_stages ps
@@ -75,6 +86,13 @@ async function createRequest(req, res, next) {
       [name, phone || null, email, message || null]
     );
     const requestId = result.rows[0].id;
+
+    await notifyManagersAboutRequest({
+      requestId,
+      name,
+      phone,
+      email,
+    });
 
     const files = req.files || [];
     if (files.length > 0) {
@@ -126,7 +144,8 @@ async function getProject(req, res, next) {
     }
 
     const result = await pool.query(
-      `SELECT p.id, p.code, p.name, p.status, p.description, p.address, p.contract_value, p.created_at,
+      `SELECT p.id, p.code, p.name, p.status, p.description, p.address, p.contract_value,
+              p.planned_start, p.planned_end, p.created_at,
               u.name as manager_name
        FROM projects p
        LEFT JOIN users u ON u.id = p.manager_id
@@ -286,6 +305,8 @@ async function approveStage(req, res, next) {
         userId:    f.user_id,
         projectId: parseInt(projectId),
         type:      'status',
+        entityType: 'stage',
+        entityId:   stage.rows[0].id,
         message:   `Заказчик согласовал этап: «${stage.rows[0].name}»`,
       })
     ));

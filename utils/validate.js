@@ -1,7 +1,7 @@
 const { z } = require('zod');
 
 const registerSchema = z.object({
-  name: z.string().min(2).max(100),
+  name: z.string().trim().min(2).max(100),
   email: z.string().trim().optional().or(z.literal('')),
   login: z.string().min(3).max(50),
   phone: z.string().trim().optional().or(z.literal('')),
@@ -47,6 +47,16 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const updateProfileSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  phone: z.string().trim().max(20).optional().or(z.literal('')),
+});
+
+const changePasswordSchema = z.object({
+  current_password: z.string().min(1),
+  new_password: z.string().min(8).max(100),
+});
+
 // --- foreman ---
 
 const createStageSchema = z.object({
@@ -80,6 +90,13 @@ const mtrSchema = z.object({
 const writeoffSchema = z.object({
   quantity: z.number().positive(),
   stage_id: z.number().int().positive(),
+});
+
+const calendarPlanItemSchema = z.object({
+  planned_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  planned_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+}).refine((data) => data.planned_end >= data.planned_start, {
+  message: 'Плановое окончание не может быть раньше начала',
 });
 
 // --- supplier ---
@@ -142,6 +159,30 @@ const fulfillSpecSchema = z.object({
       message: 'Укажите цену закупки',
     });
   }
+});
+
+const batchFulfillSpecItemSchema = z.object({
+  spec_id: z.number().int().positive(),
+  quantity: z.number().positive(),
+  purchase_price: z.number().nonnegative().optional(),
+});
+
+const batchFulfillSpecsSchema = z.object({
+  source: z.enum(['purchase', 'customer']),
+  notes: z.string().max(1000).optional(),
+  items: z.array(batchFulfillSpecItemSchema).min(1).max(100),
+}).superRefine((data, ctx) => {
+  if (data.source !== 'purchase') return;
+
+  data.items.forEach((item, index) => {
+    if (item.purchase_price === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['items', index, 'purchase_price'],
+        message: 'Укажите цену закупки',
+      });
+    }
+  });
 });
 
 const addSpecSchema = z.object({
@@ -265,6 +306,7 @@ const createProjectSchema = z.object({
   contact_phone: z.string().max(20).optional(),
   contact_email: z.string().email().max(100).optional(),
   contact_org: z.string().max(200).optional(),
+  contract_signed_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   planned_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   planned_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   notes: z.string().max(2000).optional(),
@@ -285,6 +327,7 @@ const updateProjectSchema = z.object({
   contact_phone: z.string().max(20).optional(),
   contact_email: z.string().email().max(100).optional(),
   contact_org: z.string().max(200).optional(),
+  contract_signed_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   planned_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   planned_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   notes: z.string().max(2000).optional(),
@@ -312,19 +355,45 @@ const batchCatalogSchema = z.object({
   items: z.array(batchCatalogItemSchema).min(1).max(1000),
 });
 
+const updateCatalogItemSchema = z.object({
+  item_name:  z.string().min(1).max(200),
+  unit:       z.string().min(1).max(20),
+  base_price: z.number().min(0),
+});
+
+const approveCatalogItemSchema = z.object({
+  base_price: z.number().min(0).optional(),
+});
+
+const createCoefficientSchema = z.object({
+  name:        z.string().min(1).max(100),
+  value:       z.number().positive(),
+  description: z.string().max(500).optional(),
+});
+
+const updateCoefficientSchema = z.object({
+  name:        z.string().min(1).max(100).optional(),
+  value:       z.number().positive().optional(),
+  description: z.string().max(500).optional(),
+});
+
 module.exports = {
   registerSchema,
   loginSchema,
+  updateProfileSchema,
+  changePasswordSchema,
   createStageSchema,
   updateStageSchema,
   mtrSchema,
   writeoffSchema,
+  calendarPlanItemSchema,
   updateMtrSchema,
   addGeneralWarehouseSchema,
   updateGeneralWarehouseSchema,
   transferToProjectSchema,
   addProjectWarehouseSchema,
   fulfillSpecSchema,
+  batchFulfillSpecsSchema,
   addSpecSchema,
   updateSpecSchema,
   rejectSpecSchema,
@@ -343,4 +412,8 @@ module.exports = {
   updateRequestSchema,
   addTeamSchema,
   batchCatalogSchema,
+  updateCatalogItemSchema,
+  approveCatalogItemSchema,
+  createCoefficientSchema,
+  updateCoefficientSchema,
 };

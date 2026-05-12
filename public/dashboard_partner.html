@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Партнёр — ЭнергоАтлант</title>
+  <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="grid-bg">
@@ -28,10 +30,13 @@
       </button>
     </nav>
     <div class="sidebar-footer">
-      <div class="sidebar-user">
-        <strong id="user-name">—</strong>
-        <span>Партнёр</span>
-      </div>
+      <div class="sidebar-user-row">
+          <a class="sidebar-avatar" id="sidebar-avatar" href="/profile.html" title="Профиль" aria-label="Открыть профиль">—</a>
+          <div class="sidebar-user">
+            <strong id="user-name">—</strong>
+            <span>Партнёр</span>
+          </div>
+        </div>
       <button class="btn btn-outline btn-sm w-full" id="logout-btn">Выйти</button>
     </div>
   </aside>
@@ -140,13 +145,13 @@
 
 <!-- МОДАЛКА: запрос выплаты -->
 <div class="modal-overlay" id="modal-payout">
-  <div class="modal">
+  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
     <button class="modal-close" data-close="modal-payout">×</button>
-    <div class="modal-title">Запрос выплаты</div>
-    <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.25rem">
-      Укажите сумму и реквизиты. Выплата будет обработана менеджером в течение 3 рабочих дней.
-    </p>
-    <form id="payout-form">
+    <div class="modal-shell-header">
+      <div class="modal-title">Запрос выплаты</div>
+      <div class="modal-subtitle">Укажите сумму и реквизиты. Выплата будет обработана менеджером в течение 3 рабочих дней.</div>
+    </div>
+    <form id="payout-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
         <label class="form-label">Сумма (₽)</label>
         <input type="number" class="form-control" name="amount" required min="100" step="1" placeholder="5000">
@@ -156,8 +161,11 @@
         <textarea class="form-control" name="payment_details" rows="3" required
           placeholder="Карта Сбер 1234 5678 9012 3456&#10;или&#10;ИП Иванов И.И., р/с 40802810..., БИК..."></textarea>
       </div>
-      <button type="submit" class="btn btn-primary w-full mt-2">Отправить запрос</button>
     </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-payout">Отмена</button>
+      <button type="submit" form="payout-form" class="btn btn-primary">Отправить запрос</button>
+    </div>
   </div>
 </div>
 

@@ -13,14 +13,21 @@ let activeEditGeneralId  = null;
 let activeSpecId         = null;
 let activeFulfillSpecId  = null;
 let activeStockTab       = 'general';
+let generalWarehouseCache = null;
+let currentSupSpecs = [];
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
-  currentUser = await requireAuth('supplier');
-  if (!currentUser) return;
-  document.getElementById('user-name').textContent = currentUser.name;
-  await loadProjects();
-  renderProjectCards();
+  try {
+    currentUser = await requireAuth('supplier');
+    if (!currentUser) return;
+    document.getElementById('user-name').textContent = currentUser.name;
+    renderUserAvatar(currentUser);
+    await loadProjects();
+    renderProjectCards();
+  } finally {
+    window.hidePreloader?.();
+  }
 }
 
 // ─── Навигация ────────────────────────────────────────────────
@@ -138,6 +145,8 @@ async function openProjectModal(id, options = {}) {
   const tabs = document.getElementById('sup-project-tabs');
   if (tabs) tabs.style.display = warehouseOnly ? 'none' : 'flex';
 
+  openModal('modal-project');
+
   try {
     switchSupTab('warehouse');
   } catch(err) { /* tab уже активен */ }
@@ -147,7 +156,6 @@ async function openProjectModal(id, options = {}) {
     document.getElementById('sup-tab-specs').style.display = 'none';
     document.getElementById('sup-tab-docs').style.display = 'none';
   }
-  openModal('modal-project');
 }
 
 // ─── Вкладки проекта ─────────────────────────────────────────
@@ -225,9 +233,11 @@ async function loadSupSpecs(id) {
   if (!ok) { container.innerHTML = '<div style="color:var(--danger)">Ошибка загрузки</div>'; return; }
 
   const specs = data.data;
+  currentSupSpecs = specs;
   const hasDraft = specs.some(s => s.status === 'draft');
   document.getElementById('btn-submit-specs').disabled = !hasDraft;
   document.getElementById('btn-submit-specs').style.opacity = hasDraft ? '1' : '.4';
+  updateFulfillSelectedButton();
 
   if (!specs.length) {
     container.innerHTML = '<div style="color:var(--muted)">Позиций нет. Добавьте материалы.</div>';
@@ -245,6 +255,11 @@ async function loadSupSpecs(id) {
   container.innerHTML = specs.map(s => `
     <div style="padding:.7rem 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem">
+        ${s.status === 'approved' && Number(s.remaining_qty || 0) > 0 ? `
+          <label style="padding-top:.1rem">
+            <input type="checkbox" class="fulfill-spec-checkbox" value="${s.id}" aria-label="Выбрать ${escHtml(s.material_name)}">
+          </label>
+        ` : '<div style="width:18px;flex-shrink:0"></div>'}
         <div style="min-width:0;flex:1">
           <div style="font-weight:500;font-size:.9rem">${escHtml(s.material_name)}</div>
           <div style="display:flex;gap:.6rem;flex-wrap:wrap;color:var(--muted);font-size:.78rem;margin-top:.1rem">
@@ -287,6 +302,24 @@ async function loadSupSpecs(id) {
       </div>
     </div>
   `).join('');
+  updateFulfillSelectedButton();
+}
+
+function getSelectedFulfillSpecs() {
+  const ids = [...document.querySelectorAll('.fulfill-spec-checkbox:checked')]
+    .map((input) => Number(input.value));
+  return currentSupSpecs.filter((spec) => ids.includes(Number(spec.id)));
+}
+
+function updateFulfillSelectedButton() {
+  const btn = document.getElementById('btn-fulfill-selected-specs');
+  if (!btn) return;
+  const count = document.querySelectorAll('.fulfill-spec-checkbox:checked').length;
+  const hasFulfillable = currentSupSpecs.some((spec) => spec.status === 'approved' && Number(spec.remaining_qty || 0) > 0);
+  btn.style.display = hasFulfillable ? '' : 'none';
+  btn.disabled = count === 0;
+  btn.textContent = count ? `Обеспечить выбранные (${count})` : 'Обеспечить выбранные';
+  btn.style.opacity = count ? '1' : '.45';
 }
 
 document.getElementById('sup-specs-list').addEventListener('click', async (e) => {
@@ -329,6 +362,119 @@ document.getElementById('sup-specs-list').addEventListener('click', async (e) =>
     await loadFulfillGeneralItems(fulfillBtn.dataset.name);
     toggleFulfillGeneralWrap();
     openModal('modal-fulfill-spec');
+  }
+});
+
+document.getElementById('sup-specs-list').addEventListener('change', (e) => {
+  if (e.target.classList.contains('fulfill-spec-checkbox')) {
+    updateFulfillSelectedButton();
+  }
+});
+
+function renderFulfillSelectedRows(specs) {
+  const tbody = document.getElementById('fulfill-selected-tbody');
+  tbody.innerHTML = specs.map((spec) => {
+    const remaining = Number(spec.remaining_qty || 0);
+    const price = Number(spec.unit_price || 0);
+    return `
+      <tr data-spec-id="${spec.id}">
+        <td>
+          <div style="font-weight:600">${escHtml(spec.material_name)}</div>
+          <div style="color:var(--muted);font-size:.78rem;margin-top:.15rem">Нужно: ${spec.quantity} ${escHtml(spec.unit || '')}</div>
+        </td>
+        <td style="text-align:right">${remaining} ${escHtml(spec.unit || '')}</td>
+        <td>
+          <input type="number" class="form-control fulfill-selected-qty" min="0.001" step="0.001" value="${remaining}" max="${remaining}" style="padding:.45rem .55rem">
+        </td>
+        <td data-purchase-price-cell>
+          <input type="number" class="form-control fulfill-selected-price" min="0" step="0.01" value="${price}" style="padding:.45rem .55rem">
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function toggleFulfillSelectedPriceColumn() {
+  const isPurchase = document.getElementById('fulfill-selected-source').value === 'purchase';
+  document.querySelectorAll('[data-purchase-price-head], [data-purchase-price-cell]').forEach((el) => {
+    el.style.display = isPurchase ? '' : 'none';
+  });
+}
+
+document.getElementById('fulfill-selected-source').addEventListener('change', toggleFulfillSelectedPriceColumn);
+
+document.getElementById('btn-fulfill-selected-specs').addEventListener('click', () => {
+  const selected = getSelectedFulfillSpecs();
+  if (!selected.length) {
+    showToast('Отметьте хотя бы одну позицию', 'error');
+    return;
+  }
+  document.getElementById('fulfill-selected-subtitle').textContent = `Выбрано позиций: ${selected.length}`;
+  document.getElementById('fulfill-selected-source').value = 'purchase';
+  document.getElementById('fulfill-selected-notes').value = '';
+  renderFulfillSelectedRows(selected);
+  toggleFulfillSelectedPriceColumn();
+  openModal('modal-fulfill-selected');
+});
+
+document.getElementById('fulfill-selected-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const source = document.getElementById('fulfill-selected-source').value;
+  const notes = document.getElementById('fulfill-selected-notes').value.trim();
+  const items = [];
+
+  for (const row of document.querySelectorAll('#fulfill-selected-tbody tr')) {
+    const specId = Number(row.dataset.specId);
+    const spec = currentSupSpecs.find((item) => Number(item.id) === specId);
+    if (!spec) continue;
+
+    const quantity = parseFloat(row.querySelector('.fulfill-selected-qty').value);
+    const remaining = Number(spec.remaining_qty || 0);
+    if (!quantity || quantity <= 0) {
+      showToast(`Укажите количество для «${spec.material_name}»`, 'error');
+      return;
+    }
+    if (quantity > remaining) {
+      showToast(`По «${spec.material_name}» осталось обеспечить: ${remaining}`, 'error');
+      return;
+    }
+
+    const item = { spec_id: specId, quantity };
+    if (source === 'purchase') {
+      const purchasePrice = parseFloat(row.querySelector('.fulfill-selected-price').value);
+      if (Number.isNaN(purchasePrice) || purchasePrice < 0) {
+        showToast(`Укажите цену закупки для «${spec.material_name}»`, 'error');
+        return;
+      }
+      item.purchase_price = purchasePrice;
+    }
+    items.push(item);
+  }
+
+  if (!items.length) {
+    showToast('Нет выбранных позиций', 'error');
+    return;
+  }
+
+  const submitBtn = document.querySelector('#modal-fulfill-selected button[type="submit"]');
+  submitBtn.disabled = true;
+  const { ok, data } = await apiRequest('POST', `/api/supplier/projects/${activeModalProjectId}/specs/fulfill-batch`, {
+    source,
+    notes: notes || undefined,
+    items,
+  });
+  submitBtn.disabled = false;
+
+  if (ok) {
+    showToast(`Обеспечено позиций: ${data.data.inserted}`, 'success');
+    closeModal('modal-fulfill-selected');
+    loadSupSpecs(activeModalProjectId);
+    if (document.getElementById('sup-tab-warehouse').style.display !== 'none') {
+      loadSupWarehouse(activeModalProjectId);
+    }
+  } else {
+    showToast(data.error, 'error');
   }
 });
 
@@ -386,11 +532,14 @@ async function loadFulfillGeneralItems(materialName) {
   const select = document.getElementById('fulfill-general-item');
   select.innerHTML = '<option value="">— выберите позицию —</option>';
 
-  const { ok, data } = await apiRequest('GET', '/api/supplier/general-warehouse');
-  if (!ok) return;
+  if (!generalWarehouseCache) {
+    const { ok, data } = await apiRequest('GET', '/api/supplier/general-warehouse');
+    if (!ok) return;
+    generalWarehouseCache = data.data || [];
+  }
 
   const normalized = (materialName || '').trim().toLowerCase();
-  const rows = data.data.filter((item) => Number(item.qty_total) - Number(item.qty_reserved || 0) > 0);
+  const rows = generalWarehouseCache.filter((item) => Number(item.qty_total) - Number(item.qty_reserved || 0) > 0);
   const matched = rows.filter((item) => item.material_name.toLowerCase().includes(normalized));
   const list = matched.length ? matched : rows;
 
@@ -445,7 +594,7 @@ document.getElementById('fulfill-spec-form').addEventListener('submit', async (e
   }
 });
 
-// ─── Массовое добавление ВОМ (batch modal) ────────────────────
+// ─── Табличное добавление ВОМ ─────────────────────────────────
 const BATCH_UNITS = ['шт', 'м', 'м²', 'км', 'компл', 'рул', 'кг', 'т', 'л'];
 let batchSaveCallback = null;
 
@@ -499,7 +648,7 @@ function updateBatchCounter() {
 }
 
 function openBatchModal(projectName, type, namePlaceholder, saveCallback) {
-  document.getElementById('batch-modal-title').textContent = `Массовое добавление — ${type}`;
+  document.getElementById('batch-modal-title').textContent = `Добавить позиции — ${type}`;
   document.getElementById('batch-modal-subtitle').textContent = projectName;
   batchSaveCallback = saveCallback;
 
@@ -542,6 +691,32 @@ document.getElementById('modal-batch').addEventListener('focusout', e => {
 // Счётчик
 document.getElementById('batch-tbody').addEventListener('input', updateBatchCounter);
 
+function parseBatchNumber(value) {
+  return parseFloat(String(value || '').replace(/\s/g, '').replace(',', '.').replace(/[^\d.-]/g, ''));
+}
+
+function setBatchCellValue(tr, field, rawValue) {
+  const value = String(rawValue ?? '').trim();
+  if (field === 'name') {
+    tr.querySelector('.batch-name').value = value;
+    return;
+  }
+
+  if (field === 'unit') {
+    const sel = tr.querySelector('.batch-unit');
+    if (value && !BATCH_UNITS.includes(value) && ![...sel.options].some(option => option.value === value)) {
+      sel.add(new Option(value, value));
+    }
+    sel.value = value;
+    return;
+  }
+
+  const number = parseBatchNumber(value);
+  if (Number.isNaN(number)) return;
+  if (field === 'quantity') tr.querySelector('.batch-qty').value = number;
+  if (field === 'price') tr.querySelector('.batch-price').value = number;
+}
+
 // Вставка из буфера (TSV — формат Excel)
 document.getElementById('modal-batch').addEventListener('paste', e => {
   const cell = e.target;
@@ -556,25 +731,17 @@ document.getElementById('modal-batch').addEventListener('paste', e => {
   const currentTr = cell.closest('tr');
   let startIdx = allTrs.indexOf(currentTr);
   if (startIdx === -1) startIdx = 0;
+  const fields = ['name', 'unit', 'quantity', 'price'];
+  const rowCells = [...currentTr.querySelectorAll('.batch-cell')];
+  const startFieldIdx = Math.max(0, rowCells.indexOf(cell));
 
   pasteRows.forEach((cols, ri) => {
     let tr = allTrs[startIdx + ri];
     if (!tr) { tr = addBatchRow(); allTrs.push(tr); }
-    if (cols[0] !== undefined) tr.querySelector('.batch-name').value = cols[0].trim();
-    if (cols[1] !== undefined) {
-      const unitVal = cols[1].trim();
-      const sel = tr.querySelector('.batch-unit');
-      if (unitVal && !BATCH_UNITS.includes(unitVal)) sel.add(new Option(unitVal, unitVal));
-      sel.value = unitVal;
-    }
-    if (cols[2] !== undefined) {
-      const qty = parseFloat(cols[2].replace(',', '.'));
-      if (!isNaN(qty)) tr.querySelector('.batch-qty').value = qty;
-    }
-    if (cols[3] !== undefined) {
-      const price = parseFloat(cols[3].replace(',', '.'));
-      if (!isNaN(price)) tr.querySelector('.batch-price').value = price;
-    }
+    cols.forEach((col, ci) => {
+      const field = fields[startFieldIdx + ci];
+      if (field) setBatchCellValue(tr, field, col);
+    });
   });
   updateBatchCounter();
 });
@@ -619,9 +786,10 @@ async function loadGeneralWarehouse() {
   tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Загрузка...</td></tr>';
   const { ok, data } = await apiRequest('GET', '/api/supplier/general-warehouse');
   if (!ok) { tbody.innerHTML = '<tr><td colspan="7" style="color:var(--danger)">Ошибка загрузки</td></tr>'; return; }
-  if (!data.data.length) { tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Склад пуст</td></tr>'; return; }
+  generalWarehouseCache = data.data || [];
+  if (!generalWarehouseCache.length) { tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Склад пуст</td></tr>'; return; }
 
-  tbody.innerHTML = data.data.map(r => {
+  tbody.innerHTML = generalWarehouseCache.map(r => {
     const available = Number(r.qty_total) - Number(r.qty_reserved);
     return `
       <tr>
@@ -672,6 +840,7 @@ document.getElementById('add-general-form').addEventListener('submit', async (e)
   if (ok) {
     showToast('Добавлено на общий склад', 'success');
     closeModal('modal-add-general');
+    generalWarehouseCache = null;
     loadGeneralWarehouse();
   } else showToast(data.error, 'error');
 });
@@ -720,6 +889,7 @@ document.getElementById('transfer-form').addEventListener('submit', async (e) =>
   if (ok) {
     showToast('Материал переведён на склад объекта', 'success');
     closeModal('modal-transfer');
+    generalWarehouseCache = null;
     loadGeneralWarehouse();
   } else showToast(data.error, 'error');
 });
@@ -743,6 +913,7 @@ document.getElementById('edit-general-form').addEventListener('submit', async (e
   if (ok) {
     showToast('Позиция обновлена', 'success');
     closeModal('modal-edit-general');
+    generalWarehouseCache = null;
     loadGeneralWarehouse();
   } else showToast(data.error, 'error');
 });
@@ -756,11 +927,14 @@ async function loadMtrAll(filterProjectId = '') {
     ? projectsList.filter(p => p.id == filterProjectId)
     : projectsList;
 
-  const allRows = [];
-  for (const p of projects) {
-    const { ok, data } = await apiRequest('GET', `/api/supplier/projects/${p.id}/mtr-requests`);
-    if (ok) data.data.forEach(r => allRows.push({ ...r, project_name: p.name }));
-  }
+  const responses = await Promise.all(
+    projects.map(async (p) => {
+      const { ok, data } = await apiRequest('GET', `/api/supplier/projects/${p.id}/mtr-requests`);
+      if (!ok) return [];
+      return data.data.map((row) => ({ ...row, project_name: p.name }));
+    })
+  );
+  const allRows = responses.flat();
 
   if (!allRows.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Заявок нет</td></tr>';

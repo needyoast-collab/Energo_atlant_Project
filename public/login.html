@@ -6,6 +6,8 @@
   <script>const COMING_SOON = false; if (COMING_SOON) window.location.href = '/';</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Войти в личный кабинет | ЭнергоАтлант</title>
+  <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
   <meta name="description"
     content="Личный кабинет заказчика ЭнергоАтлант: контролируйте ход работ, смотрите фотоотчёты и документы онлайн.">
   <meta name="robots" content="noindex, nofollow">
@@ -190,6 +192,44 @@
       font-size: .8rem;
       white-space: nowrap;
     }
+    .verify-meta {
+      color: var(--muted);
+      font-size: .85rem;
+      margin-bottom: 1rem;
+    }
+    .verify-status {
+      min-height: 1.2em;
+      color: var(--muted);
+      font-size: .82rem;
+      margin-bottom: 1rem;
+    }
+    .verify-resend {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin: .35rem 0 1rem;
+    }
+    .verify-link-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      padding: 0;
+      font: inherit;
+      font-size: .83rem;
+      cursor: pointer;
+      transition: opacity .2s ease;
+    }
+    .verify-link-btn[disabled] {
+      opacity: .45;
+      cursor: default;
+    }
+    .verify-timer {
+      color: var(--muted);
+      font-size: .8rem;
+    }
     .modal-card.is-animating {
       will-change: transform;
     }
@@ -285,6 +325,24 @@
       </div>
     </div>
   </div>
+
+  <div class="modal-overlay" id="modal-registration-verify">
+    <div class="modal-card">
+      <div class="modal-close" id="registration-verify-close">✕</div>
+      <h3 style="margin-bottom:1rem;padding-right:2rem">Подтверждение регистрации</h3>
+      <div class="verify-meta" id="registration-verify-meta"></div>
+      <div class="verify-status" id="registration-verify-status"></div>
+      <div class="form-group">
+        <label class="form-label">6-значный код</label>
+        <input type="text" class="form-control" id="registration-verify-code" maxlength="6" placeholder="Введите код">
+      </div>
+      <div class="verify-resend">
+        <button class="verify-link-btn" id="registration-verify-resend" type="button" disabled>Отправить заново</button>
+        <span class="verify-timer" id="registration-verify-timer"></span>
+      </div>
+      <button type="button" class="btn btn-primary w-full" id="registration-verify-submit">Подтвердить</button>
+    </div>
+  </div>
   <div id="toast-container"></div>
   <script src="/js/preloader.js"></script>
   <script src="/js/api.js"></script>
@@ -297,6 +355,13 @@
       pto: '/dashboard_pto.html',
       customer: '/dashboard_customer.html',
       partner: '/dashboard_partner.html',
+    };
+    const registrationVerificationState = {
+      userId: null,
+      type: null,
+      contact: null,
+      timerId: null,
+      reloginAfterVerify: false,
     };
 
     // Если уже залогинен — редирект
@@ -315,6 +380,9 @@
     document.getElementById('btn-recovery-verify').addEventListener('click', verifyRecoveryCode);
     document.getElementById('btn-recovery-back').addEventListener('click', () => switchStage(1));
     document.getElementById('btn-recovery-reset').addEventListener('click', resetPassword);
+    document.getElementById('registration-verify-close').addEventListener('click', closeRegistrationVerifyModal);
+    document.getElementById('registration-verify-submit').addEventListener('click', verifyRegistrationCode);
+    document.getElementById('registration-verify-resend').addEventListener('click', resendRegistrationCode);
     window.addEventListener('resize', () => {
       const currentStep = document.getElementById('stage-3').classList.contains('is-open')
         ? 3
@@ -348,6 +416,118 @@
         : type === 'success'
           ? 'var(--accent)'
           : 'var(--muted)';
+    }
+
+    function setRegistrationVerifyStatus(message, type = 'muted') {
+      const status = document.getElementById('registration-verify-status');
+      status.textContent = message || '';
+      status.style.color = type === 'error'
+        ? 'var(--danger, #ff6b6b)'
+        : type === 'success'
+          ? 'var(--accent)'
+          : 'var(--muted)';
+    }
+
+    function updateRegistrationResendUi(secondsLeft) {
+      const btn = document.getElementById('registration-verify-resend');
+      const timer = document.getElementById('registration-verify-timer');
+      if (secondsLeft > 0) {
+        btn.disabled = true;
+        timer.textContent = `Повторная отправка через ${secondsLeft} сек`;
+      } else {
+        btn.disabled = false;
+        timer.textContent = 'Можно отправить код повторно';
+      }
+    }
+
+    function stopRegistrationResendTimer() {
+      if (registrationVerificationState.timerId) {
+        clearInterval(registrationVerificationState.timerId);
+        registrationVerificationState.timerId = null;
+      }
+    }
+
+    function startRegistrationResendTimer(duration = 60) {
+      stopRegistrationResendTimer();
+      let secondsLeft = duration;
+      updateRegistrationResendUi(secondsLeft);
+      registrationVerificationState.timerId = setInterval(() => {
+        secondsLeft -= 1;
+        updateRegistrationResendUi(secondsLeft);
+        if (secondsLeft <= 0) stopRegistrationResendTimer();
+      }, 1000);
+    }
+
+    function openRegistrationVerifyModal(userData, { status, reloginAfterVerify = false } = {}) {
+      registrationVerificationState.userId = userData.id;
+      registrationVerificationState.type = userData.verification_type;
+      registrationVerificationState.contact = userData.verification_contact;
+      registrationVerificationState.reloginAfterVerify = reloginAfterVerify;
+
+      document.getElementById('registration-verify-meta').textContent = userData.verification_type === 'phone'
+        ? `Введите код подтверждения для номера ${userData.verification_contact}.`
+        : `Введите код подтверждения для email ${userData.verification_contact}.`;
+      setRegistrationVerifyStatus(status || 'Если код не сохранился, отправьте его заново.');
+      document.getElementById('modal-registration-verify').style.display = 'flex';
+      document.getElementById('registration-verify-code').value = '';
+      document.getElementById('registration-verify-code').focus();
+      updateRegistrationResendUi(0);
+    }
+
+    function closeRegistrationVerifyModal() {
+      document.getElementById('modal-registration-verify').style.display = 'none';
+      document.getElementById('registration-verify-code').value = '';
+      setRegistrationVerifyStatus('');
+      stopRegistrationResendTimer();
+      updateRegistrationResendUi(60);
+    }
+
+    async function resendRegistrationCode() {
+      if (!registrationVerificationState.userId) return;
+      const btn = document.getElementById('registration-verify-resend');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      setRegistrationVerifyStatus('Отправляем код повторно...');
+
+      const { ok, data } = await apiRequest('POST', '/api/auth/register/resend', {
+        userId: registrationVerificationState.userId,
+      });
+
+      if (ok) {
+        registrationVerificationState.type = data.data.verification_type;
+        registrationVerificationState.contact = data.data.verification_contact;
+        setRegistrationVerifyStatus(data.message || 'Код отправлен повторно', 'success');
+        startRegistrationResendTimer(60);
+      } else {
+        setRegistrationVerifyStatus(data.error || 'Не удалось отправить код', 'error');
+        updateRegistrationResendUi(0);
+      }
+    }
+
+    async function verifyRegistrationCode() {
+      const code = document.getElementById('registration-verify-code').value.trim();
+      if (!code) {
+        showToast('Введите код подтверждения', 'error');
+        return;
+      }
+
+      const { ok, data } = await apiRequest('POST', '/api/auth/register/verify', {
+        userId: registrationVerificationState.userId,
+        code,
+      });
+
+      if (!ok) {
+        setRegistrationVerifyStatus(data.error || 'Неверный код', 'error');
+        return;
+      }
+
+      setRegistrationVerifyStatus('Регистрация подтверждена', 'success');
+      showToast('Регистрация подтверждена', 'success');
+      if (registrationVerificationState.reloginAfterVerify) {
+        await loginWithCurrentForm();
+      } else {
+        closeRegistrationVerifyModal();
+      }
     }
 
     function updateResendUi(secondsLeft) {
@@ -490,9 +670,24 @@
       if (ok) {
         showToast('Пароль изменен! Войдите в систему', 'success');
         closeRecovery();
+        if (data.data?.requiresVerification) {
+          openRegistrationVerifyModal(data.data, {
+            status: 'Пароль изменён. Осталось подтвердить регистрацию.',
+          });
+        }
       } else {
         showToast(data.error || 'Ошибка', 'error');
       }
+    }
+
+    async function loginWithCurrentForm() {
+      const form = document.getElementById('login-form');
+      const fd = new FormData(form);
+      const { ok, data } = await apiRequest('POST', '/api/auth/login', Object.fromEntries(fd.entries()));
+      if (ok) {
+        window.location.href = ROLE_DASHBOARD[data.data.role] || '/';
+      }
+      return ok;
     }
 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -507,7 +702,14 @@
       if (ok) {
         window.location.href = ROLE_DASHBOARD[data.data.role] || '/';
       } else {
-        showToast(data.error || 'Ошибка входа', 'error');
+        if (data.data?.requiresVerification) {
+          openRegistrationVerifyModal(data.data, {
+            status: 'Аккаунт найден, но регистрация ещё не подтверждена.',
+            reloginAfterVerify: true,
+          });
+        } else {
+          showToast(data.error || 'Ошибка входа', 'error');
+        }
         btn.disabled = false;
         btn.textContent = 'Войти';
       }

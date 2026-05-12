@@ -16,7 +16,24 @@ app.use(helmetConfig);
 
 // CORS — только для dev; в prod фронт и бэк на одном домене
 if (process.env.NODE_ENV === 'development') {
-  app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+  const devOrigins = [
+    'http://localhost:3000',
+    'http://localhost:8081',
+    'http://127.0.0.1:8081',
+    'http://localhost:8082',
+    'http://127.0.0.1:8082',
+  ];
+
+  app.use(cors({
+    origin(origin, callback) {
+      if (!origin || devOrigins.includes(origin) || /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('CORS origin denied'));
+    },
+    credentials: true,
+  }));
 }
 
 // Таймаут запроса — 30 сек (защита от зависших AI-запросов и т.п.)
@@ -50,12 +67,13 @@ app.use('/api/supplier', require('./routes/supplier'));
 app.use('/api/pto', require('./routes/pto'));
 app.use('/api/customer', require('./routes/customer'));
 app.use('/api/partner', require('./routes/partner'));
+app.use('/api/mobile', require('./routes/mobile'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/documents', require('./routes/documents'));
 
-// SPA-фолбэк: все неизвестные GET → index.html
-app.get('*', (req, res) => {
+// SPA-фолбэк: все неизвестные GET → index.html (кроме /api/*)
+app.get(/^(?!\/api\/)/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

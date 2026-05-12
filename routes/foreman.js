@@ -5,11 +5,15 @@ const {
   getProjects,
   joinProject,
   getProject,
+  getCalendarPlan,
+  generateCalendarPlan,
+  updateCalendarPlanItem,
   getStages,
   createStage,
   updateStage,
   generateStagesFromVOR,
   uploadPhoto,
+  deletePhoto,
   getWarehouse,
   getStageWriteoffs,
   getStagePhotos,
@@ -43,6 +47,11 @@ router.get('/projects', getProjects);
 router.post('/projects/join', joinProject);
 router.get('/projects/:id', getProject);
 
+// Календарный план производства работ
+router.get('/projects/:id/calendar-plan', getCalendarPlan);
+router.post('/projects/:id/calendar-plan/generate', generateCalendarPlan);
+router.put('/calendar-plan/items/:id', updateCalendarPlanItem);
+
 // Этапы (generate-from-vor до createStage — конкретный маршрут выше параметрического)
 router.get('/projects/:id/stages', getStages);
 router.post('/projects/:id/stages/generate-from-vor', generateStagesFromVOR);
@@ -51,6 +60,7 @@ router.put('/stages/:id', updateStage);
 router.post('/stages/:id/photos', upload.single('photo'), uploadPhoto);
 router.get('/stages/:id/writeoffs', getStageWriteoffs);
 router.get('/stages/:id/photos', getStagePhotos);
+router.delete('/photos/:id', deletePhoto);
 
 // Склад объекта
 router.get('/projects/:id/warehouse', getWarehouse);

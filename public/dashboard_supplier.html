@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Снабженец — ЭнергоАтлант</title>
+  <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="grid-bg">
@@ -28,10 +30,13 @@
       </button>
     </nav>
     <div class="sidebar-footer">
-      <div class="sidebar-user">
-        <strong id="user-name">—</strong>
-        <span>Снабженец</span>
-      </div>
+      <div class="sidebar-user-row">
+          <a class="sidebar-avatar" id="sidebar-avatar" href="/profile.html" title="Профиль" aria-label="Открыть профиль">—</a>
+          <div class="sidebar-user">
+            <strong id="user-name">—</strong>
+            <span>Снабженец</span>
+          </div>
+        </div>
       <button class="btn btn-outline btn-sm w-full" id="logout-btn">Выйти</button>
     </div>
   </aside>
@@ -75,7 +80,7 @@
     <div class="dash-section" id="section-stock">
       <div class="dash-header flex-between">
         <h1>Склад</h1>
-        <button class="btn btn-primary btn-sm" id="btn-add-general">+ Добавить позицию</button>
+        <button class="btn btn-primary btn-sm" id="btn-add-general">+ Добавить материал</button>
       </div>
       <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
         <button class="btn btn-sm btn-primary" data-stock-tab="general">Общий склад компании</button>
@@ -154,6 +159,7 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
         <div style="font-weight:600;font-size:.9rem">Ведомость материалов</div>
         <div style="display:flex;gap:.5rem">
+          <button class="btn btn-outline btn-sm" id="btn-fulfill-selected-specs" style="font-size:.78rem;display:none">Обеспечить выбранные</button>
           <button class="btn btn-outline btn-sm" id="btn-submit-specs" style="font-size:.78rem">Отправить на согласование</button>
           <button class="btn btn-primary btn-sm" id="btn-add-spec" style="font-size:.78rem">+ Добавить позицию</button>
         </div>
@@ -171,29 +177,33 @@
 
 <!-- МОДАЛКА: войти по коду -->
 <div class="modal-overlay" id="modal-join">
-  <div class="modal">
+  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
     <button class="modal-close" data-close="modal-join">×</button>
-    <div class="modal-title">Войти в проект</div>
-    <form id="join-form">
+    <div class="modal-shell-header">
+      <div class="modal-title">Войти в проект</div>
+    </div>
+    <form id="join-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
         <label class="form-label">Код проекта</label>
-        <input type="text" class="form-control" name="code" placeholder="PRJ-2026-XXXX" required style="text-transform:uppercase">
-      </div>
-      <div style="display:flex;gap:.5rem;margin-top:1rem">
-        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-join">Отмена</button>
-        <button type="submit" class="btn btn-primary" style="flex:1">Присоединиться</button>
+        <input type="text" class="form-control" name="code" data-mask="project-code" placeholder="PRJ-____-____" required>
       </div>
     </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-join">Отмена</button>
+      <button type="submit" form="join-form" class="btn btn-primary">Присоединиться</button>
+    </div>
   </div>
 </div>
 
 <!-- МОДАЛКА: обработка заявки МТР -->
 <div class="modal-overlay" id="modal-mtr">
-  <div class="modal">
+  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
     <button class="modal-close" data-close="modal-mtr">×</button>
-    <div class="modal-title">Заявка МТР</div>
-    <div id="mtr-info" class="mb-3"></div>
-    <form id="mtr-form">
+    <div class="modal-shell-header">
+      <div class="modal-title">Заявка МТР</div>
+      <div id="mtr-info" class="modal-subtitle"></div>
+    </div>
+    <form id="mtr-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
         <label class="form-label">Статус</label>
         <select class="form-control" name="status">
@@ -207,20 +217,22 @@
         <label class="form-label">Комментарий</label>
         <textarea class="form-control" name="notes" rows="2" placeholder="Причина отказа или примечание..."></textarea>
       </div>
-      <div style="display:flex;gap:.5rem;margin-top:1rem">
-        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-mtr">Отмена</button>
-        <button type="submit" class="btn btn-primary" style="flex:1">Сохранить</button>
-      </div>
     </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-mtr">Отмена</button>
+      <button type="submit" form="mtr-form" class="btn btn-primary">Сохранить</button>
+    </div>
   </div>
 </div>
 
 <!-- МОДАЛКА: добавить в общий склад -->
 <div class="modal-overlay" id="modal-add-general">
-  <div class="modal">
+  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
     <button class="modal-close" data-close="modal-add-general">×</button>
-    <div class="modal-title">Добавить на общий склад</div>
-    <form id="add-general-form">
+    <div class="modal-shell-header">
+      <div class="modal-title">Добавить на общий склад</div>
+    </div>
+    <form id="add-general-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
         <label class="form-label">Материал <span style="color:var(--accent)">*</span></label>
         <input type="text" class="form-control" name="material_name" required maxlength="200">
@@ -239,21 +251,23 @@
         <label class="form-label">Примечание</label>
         <input type="text" class="form-control" name="notes" maxlength="1000">
       </div>
-      <div style="display:flex;gap:.5rem;margin-top:1rem">
-        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-add-general">Отмена</button>
-        <button type="submit" class="btn btn-primary" style="flex:1">Добавить</button>
-      </div>
     </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-add-general">Отмена</button>
+      <button type="submit" form="add-general-form" class="btn btn-primary">Добавить</button>
+    </div>
   </div>
 </div>
 
 <!-- МОДАЛКА: перевести на объект -->
 <div class="modal-overlay" id="modal-transfer">
-  <div class="modal">
+  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
     <button class="modal-close" data-close="modal-transfer">×</button>
-    <div class="modal-title">Перевести на объект</div>
-    <div id="transfer-item-info" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
-    <form id="transfer-form">
+    <div class="modal-shell-header">
+      <div class="modal-title">Перевести на объект</div>
+      <div id="transfer-item-info" class="modal-subtitle"></div>
+    </div>
+    <form id="transfer-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
         <label class="form-label">Проект <span style="color:var(--accent)">*</span></label>
         <select class="form-control" name="project_id" required id="transfer-project-select">
@@ -274,21 +288,23 @@
         <label class="form-label">Примечание</label>
         <input type="text" class="form-control" name="notes" maxlength="1000">
       </div>
-      <div style="display:flex;gap:.5rem;margin-top:1rem">
-        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-transfer">Отмена</button>
-        <button type="submit" class="btn btn-primary" style="flex:1">Перевести</button>
-      </div>
     </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-transfer">Отмена</button>
+      <button type="submit" form="transfer-form" class="btn btn-primary">Перевести</button>
+    </div>
   </div>
 </div>
 
 <!-- МОДАЛКА: редактировать позицию общего склада -->
 <div class="modal-overlay" id="modal-edit-general">
-  <div class="modal">
+  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
     <button class="modal-close" data-close="modal-edit-general">×</button>
-    <div class="modal-title">Редактировать позицию</div>
-    <div id="edit-general-info" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
-    <form id="edit-general-form">
+    <div class="modal-shell-header">
+      <div class="modal-title">Редактировать позицию</div>
+      <div id="edit-general-info" class="modal-subtitle"></div>
+    </div>
+    <form id="edit-general-form" class="modal-shell-body autohide-scroll">
       <input type="hidden" name="item_id" value="">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
         <div class="form-group">
@@ -304,20 +320,22 @@
         <label class="form-label">Примечание</label>
         <input type="text" class="form-control" name="notes" maxlength="1000">
       </div>
-      <div style="display:flex;gap:.5rem;margin-top:1rem">
-        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-edit-general">Отмена</button>
-        <button type="submit" class="btn btn-primary" style="flex:1">Сохранить</button>
-      </div>
     </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-edit-general">Отмена</button>
+      <button type="submit" form="edit-general-form" class="btn btn-primary">Сохранить</button>
+    </div>
   </div>
 </div>
 
 <!-- МОДАЛКА: добавить материал на склад объекта -->
 <div class="modal-overlay" id="modal-add-warehouse">
-  <div class="modal">
+  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
     <button class="modal-close" data-close="modal-add-warehouse">×</button>
-    <div class="modal-title">Добавить материал на склад</div>
-    <form id="add-warehouse-form">
+    <div class="modal-shell-header">
+      <div class="modal-title">Добавить материал на склад</div>
+    </div>
+    <form id="add-warehouse-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
         <label class="form-label">Материал <span style="color:var(--accent)">*</span></label>
         <input type="text" class="form-control" name="material_name" required maxlength="200">
@@ -343,20 +361,22 @@
         <label class="form-label">Примечание</label>
         <input type="text" class="form-control" name="notes" maxlength="1000">
       </div>
-      <div style="display:flex;gap:.5rem;margin-top:1rem">
-        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-add-warehouse">Отмена</button>
-        <button type="submit" class="btn btn-primary" style="flex:1">Добавить</button>
-      </div>
     </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-add-warehouse">Отмена</button>
+      <button type="submit" form="add-warehouse-form" class="btn btn-primary">Добавить</button>
+    </div>
   </div>
 </div>
 
 <!-- МОДАЛКА: добавить позицию ведомости -->
 <div class="modal-overlay" id="modal-add-spec">
-  <div class="modal" style="max-width:720px">
+  <div class="modal modal-shell modal-shell-md" style="max-height:90vh">
     <button class="modal-close" data-close="modal-add-spec">×</button>
-    <div class="modal-title" id="modal-spec-title">Позиция ведомости</div>
-    <form id="spec-form">
+    <div class="modal-shell-header">
+      <div class="modal-title" id="modal-spec-title">Позиция ведомости</div>
+    </div>
+    <form id="spec-form" class="modal-shell-body autohide-scroll">
       <input type="hidden" name="spec_id" value="">
       <div class="form-group">
         <label class="form-label">Материал <span style="color:var(--accent)">*</span></label>
@@ -376,21 +396,23 @@
         <label class="form-label">Цена за ед. <span style="color:var(--accent)">*</span></label>
         <input type="number" class="form-control" name="unit_price" required min="0" step="0.01" placeholder="0.00">
       </div>
-      <div style="display:flex;gap:.5rem;margin-top:1rem">
-        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-add-spec">Отмена</button>
-        <button type="submit" class="btn btn-primary" style="flex:1">Сохранить</button>
-      </div>
     </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-add-spec">Отмена</button>
+      <button type="submit" form="spec-form" class="btn btn-primary">Сохранить</button>
+    </div>
   </div>
 </div>
 
-<!-- МОДАЛКА: массовое добавление ВОМ -->
+<!-- МОДАЛКА: добавить позиции ВОМ -->
 <div class="modal-overlay" id="modal-batch">
-  <div class="modal" style="max-width:940px;max-height:90vh;display:flex;flex-direction:column;padding:2rem">
+  <div class="modal modal-shell modal-shell-lg" style="max-height:90vh">
     <button class="modal-close" data-close="modal-batch">×</button>
-    <div class="modal-title" id="batch-modal-title">Массовое добавление — ВОМ</div>
-    <div id="batch-modal-subtitle" style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem"></div>
-    <div class="autohide-scroll" style="flex:1;overflow-y:auto;min-height:0">
+    <div class="modal-shell-header">
+      <div class="modal-title" id="batch-modal-title">Добавить позиции — ВОМ</div>
+      <div id="batch-modal-subtitle" class="modal-subtitle"></div>
+    </div>
+    <div class="modal-shell-body autohide-scroll">
       <table style="width:100%;border-collapse:collapse">
         <thead>
           <tr style="border-bottom:2px solid var(--border)">
@@ -403,13 +425,13 @@
         </thead>
         <tbody id="batch-tbody"></tbody>
       </table>
+      <div style="margin-top:.75rem">
+        <button class="btn btn-outline btn-sm" id="btn-batch-add-row" style="font-size:.82rem">+ Добавить строку</button>
+      </div>
     </div>
-    <div style="margin-top:.75rem">
-      <button class="btn btn-outline btn-sm" id="btn-batch-add-row" style="font-size:.82rem">+ Добавить строку</button>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+    <div class="modal-shell-actions" style="justify-content:space-between;align-items:center">
       <div id="batch-counter" style="color:var(--muted);font-size:.85rem">0 позиций заполнено</div>
-      <div style="display:flex;gap:.5rem">
+      <div class="modal-shell-actions-main">
         <button class="btn btn-outline" data-close="modal-batch">Отмена</button>
         <button class="btn btn-primary" id="btn-batch-save">Сохранить в проект</button>
       </div>
@@ -417,13 +439,58 @@
   </div>
 </div>
 
+<!-- МОДАЛКА: обеспечить выбранные позиции ВОМ -->
+<div class="modal-overlay" id="modal-fulfill-selected">
+  <div class="modal modal-shell modal-shell-lg" style="max-height:90vh">
+    <button class="modal-close" data-close="modal-fulfill-selected">×</button>
+    <div class="modal-shell-header">
+      <div class="modal-title">Обеспечить выбранные</div>
+      <div id="fulfill-selected-subtitle" class="modal-subtitle"></div>
+    </div>
+    <form id="fulfill-selected-form" class="modal-shell-body autohide-scroll">
+      <div style="display:grid;grid-template-columns:minmax(180px,260px) 1fr;gap:.75rem;margin-bottom:1rem">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Источник</label>
+          <select class="form-control" id="fulfill-selected-source" name="source" required>
+            <option value="purchase">Закупка</option>
+            <option value="customer">Давальческий материал</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Комментарий</label>
+          <input type="text" class="form-control" id="fulfill-selected-notes" name="notes" maxlength="1000" placeholder="Необязательно">
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table style="width:100%">
+          <thead>
+            <tr>
+              <th>Материал</th>
+              <th style="width:110px;text-align:right">Остаток</th>
+              <th style="width:130px">Количество</th>
+              <th style="width:140px" data-purchase-price-head>Цена закупки</th>
+            </tr>
+          </thead>
+          <tbody id="fulfill-selected-tbody"></tbody>
+        </table>
+      </div>
+    </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-fulfill-selected">Отмена</button>
+      <button type="submit" form="fulfill-selected-form" class="btn btn-primary">Обеспечить</button>
+    </div>
+  </div>
+</div>
+
 <!-- МОДАЛКА: обеспечить позицию ВОМ -->
 <div class="modal-overlay" id="modal-fulfill-spec">
-  <div class="modal" style="max-width:760px">
+  <div class="modal modal-shell modal-shell-md" style="max-height:90vh">
     <button class="modal-close" data-close="modal-fulfill-spec">×</button>
-    <div class="modal-title">Обеспечить позицию</div>
-    <div id="fulfill-spec-info" style="color:var(--muted);font-size:.9rem;margin-bottom:1rem"></div>
-    <form id="fulfill-spec-form">
+    <div class="modal-shell-header">
+      <div class="modal-title">Обеспечить позицию</div>
+      <div id="fulfill-spec-info" class="modal-subtitle"></div>
+    </div>
+    <form id="fulfill-spec-form" class="modal-shell-body autohide-scroll">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
         <div class="form-group">
           <label class="form-label">Источник <span style="color:var(--accent)">*</span></label>
@@ -458,15 +525,16 @@
           <input type="text" class="form-control" name="notes" maxlength="1000">
         </div>
       </div>
-      <div style="display:flex;gap:.5rem;margin-top:1rem">
-        <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-fulfill-spec">Отмена</button>
-        <button type="submit" class="btn btn-primary" style="flex:1">Сохранить</button>
-      </div>
     </form>
+    <div class="modal-shell-actions">
+      <button type="button" class="btn btn-outline" data-close="modal-fulfill-spec">Отмена</button>
+      <button type="submit" form="fulfill-spec-form" class="btn btn-primary">Сохранить</button>
+    </div>
   </div>
 </div>
 
 <div id="toast-container"></div>
+<script src="https://unpkg.com/imask"></script>
 <script src="/js/preloader.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>

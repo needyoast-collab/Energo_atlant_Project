@@ -1,7 +1,7 @@
 const { pool } = require('../config/database');
 const { sendNotification } = require('../utils/notifications');
 const { getSignedDownloadUrl } = require('../utils/signedUrl');
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { DeleteObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { s3, BUCKET } = require('../config/storage');
 const { randomUUID } = require('crypto');
 const { ROLES } = require('../middleware/auth');
@@ -9,6 +9,7 @@ const { checkMembership, makeJoinProject } = require('../utils/project');
 const {
   createStageSchema,
   updateStageSchema,
+  calendarPlanItemSchema,
   mtrSchema,
   writeoffSchema,
   rejectSpecSchema,
@@ -40,7 +41,7 @@ async function notifyManagerAboutWorkSpecs(projectId) {
 async function getProjects(req, res, next) {
   try {
     const result = await pool.query(
-      `SELECT p.id, p.code, p.name, p.status, p.address, p.stages_generated, p.created_at,
+      `SELECT p.id, p.code, p.name, p.status, p.address, p.stages_generated, p.kp_sent_at, p.created_at,
               u.name as manager_name
        FROM projects p
        JOIN project_members pm ON pm.project_id = p.id
@@ -67,7 +68,7 @@ async function getProject(req, res, next) {
 
     const result = await pool.query(
       `SELECT p.id, p.code, p.name, p.status, p.description, p.address, p.contract_value,
-              p.stages_generated, p.created_at,
+              p.stages_generated, p.kp_sent_at, p.created_at,
               u.name as manager_name
        FROM projects p
        LEFT JOIN users u ON u.id = p.manager_id
@@ -83,6 +84,215 @@ async function getProject(req, res, next) {
 
 // ─── Этапы ────────────────────────────────────────────────────
 
+function toDateOnly(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return String(value).slice(0, 10);
+}
+
+function currentDateOnly() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(dateOnly, days) {
+  const [year, month, day] = String(dateOnly).slice(0, 10).split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  const nextYear = date.getFullYear();
+  const nextMonth = String(date.getMonth() + 1).padStart(2, '0');
+  const nextDay = String(date.getDate()).padStart(2, '0');
+  return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
+function diffDaysInclusive(start, end) {
+  const [fromYear, fromMonth, fromDay] = String(start).slice(0, 10).split('-').map(Number);
+  const [toYear, toMonth, toDay] = String(end).slice(0, 10).split('-').map(Number);
+  const from = new Date(fromYear, fromMonth - 1, fromDay);
+  const to = new Date(toYear, toMonth - 1, toDay);
+  return Math.max(1, Math.round((to - from) / 86400000) + 1);
+}
+
+async function getCalendarPlanPayload(projectId) {
+  const project = await pool.query(
+    `SELECT id, contract_signed_at, planned_start, planned_end
+     FROM projects
+     WHERE id = $1 AND is_deleted = FALSE`,
+    [projectId]
+  );
+  if (!project.rows[0]) return null;
+
+  const contractSignedAt = toDateOnly(project.rows[0].contract_signed_at);
+  let plannedStart = contractSignedAt || toDateOnly(project.rows[0].planned_start);
+  const plannedEnd = toDateOnly(project.rows[0].planned_end);
+
+  const stages = await pool.query(
+    `SELECT id, name, status, order_num, planned_start, planned_end, actual_end,
+            is_from_vor, is_calendar_mobilization, unit, planned_value, actual_value,
+            planned_date, actual_date, note
+     FROM project_stages
+     WHERE project_id = $1
+       AND is_deleted = FALSE
+       AND (is_calendar_mobilization = TRUE OR is_from_vor = TRUE)
+     ORDER BY CASE WHEN is_calendar_mobilization = TRUE THEN 0 ELSE 1 END, order_num, created_at`,
+    [projectId]
+  );
+
+  if (!plannedStart) {
+    const firstPlannedStage = stages.rows
+      .map((stage) => toDateOnly(stage.planned_start))
+      .filter(Boolean)
+      .sort()[0];
+
+    if (firstPlannedStage) {
+      plannedStart = firstPlannedStage;
+      if (!contractSignedAt) {
+        await pool.query(
+          `UPDATE projects
+           SET planned_start = $2
+           WHERE id = $1 AND planned_start IS NULL AND is_deleted = FALSE`,
+          [projectId, plannedStart]
+        );
+      }
+    }
+  }
+
+  const calendarStart = plannedStart || currentDateOnly();
+  const durationDays = plannedStart && plannedEnd ? diffDaysInclusive(plannedStart, plannedEnd) : 45;
+
+  const items = stages.rows.map((stage) => ({
+    ...stage,
+    planned_start: toDateOnly(stage.planned_start),
+    planned_end: toDateOnly(stage.planned_end),
+    actual_end: toDateOnly(stage.actual_end),
+    planned_date: toDateOnly(stage.planned_date),
+    actual_date: toDateOnly(stage.actual_date),
+  }));
+
+  return {
+    calendar_start: calendarStart,
+    duration_days: durationDays,
+    items,
+  };
+}
+
+// GET /api/foreman/projects/:id/calendar-plan
+async function getCalendarPlan(req, res, next) {
+  try {
+    const { id } = req.params;
+    const isMember = await checkMembership(id, req.session.userId);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
+
+    const payload = await getCalendarPlanPayload(id);
+    if (!payload) return res.status(404).json({ success: false, error: 'Проект не найден' });
+    return res.json({ success: true, data: payload });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/foreman/projects/:id/calendar-plan/generate
+async function generateCalendarPlan(req, res, next) {
+  try {
+    const { id } = req.params;
+    const isMember = await checkMembership(id, req.session.userId);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
+
+    const project = await pool.query(
+      `SELECT contract_signed_at, planned_start
+       FROM projects
+       WHERE id = $1 AND is_deleted = FALSE`,
+      [id]
+    );
+    if (!project.rows[0]) return res.status(404).json({ success: false, error: 'Проект не найден' });
+
+    const contractSignedAt = toDateOnly(project.rows[0].contract_signed_at);
+    if (!contractSignedAt) {
+      return res.status(400).json({ success: false, error: 'Сначала укажите дату подписания договора в карточке проекта' });
+    }
+    const baseDate = contractSignedAt;
+
+    const existing = await pool.query(
+      `SELECT id
+       FROM project_stages
+       WHERE project_id = $1 AND is_calendar_mobilization = TRUE AND is_deleted = FALSE`,
+      [id]
+    );
+
+    if (!existing.rows[0]) {
+      await pool.query(
+        `INSERT INTO project_stages
+          (project_id, name, status, order_num, planned_start, planned_end, is_calendar_mobilization)
+         VALUES ($1, 'Мобилизация на объект', 'pending', 0, $2, $2, TRUE)`,
+        [id, baseDate]
+      );
+    }
+
+    const payload = await getCalendarPlanPayload(id);
+    return res.status(201).json({ success: true, data: payload });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// PUT /api/foreman/calendar-plan/items/:id
+async function updateCalendarPlanItem(req, res, next) {
+  try {
+    const parsed = calendarPlanItemSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+
+    const { id } = req.params;
+    const item = await pool.query(
+      `SELECT id, project_id, is_from_vor, is_calendar_mobilization
+       FROM project_stages
+       WHERE id = $1 AND is_deleted = FALSE`,
+      [id]
+    );
+    if (!item.rows[0]) return res.status(404).json({ success: false, error: 'Строка календарного плана не найдена' });
+    if (!item.rows[0].is_calendar_mobilization && !item.rows[0].is_from_vor) {
+      return res.status(400).json({ success: false, error: 'Эта строка не относится к календарному плану' });
+    }
+
+    const isMember = await checkMembership(item.rows[0].project_id, req.session.userId);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа' });
+
+    const { planned_start, planned_end } = parsed.data;
+    const result = await pool.query(
+      `UPDATE project_stages
+       SET planned_start = $1,
+           planned_end = $2
+       WHERE id = $3 AND is_deleted = FALSE
+       RETURNING id, name, status, order_num, planned_start, planned_end, actual_end,
+                 is_from_vor, is_calendar_mobilization, unit, planned_value, actual_value,
+                 planned_date, actual_date, note`,
+      [planned_start, planned_end, id]
+    );
+
+    const updated = result.rows[0];
+    return res.json({
+      success: true,
+      data: {
+        ...updated,
+        planned_start: toDateOnly(updated.planned_start),
+        planned_end: toDateOnly(updated.planned_end),
+        actual_end: toDateOnly(updated.actual_end),
+        planned_date: toDateOnly(updated.planned_date),
+        actual_date: toDateOnly(updated.actual_date),
+      },
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 // GET /api/foreman/projects/:id/stages
 async function getStages(req, res, next) {
   try {
@@ -92,7 +302,7 @@ async function getStages(req, res, next) {
 
     const stages = await pool.query(
       `SELECT id, name, status, order_num, planned_start, planned_end, actual_end,
-              is_from_vor, vor_item_id, unit, planned_value, actual_value,
+              is_from_vor, is_calendar_mobilization, vor_item_id, unit, planned_value, actual_value,
               planned_date, actual_date, note, customer_agreed, created_at
        FROM project_stages
        WHERE project_id = $1 AND is_deleted = FALSE
@@ -136,13 +346,39 @@ async function updateStage(req, res, next) {
 
     const { id } = req.params;
     const stage = await pool.query(
-      `SELECT project_id FROM project_stages WHERE id = $1 AND is_deleted = FALSE`,
+      `SELECT project_id, status, is_from_vor, planned_end, actual_end, planned_date, actual_date, note
+       FROM project_stages WHERE id = $1 AND is_deleted = FALSE`,
       [id]
     );
     if (!stage.rows[0]) return res.status(404).json({ success: false, error: 'Этап не найден' });
 
     const isMember = await checkMembership(stage.rows[0].project_id, req.session.userId);
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа' });
+
+    if (parsed.data.status === 'not_done' && !parsed.data.note) {
+      return res.status(400).json({ success: false, error: 'Примечание обязательно при статусе «Не выполнено»' });
+    }
+
+    const currentStage = stage.rows[0];
+    const nextStatus = parsed.data.status || currentStage.status;
+    const nextNote = parsed.data.note !== undefined ? parsed.data.note : currentStage.note;
+    const nextPlannedEnd = parsed.data.planned_end || currentStage.planned_end;
+    const nextActualEnd = parsed.data.actual_end || currentStage.actual_end;
+    const nextPlannedDate = parsed.data.planned_date || currentStage.planned_date;
+    const nextActualDate = parsed.data.actual_date || currentStage.actual_date;
+    const hasNote = Boolean(String(nextNote || '').trim());
+    if (nextStatus === 'done' && currentStage.is_from_vor && !nextActualDate) {
+      return res.status(400).json({ success: false, error: 'Для выполненной работы укажите фактическое окончание' });
+    }
+    if (nextStatus === 'done' && !currentStage.is_from_vor && !nextActualEnd) {
+      return res.status(400).json({ success: false, error: 'Для завершённого этапа укажите фактическое окончание' });
+    }
+    if (currentStage.is_from_vor && nextPlannedDate && nextActualDate && nextActualDate > nextPlannedDate && !hasNote) {
+      return res.status(400).json({ success: false, error: 'При просрочке укажите пояснение в примечании' });
+    }
+    if (!currentStage.is_from_vor && nextPlannedEnd && nextActualEnd && nextActualEnd > nextPlannedEnd && !hasNote) {
+      return res.status(400).json({ success: false, error: 'При просрочке укажите пояснение в примечании' });
+    }
 
     const fields = [];
     const values = [];
@@ -161,10 +397,9 @@ async function updateStage(req, res, next) {
       values
     );
 
-    if (parsed.data.status === 'not_done') {
-      if (!parsed.data.note) {
-        return res.status(400).json({ success: false, error: 'Примечание обязательно при статусе «Не выполнено»' });
-      }
+    const statusChanged = parsed.data.status !== undefined && parsed.data.status !== stage.rows[0].status;
+
+    if (statusChanged && parsed.data.status === 'not_done') {
       const customers = await pool.query(
         `SELECT user_id FROM project_members WHERE project_id = $1 AND role = 'customer'`,
         [stage.rows[0].project_id]
@@ -174,12 +409,14 @@ async function updateStage(req, res, next) {
           userId: c.user_id,
           projectId: stage.rows[0].project_id,
           type: 'status',
+          entityType: 'stage',
+          entityId: result.rows[0].id,
           message: `Требуется согласование по этапу: ${result.rows[0].name}`,
         })
       ));
     }
 
-    if (parsed.data.status === 'done') {
+    if (statusChanged && parsed.data.status === 'done') {
       const members = await pool.query(
         `SELECT user_id FROM project_members WHERE project_id = $1`,
         [stage.rows[0].project_id]
@@ -189,6 +426,8 @@ async function updateStage(req, res, next) {
           userId: m.user_id,
           projectId: stage.rows[0].project_id,
           type: 'status',
+          entityType: 'stage',
+          entityId: result.rows[0].id,
           message: `Этап «${result.rows[0].name}» завершён`,
         })
       ));
@@ -241,12 +480,49 @@ async function uploadPhoto(req, res, next) {
         userId: project.rows[0].manager_id,
         projectId: stage.rows[0].project_id,
         type: 'photo',
+        entityType: 'stage',
+        entityId: stage.rows[0].id,
         message: 'Прораб загрузил новое фото этапа',
       });
     }
 
     const signedUrl = await getSignedDownloadUrl(fileKey);
     return res.status(201).json({ success: true, data: { ...result.rows[0], url: signedUrl } });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// DELETE /api/foreman/photos/:id
+async function deletePhoto(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const photo = await pool.query(
+      `SELECT sp.id, sp.file_key, ps.project_id
+       FROM stage_photos sp
+       JOIN project_stages ps ON ps.id = sp.stage_id
+       WHERE sp.id = $1 AND ps.is_deleted = FALSE`,
+      [id]
+    );
+    if (!photo.rows[0]) return res.status(404).json({ success: false, error: 'Фото не найдено' });
+
+    const isMember = await checkMembership(photo.rows[0].project_id, req.session.userId);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа' });
+
+    if (s3) {
+      await s3.send(new DeleteObjectCommand({
+        Bucket: BUCKET,
+        Key: photo.rows[0].file_key,
+      }));
+    }
+
+    await pool.query(
+      `DELETE FROM stage_photos WHERE id = $1`,
+      [id]
+    );
+
+    return res.json({ success: true });
   } catch (err) {
     return next(err);
   }
@@ -260,10 +536,13 @@ async function generateStagesFromVOR(req, res, next) {
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
     const project = await pool.query(
-      `SELECT stages_generated FROM projects WHERE id = $1 AND is_deleted = FALSE`,
+      `SELECT stages_generated, kp_sent_at FROM projects WHERE id = $1 AND is_deleted = FALSE`,
       [id]
     );
     if (!project.rows[0]) return res.status(404).json({ success: false, error: 'Проект не найден' });
+    if (!project.rows[0].kp_sent_at) {
+      return res.status(400).json({ success: false, error: 'Сначала менеджер должен отправить КП заказчику' });
+    }
     if (project.rows[0].stages_generated) {
       return res.status(400).json({ success: false, error: 'Этапы уже сформированы' });
     }
@@ -775,11 +1054,15 @@ module.exports = {
   getProjects,
   joinProject,
   getProject,
+  getCalendarPlan,
+  generateCalendarPlan,
+  updateCalendarPlanItem,
   getStages,
   createStage,
   updateStage,
   generateStagesFromVOR,
   uploadPhoto,
+  deletePhoto,
   getWarehouse,
   getStageWriteoffs,
   getStagePhotos,

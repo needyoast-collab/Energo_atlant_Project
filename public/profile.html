@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Профиль — ЭнергоАтлант</title>
+  <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="grid-bg">
+  <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
+  <main class="profile-page">
+    <section class="profile-shell">
+      <div class="profile-header">
+        <div>
+          <div class="profile-kicker">Личный кабинет</div>
+          <h1>Профиль</h1>
+        </div>
+        <a class="btn btn-outline btn-sm" id="profile-back-link" href="/login.html">Назад</a>
+      </div>
+
+      <div class="profile-grid">
+        <form class="card" id="profile-form">
+          <div class="profile-avatar-row">
+            <div class="profile-avatar" id="profile-avatar">—</div>
+            <div>
+              <label class="btn btn-outline btn-sm" for="profile-avatar-input">Загрузить аватар</label>
+              <input type="file" id="profile-avatar-input" accept="image/jpeg,image/png,image/webp" hidden>
+              <div class="profile-note" style="margin:.55rem 0 0">JPG, PNG или WEBP до 2 МБ.</div>
+            </div>
+          </div>
+          <div class="modal-section-title" style="margin-top:0">Данные аккаунта</div>
+          <div class="profile-readonly-grid">
+            <div>
+              <div class="profile-field-label">Роль</div>
+              <div class="profile-field-value" id="profile-role">—</div>
+            </div>
+            <div>
+              <div class="profile-field-label">Логин</div>
+              <div class="profile-field-value" id="profile-login">—</div>
+            </div>
+            <div>
+              <div class="profile-field-label">Email</div>
+              <div class="profile-field-value" id="profile-email">—</div>
+            </div>
+            <div>
+              <div class="profile-field-label">Дата регистрации</div>
+              <div class="profile-field-value" id="profile-created">—</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Имя</label>
+            <input type="text" class="form-control" name="name" id="profile-name" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Телефон</label>
+            <input type="tel" class="form-control" name="phone" id="profile-phone" placeholder="+7 (___) ___-__-__">
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm w-full">Сохранить профиль</button>
+        </form>
+
+        <form class="card" id="password-form">
+          <div class="modal-section-title" style="margin-top:0">Пароль</div>
+          <div class="profile-note">Текущий пароль не отображается. Можно только задать новый после подтверждения текущего.</div>
+          <div class="form-group">
+            <label class="form-label">Текущий пароль</label>
+            <input type="password" class="form-control" name="current_password" autocomplete="current-password" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Новый пароль</label>
+            <input type="password" class="form-control" name="new_password" autocomplete="new-password" minlength="8" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Повторите новый пароль</label>
+            <input type="password" class="form-control" name="new_password_repeat" autocomplete="new-password" minlength="8" required>
+          </div>
+          <button type="submit" class="btn btn-outline btn-sm w-full">Изменить пароль</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/preloader.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/profile.js"></script>
+</body>
+</html>

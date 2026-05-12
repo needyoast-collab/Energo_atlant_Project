@@ -14,6 +14,66 @@ const os = require('os');
 
 const execPromise = util.promisify(exec);
 
+function formatKpMoney(value, withCurrency = false) {
+  const amount = Number(value || 0);
+  const hasKopecks = Math.abs(amount % 1) > 0;
+  const formatted = amount.toLocaleString('ru-RU', {
+    minimumFractionDigits: hasKopecks ? 2 : 0,
+    maximumFractionDigits: hasKopecks ? 2 : 0,
+  }).replace(/\u00a0/g, ' ');
+
+  return withCurrency ? `${formatted} ₽` : formatted;
+}
+
+function formatKpLineMoney(items, fields) {
+  if (!Array.isArray(items)) return items;
+  return items.map((item) => {
+    const next = { ...item };
+    fields.forEach((field) => {
+      if (next[field] !== undefined && next[field] !== null && next[field] !== '') {
+        next[field] = formatKpMoney(next[field]);
+      }
+    });
+    return next;
+  });
+}
+
+function prepareKpTemplateData(data) {
+  return {
+    ...data,
+    kpNumber: data.kpNumber || 'б/н',
+    finalSum: formatKpMoney(data.finalSum),
+    finalSumCurrency: formatKpMoney(data.finalSum, true),
+    baseSum: formatKpMoney(data.baseSum),
+    worksTotal: formatKpMoney(data.worksTotal),
+    materialsTotal: formatKpMoney(data.materialsTotal),
+    works: formatKpLineMoney(data.works, ['effective_price', 'total']),
+    materials: formatKpLineMoney(data.materials, ['unit_price', 'total']),
+  };
+}
+
+async function getNextKpNumber(client) {
+  const yearResult = await client.query(`SELECT EXTRACT(YEAR FROM CURRENT_DATE)::int AS year`);
+  const year = yearResult.rows[0].year;
+  const counter = await client.query(
+    `INSERT INTO kp_number_counters (year, last_number)
+     VALUES ($1, 1)
+     ON CONFLICT (year)
+     DO UPDATE
+       SET last_number = kp_number_counters.last_number + 1,
+           updated_at = NOW()
+     RETURNING year, last_number`,
+    [year]
+  );
+  const sequence = counter.rows[0].last_number;
+
+  return {
+    year,
+    sequence,
+    number: `ЭА_${sequence}`,
+  };
+}
+
 async function getManagerProject(projectId, req) {
   const values = [projectId];
   let where = 'p.id = $1 AND p.is_deleted = FALSE';
@@ -62,6 +122,7 @@ async function getKpData(req, res, next) {
        FROM material_specs m
        WHERE m.project_id = $1
          AND m.is_deleted = FALSE
+         AND m.status <> 'draft'
        ORDER BY m.created_at, m.id`,
       [id]
     );
@@ -84,7 +145,7 @@ function createWordBuffer(data) {
   const content = fs.readFileSync(path.resolve(__dirname, '../templates/kp_template.docx'), 'binary');
   const zip = new PizZip(content);
   const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-  doc.render(data);
+  doc.render(prepareKpTemplateData(data));
   return doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
@@ -135,6 +196,8 @@ async function generateWord(req, res, next) {
 
 // Отправка КП заказчику (Кнопка "Отправить")
 async function sendKp(req, res, next) {
+  const client = await pool.connect();
+  let committed = false;
   try {
     const { id } = req.params;
     const project = await getManagerProject(id, req);
@@ -153,26 +216,31 @@ async function sendKp(req, res, next) {
       }
     }
 
+    await client.query('BEGIN');
+    const kpNumber = await getNextKpNumber(client);
+    kpData.kpNumber = kpNumber.number;
+
     if (req.file) {
       fileBuffer = req.file.buffer;
-      fileName = req.file.originalname || `КП_${safeProjectName}.docx`;
-      if (fileName.endsWith('.docx')) {
+      const originalName = (req.file.originalname || `${safeProjectName}.docx`).replace(/[/\\?%*:|"<>]/g, '_');
+      fileName = `КП_${kpNumber.number}_${originalName}`;
+      if (fileName.toLowerCase().endsWith('.docx')) {
         const pdfBuffer = await convertWordToPdf(fileBuffer, id);
         if (pdfBuffer) {
           fileBuffer = pdfBuffer;
-          fileName = fileName.replace('.docx', '.pdf');
+          fileName = fileName.replace(/\.docx$/i, '.pdf');
         }
       }
     } else {
       const docxBuffer = createWordBuffer(kpData);
-      fileName = `КП_${safeProjectName}.pdf`;
+      fileName = `КП_${kpNumber.number}_${safeProjectName}.pdf`;
 
       const pdfBuffer = await convertWordToPdf(docxBuffer, id);
       if (pdfBuffer) {
         fileBuffer = pdfBuffer;
       } else {
         fileBuffer = docxBuffer;
-        fileName = `КП_${safeProjectName}.docx`;
+        fileName = `КП_${kpNumber.number}_${safeProjectName}.docx`;
       }
     }
     
@@ -189,13 +257,24 @@ async function sendKp(req, res, next) {
       ContentType: contentType,
     }));
 
-    await pool.query(
-      `INSERT INTO project_documents (project_id, uploaded_by, doc_type, file_key, file_name, description)
-       VALUES ($1, $2, 'kp', $3, $4, 'Коммерческое предложение')`,
-      [id, req.session.userId, fileKey, fileName]
+    const kpDocument = await client.query(
+      `INSERT INTO project_documents
+         (project_id, uploaded_by, doc_type, file_key, file_name, description, kp_number, kp_year, kp_sequence)
+       VALUES ($1, $2, 'kp', $3, $4, $5, $6, $7, $8)
+       RETURNING id`,
+      [
+        id,
+        req.session.userId,
+        fileKey,
+        fileName,
+        `Коммерческое предложение № ${kpNumber.number}`,
+        kpNumber.number,
+        kpNumber.year,
+        kpNumber.sequence,
+      ]
     );
 
-    const proj = await pool.query(
+    const proj = await client.query(
       `UPDATE projects
        SET status = 'offer', kp_sent_at = CURRENT_DATE
        WHERE id = $1
@@ -203,18 +282,23 @@ async function sendKp(req, res, next) {
       [id]
     );
 
+    await client.query('COMMIT');
+    committed = true;
+
     if (proj.rows[0].partner_id) {
       await sendNotification({
         userId: proj.rows[0].partner_id,
         projectId: parseInt(id, 10),
         type: 'document',
+        entityType: 'document',
+        entityId: kpDocument.rows[0].id,
         message: `Вам направлено коммерческое предложение по проекту ${proj.rows[0].code}`,
       });
     }
 
     const emailTo = proj.rows[0].contact_email;
     if (emailTo) {
-      await sendEmail({
+      const emailSent = await sendEmail({
         to: emailTo,
         subject: `Коммерческое предложение по проекту ${proj.rows[0].name}`,
         html: `<p>Здравствуйте, ${proj.rows[0].contact_name || 'уважаемый заказчик'}!</p>
@@ -225,11 +309,35 @@ async function sendKp(req, res, next) {
           { filename: fileName, content: fileBuffer }
         ]
       });
+
+      if (!emailSent) {
+        return res.status(502).json({
+          success: false,
+          error: 'КП сохранено в документах проекта, но письмо не отправлено. Проверьте SMTP и повторите отправку.',
+        });
+      }
     }
 
-    return res.json({ success: true, message: 'КП успешно отправлено' });
+    return res.json({
+      success: true,
+      data: {
+        kp_number: kpNumber.number,
+        kp_year: kpNumber.year,
+        kp_sequence: kpNumber.sequence,
+      },
+      message: `КП № ${kpNumber.number} успешно отправлено`,
+    });
   } catch (err) {
+    if (!committed) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackErr) {
+        console.warn('[KP] Не удалось откатить транзакцию КП:', rollbackErr.message);
+      }
+    }
     return next(err);
+  } finally {
+    client.release();
   }
 }
 

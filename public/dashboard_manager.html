@@ -5,6 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Менеджер — ЭнергоАтлант</title>
+  <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
   <style>
     .project-tab {
@@ -38,13 +40,7 @@
     <aside class="sidebar">
       <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
       <nav class="sidebar-nav">
-        <button class="nav-item" data-section="funnel">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-          </svg>
-          Воронка
-        </button>
-        <button class="nav-item" data-section="projects">
+        <button class="nav-item active" data-section="projects">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="8" y1="6" x2="21" y2="6" />
             <line x1="8" y1="12" x2="21" y2="12" />
@@ -55,7 +51,13 @@
           </svg>
           Проекты
         </button>
-        <button class="nav-item active" data-section="requests">
+        <button class="nav-item" data-section="funnel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          Воронка
+        </button>
+        <button class="nav-item" data-section="requests">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
@@ -80,9 +82,12 @@
         </button>
       </nav>
       <div class="sidebar-footer">
-        <div class="sidebar-user">
-          <strong id="user-name">—</strong>
-          <span>Менеджер</span>
+        <div class="sidebar-user-row">
+          <a class="sidebar-avatar" id="sidebar-avatar" href="/profile.html" title="Профиль" aria-label="Открыть профиль">—</a>
+          <div class="sidebar-user">
+            <strong id="user-name">—</strong>
+            <span>Менеджер</span>
+          </div>
         </div>
         <div class="notif-wrap">
           <button class="notif-bell-btn" id="notif-bell-btn">
@@ -113,13 +118,13 @@
       <!-- ВОРОНКА -->
       <div class="dash-section" id="section-funnel">
         <div class="dash-header">
-          <h1>Проекты</h1>
+          <h1>Воронка проектов</h1>
         </div>
         <div class="kanban" id="kanban-board"></div>
       </div>
 
       <!-- ПРОЕКТЫ -->
-      <div class="dash-section" id="section-projects">
+      <div class="dash-section active" id="section-projects">
         <div class="dash-header flex-between">
           <h1>Проекты</h1>
           <button class="btn btn-primary btn-sm" id="btn-create-project">+ Создать проект</button>
@@ -143,7 +148,7 @@
       </div>
 
       <!-- ЗАЯВКИ -->
-      <div class="dash-section active" id="section-requests">
+      <div class="dash-section" id="section-requests">
         <div class="dash-header">
           <h1>Заявки с сайта</h1>
         </div>
@@ -325,7 +330,7 @@
           </div>
           <div class="form-group" style="display:flex; align-items:flex-end; padding-bottom:.5rem">
             <label style="display:flex; align-items:center; gap:.5rem; font-size:.9rem; cursor:pointer">
-              <input type="checkbox" name="include_materials" checked style="width:1.1rem; height:1.1rem">
+              <input type="checkbox" name="include_materials" checked>
               <span>Требуется закупка материалов (ВОМ)</span>
             </label>
           </div>
@@ -385,29 +390,28 @@
           <label class="form-label">Примечания</label>
           <textarea class="form-control" name="notes" rows="2"></textarea>
         </div>
-        <div style="display:flex;gap:.5rem;margin-top:1rem">
-          <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-create-project">Отмена</button>
-          <button type="submit" class="btn btn-primary" style="flex:1">Создать проект</button>
-        </div>
       </form>
+      </div>
+      <div class="modal-shell-actions">
+        <button type="button" class="btn btn-outline" data-close="modal-create-project">Отмена</button>
+        <button type="submit" form="create-project-form" class="btn btn-primary">Создать проект</button>
       </div>
     </div>
   </div>
 
   <!-- МОДАЛКА: карточка проекта (табы) -->
   <div class="modal-overlay" id="modal-project">
-    <div class="modal modal-shell" style="max-width:960px;max-height:90vh">
+    <div class="modal modal-shell modal-shell-xl" style="max-height:90vh">
       <button class="modal-close" data-close="modal-project">×</button>
       <div class="modal-shell-header">
-      <div class="modal-title" id="modal-project-title">Проект</div>
-      <div
-        style="display:flex;gap:0;flex-shrink:0;overflow-x:auto">
-        <button class="project-tab active" data-tab="main">Основное</button>
-        <button class="project-tab" data-tab="stages">Этапы</button>
-        <button class="project-tab" data-tab="estimate">Смета</button>
-        <button class="project-tab" data-tab="warehouse">Склад объекта</button>
-        <button class="project-tab" data-tab="documents">Документы</button>
-      </div>
+        <div class="modal-title" id="modal-project-title">Проект</div>
+        <div style="display:flex;gap:0;flex-shrink:0;overflow-x:auto">
+          <button class="project-tab active" data-tab="main">Основное</button>
+          <button class="project-tab" data-tab="stages">Этапы</button>
+          <button class="project-tab" data-tab="estimate">Смета</button>
+          <button class="project-tab" data-tab="warehouse">Склад объекта</button>
+          <button class="project-tab" data-tab="documents">Документы</button>
+        </div>
       </div>
 
       <div class="modal-shell-body autohide-scroll">
@@ -429,9 +433,14 @@
               <option value="lost">Отказ</option>
             </select>
           </div>
+          <div class="form-group" id="project-contract-date-group">
+            <label class="form-label">Дата подписания договора <span id="project-contract-required" style="color:var(--accent);display:none">*</span></label>
+            <input type="date" class="form-control" id="project-contract-signed-at">
+            <div class="text-muted" style="font-size:.78rem;margin-top:.35rem">Эта дата является отправной точкой календарного плана работ.</div>
+          </div>
           <button class="btn btn-outline btn-sm" id="btn-save-status">Сохранить статус</button>
           <hr style="border-color:var(--border);margin:1.5rem 0">
-          <div class="modal-title" style="font-size:1.2rem;margin-bottom:1rem">Команда проекта</div>
+          <div class="modal-section-title">Команда проекта</div>
           <div id="project-team-list" class="mb-3"></div>
           <div id="team-add-rows" style="display:flex;flex-direction:column;gap:.5rem">
             <div style="display:flex;gap:.5rem;align-items:flex-end">
@@ -451,7 +460,7 @@
             </div>
           </div>
           <hr style="border-color:var(--border);margin:1.5rem 0">
-          <div class="modal-title" style="font-size:1.2rem;margin-bottom:1rem">AI-анализ</div>
+          <div class="modal-section-title">AI-анализ</div>
           <button class="btn btn-outline btn-sm" id="btn-analyze">Запустить анализ</button>
           <div id="analyze-result" class="mt-3"
             style="color:var(--muted);font-size:.9rem;white-space:pre-wrap;line-height:1.7"></div>
@@ -580,79 +589,109 @@
 
   <!-- МОДАЛКА: этап -->
   <div class="modal-overlay" id="modal-manager-stage">
-    <div class="modal" style="max-width:480px">
+    <div class="modal modal-shell" style="max-width:960px;max-height:90vh">
       <button class="modal-close" data-close="modal-manager-stage">×</button>
-      <div class="modal-title" id="stage-modal-title">Этап</div>
-      <form id="stage-form">
-        <input type="hidden" id="stage-form-id">
-        <div class="form-group">
-          <label class="form-label">Название <span style="color:var(--accent)">*</span></label>
-          <input type="text" class="form-control" id="stage-form-name" required>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="modal-shell-header">
+        <div class="modal-title" id="stage-modal-title">Этап</div>
+      </div>
+      <form id="stage-form" class="modal-shell-body autohide-scroll">
+          <input type="hidden" id="stage-form-id">
+          <input type="hidden" id="stage-form-is-vor" value="false">
+          <div class="form-group">
+            <label class="form-label">Название <span style="color:var(--accent)">*</span></label>
+            <input type="text" class="form-control" id="stage-form-name" required>
+          </div>
           <div class="form-group">
             <label class="form-label">Порядок</label>
             <input type="number" class="form-control" id="stage-form-order" min="0" step="1">
           </div>
-          <div class="form-group">
-            <label class="form-label">Статус</label>
-            <select class="form-control" id="stage-form-status">
-              <option value="planned">Запланировано</option>
-              <option value="done">Выполнено</option>
-              <option value="not_done">Не выполнено</option>
-            </select>
+
+          <div id="stage-form-regular">
+            <div class="form-group">
+              <label class="form-label">Статус</label>
+              <select class="form-control" id="stage-form-status-regular">
+                <option value="pending">Не начат</option>
+                <option value="in_progress">В работе</option>
+                <option value="done">Завершён</option>
+              </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+              <div class="form-group">
+                <label class="form-label">Плановое начало <span style="color:var(--danger)">*</span></label>
+                <input type="date" class="form-control" id="stage-form-planned-start" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Плановое окончание <span style="color:var(--danger)">*</span></label>
+                <input type="date" class="form-control" id="stage-form-planned-end" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Фактическое окончание <span id="stage-form-actual-end-required" style="color:var(--danger);display:none">*</span></label>
+              <input type="date" class="form-control" id="stage-form-actual-end">
+            </div>
           </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-          <div class="form-group">
-            <label class="form-label">Плановое начало</label>
-            <input type="date" class="form-control" id="stage-form-start">
+
+          <div id="stage-form-vor" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Статус</label>
+              <select class="form-control" id="stage-form-status-vor">
+                <option value="planned">Запланировано</option>
+                <option value="done">Выполнено</option>
+                <option value="not_done">Не выполнено</option>
+              </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
+              <div class="form-group">
+                <label class="form-label">Объём план</label>
+                <input type="text" class="form-control" id="stage-form-planned-value" readonly
+                  style="background:var(--bg3);color:var(--muted)">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Факт</label>
+                <input type="number" class="form-control" id="stage-form-actual-value" min="0" step="0.001">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Ед. изм.</label>
+                <input type="text" class="form-control" id="stage-form-unit" readonly
+                  style="background:var(--bg3);color:var(--muted)">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+              <div class="form-group">
+                <label class="form-label">Плановое окончание</label>
+                <input type="date" class="form-control" id="stage-form-planned-date">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Фактическое окончание <span id="stage-form-actual-date-required" style="color:var(--danger);display:none">*</span></label>
+                <input type="date" class="form-control" id="stage-form-actual-date">
+              </div>
+            </div>
           </div>
+
           <div class="form-group">
-            <label class="form-label">Плановое окончание</label>
-            <input type="date" class="form-control" id="stage-form-end">
+            <label class="form-label">Примечание <span id="stage-form-note-required" style="color:var(--danger);display:none">*</span></label>
+            <textarea class="form-control" id="stage-form-note" rows="3" placeholder="Укажите причину невыполнения..."></textarea>
           </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-          <div class="form-group">
-            <label class="form-label">План (объём)</label>
-            <input type="number" class="form-control" id="stage-form-planned-value" min="0" step="0.001">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Факт (объём)</label>
-            <input type="number" class="form-control" id="stage-form-actual-value" min="0" step="0.001">
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-          <div class="form-group">
-            <label class="form-label">Дата по плану</label>
-            <input type="date" class="form-control" id="stage-form-planned-date">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Дата по факту</label>
-            <input type="date" class="form-control" id="stage-form-actual-date">
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Примечание</label>
-          <textarea class="form-control" id="stage-form-note" rows="2"></textarea>
-        </div>
-        <div style="display:flex;gap:.5rem;margin-top:1rem">
-          <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-manager-stage">Отмена</button>
-          <button type="submit" class="btn btn-primary" style="flex:1">Сохранить</button>
-        </div>
       </form>
+      <div class="modal-shell-actions">
+        <button type="button" class="btn btn-outline" data-close="modal-manager-stage">Отмена</button>
+        <button type="submit" form="stage-form" class="btn btn-primary">Сохранить</button>
+      </div>
     </div>
   </div>
 
   <!-- МОДАЛКА: заявка -->
   <div class="modal-overlay" id="modal-request">
-    <div class="modal" style="max-width:520px">
+    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
       <button class="modal-close" data-close="modal-request">×</button>
-      <div class="modal-title">Заявка</div>
-      <div id="modal-request-info" class="mb-3"></div>
-      <div id="modal-request-files" style="margin-bottom:1rem"></div>
-      <div style="display:flex;gap:.5rem;margin-top:1rem">
+      <div class="modal-shell-header">
+        <div class="modal-title">Заявка</div>
+      </div>
+      <div class="modal-shell-body autohide-scroll">
+        <div id="modal-request-info" class="mb-3"></div>
+        <div id="modal-request-files" style="margin-bottom:1rem"></div>
+      </div>
+      <div class="modal-shell-actions">
         <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-request">Отмена</button>
         <button class="btn btn-primary" id="btn-request-to-project" style="flex:1">Создать проект</button>
       </div>
@@ -661,10 +700,12 @@
 
   <!-- МОДАЛКА: новое сообщение -->
   <div class="modal-overlay" id="modal-new-message">
-    <div class="modal">
+    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
       <button class="modal-close" data-close="modal-new-message">×</button>
-      <div class="modal-title">Новое сообщение</div>
-      <form id="new-message-form">
+      <div class="modal-shell-header">
+        <div class="modal-title">Новое сообщение</div>
+      </div>
+      <form id="new-message-form" class="modal-shell-body autohide-scroll">
         <div class="form-group">
           <label class="form-label">Получатель (email)</label>
           <input type="email" class="form-control" name="receiver_email" required>
@@ -677,23 +718,23 @@
           <label class="form-label">Сообщение</label>
           <textarea class="form-control" name="body" required></textarea>
         </div>
-        <div style="display:flex;gap:.5rem;margin-top:1rem">
-          <button type="button" class="btn btn-outline" style="flex:1" data-close="modal-new-message">Отмена</button>
-          <button type="submit" class="btn btn-primary" style="flex:1">Отправить</button>
-        </div>
       </form>
+      <div class="modal-shell-actions">
+        <button type="button" class="btn btn-outline" data-close="modal-new-message">Отмена</button>
+        <button type="submit" form="new-message-form" class="btn btn-primary">Отправить</button>
+      </div>
     </div>
   </div>
 
   <!-- МОДАЛКА: Формирование КП -->
   <div class="modal-overlay" id="modal-generate-kp">
-    <div class="modal modal-shell" style="max-width:800px; max-height:90vh;">
+    <div class="modal modal-shell modal-shell-xl" style="max-height:90vh">
       <button class="modal-close" data-close="modal-generate-kp">×</button>
       <div class="modal-shell-header">
-      <div class="modal-title">Предпросмотр Коммерческого Предложения</div>
+        <div class="modal-title">Предпросмотр КП</div>
       </div>
       
-      <div class="modal-shell-body autohide-scroll" style="padding-right:2rem;">
+      <div class="modal-shell-body autohide-scroll">
         <div id="kp-preview-content"></div>
         
         <div style="margin-top:1.5rem; padding:1.25rem; background:rgba(var(--accent-rgb),.05); border-radius:.75rem; border:1px solid var(--border)">
@@ -703,7 +744,7 @@
             <div class="text-muted" style="font-size:.75rem; margin-top:.25rem">Сумма прибавится к базовой стоимости работ и материалов</div>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center">
-            <div style="font-weight:600">Итоговая сумма: <span id="kp-final-sum-label" style="color:var(--accent); font-size:1.1rem">0</span> ₽</div>
+            <div style="font-weight:600">Итоговая сумма: <span id="kp-final-sum-label" style="color:var(--accent); font-size:1.1rem">0 ₽</span></div>
           </div>
         </div>
 
@@ -713,7 +754,7 @@
         </div>
       </div>
 
-      <div style="display:flex; gap:.75rem; margin-top:1.5rem; flex-shrink:0">
+      <div class="modal-shell-actions">
         <button type="button" class="btn btn-outline" data-close="modal-generate-kp" style="flex:1">Отмена</button>
         <button class="btn btn-primary" id="btn-kp-download" style="flex:1">Скачать Word (.docx)</button>
         <button class="btn btn-outline" id="btn-kp-send" style="flex:1">Отправить Заказчику</button>
@@ -723,15 +764,17 @@
 
   <!-- МОДАЛКА: Коэффициенты проекта -->
   <div class="modal-overlay" id="modal-project-coeffs">
-    <div class="modal" style="max-width:820px;max-height:90vh;display:flex;flex-direction:column;padding:2rem">
+    <div class="modal modal-shell modal-shell-md" style="max-height:90vh">
       <button class="modal-close" data-close="modal-project-coeffs">×</button>
-      <div class="modal-title">Коэффициенты проекта</div>
-      <div id="project-coeff-modal-subtitle" style="color:var(--muted);font-size:.85rem;margin-bottom:1.1rem"></div>
-      <div style="margin-bottom:1rem">
-        <input type="text" class="form-control" id="project-coeff-search" placeholder="Поиск коэффициента по названию или описанию">
+      <div class="modal-shell-header">
+        <div class="modal-title">Коэффициенты проекта</div>
+        <div id="project-coeff-modal-subtitle" class="modal-subtitle"></div>
       </div>
-      <div class="autohide-scroll" style="flex:1;overflow-y:auto;min-height:0">
-        <table style="width:100%;border-collapse:collapse">
+      <div class="modal-shell-body autohide-scroll">
+        <div style="margin-bottom:1rem">
+          <input type="text" class="form-control" id="project-coeff-search" placeholder="Поиск коэффициента по названию или описанию">
+        </div>
+        <table style="width:100%">
           <thead>
             <tr style="border-bottom:2px solid var(--border)">
               <th style="padding:.5rem .6rem;text-align:center;color:var(--muted);font-size:.78rem;width:48px">№</th>
@@ -742,12 +785,12 @@
           <tbody id="project-coeffs-tbody"></tbody>
         </table>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);gap:1rem;flex-wrap:wrap">
+      <div class="modal-shell-actions" style="justify-content:space-between;align-items:center">
         <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
           <div id="project-coeff-selected" style="color:var(--muted);font-size:.85rem">Выбрано: 0</div>
           <div style="font-size:.85rem">Итоговый коэффициент: <strong id="project-coeff-total">1.000</strong></div>
         </div>
-        <div style="display:flex;gap:.5rem">
+        <div style="display:flex;gap:.5rem;flex:1;max-width:340px">
           <button class="btn btn-outline" data-close="modal-project-coeffs">Отмена</button>
           <button class="btn btn-primary" id="btn-project-coeffs-save">Сохранить</button>
         </div>
@@ -762,6 +805,6 @@
   <script src="/js/api.js"></script>
   <script src="/js/auth.js"></script>
   <script src="/js/dashboard.js"></script>
-  <script src="/js/manager.js"></script>
+  <script src="/js/manager.js?v=manager-project-page-21"></script>
 </body>
 </html>
