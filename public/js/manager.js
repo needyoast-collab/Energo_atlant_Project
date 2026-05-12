@@ -732,11 +732,10 @@ function renderManagerStageItem(stage) {
 
   return `
     <article class="manager-stage-item ${stage.is_from_vor ? 'is-vor' : ''}">
-      <div class="manager-stage-order">${stage.order_num ?? '—'}</div>
       <div class="manager-stage-content">
         <div class="manager-stage-top">
           <div class="manager-stage-title-wrap">
-            <div class="manager-stage-title">${escHtml(stage.name)}</div>
+            <div class="manager-stage-title"><span class="manager-stage-order">${stage.order_num ?? '—'}</span>${escHtml(stage.name)}</div>
           </div>
           <div class="manager-stage-status ${getManagerStageStatusClass(stage.status)}">${escHtml(getManagerStageStatusLabel(stage.status))}</div>
         </div>

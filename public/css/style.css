@@ -647,28 +647,28 @@ tr:hover td { background: rgba(245,166,35,.03); }
 }
 .manager-stage-item {
   display: grid;
-  grid-template-columns: 16px minmax(320px, .95fr) minmax(520px, 1.35fr) auto;
+  grid-template-columns: minmax(340px, .95fr) minmax(520px, 1.35fr) auto;
   grid-template-areas:
-    "order title meta menu"
-    "order progress progress progress";
+    "title meta menu"
+    "progress progress progress";
   column-gap: .42rem;
   row-gap: .55rem;
   align-items: center;
   position: relative;
-  padding: .68rem .8rem .62rem .48rem;
+  padding: .68rem .8rem .62rem .72rem;
 }
 .manager-stage-item.is-vor {
   background: linear-gradient(90deg, rgba(245,166,35,.045), rgba(8,13,22,.34) 42%);
 }
 .manager-stage-order {
-  grid-area: order;
-  align-self: start;
-  justify-self: start;
-  padding-top: .18rem;
+  display: inline-flex;
+  min-width: 1.15rem;
+  margin-right: .62rem;
+  color: var(--muted);
   font-size: .72rem;
   font-weight: 900;
   line-height: 1.2;
-  text-align: center;
+  vertical-align: .08em;
 }
 .manager-stage-content {
   display: contents;
