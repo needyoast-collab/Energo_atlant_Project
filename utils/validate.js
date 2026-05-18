@@ -64,6 +64,8 @@ const createStageSchema = z.object({
   order_num: z.number().int().min(0).optional(),
   planned_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   planned_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  planned_value: z.number().positive().optional(),
+  unit: z.string().max(20).optional(),
 });
 
 const updateStageSchema = z.object({

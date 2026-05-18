@@ -2,6 +2,7 @@ const { pool } = require('../config/database');
 const { sendNotification } = require('../utils/notifications');
 const { ROLES } = require('../middleware/auth');
 const { checkMembership, makeJoinProject } = require('../utils/project');
+const { normalizeStoredFileName } = require('../utils/fileNames');
 const {
   updateMtrSchema,
   addGeneralWarehouseSchema,
@@ -171,7 +172,11 @@ async function getProjectDocuments(req, res, next) {
        ORDER BY pd.uploaded_at DESC`,
       [id]
     );
-    return res.json({ success: true, data: result.rows });
+    const docs = result.rows.map((doc) => ({
+      ...doc,
+      file_name: normalizeStoredFileName(doc.file_name),
+    }));
+    return res.json({ success: true, data: docs });
   } catch (err) {
     return next(err);
   }

@@ -7,7 +7,7 @@
   <title>Проект менеджера — ЭнергоАтлант</title>
   <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/css/style.css?v=manager-project-page-22">
+  <link rel="stylesheet" href="/css/style.css?v=manager-project-page-37">
   <style>
     body.manager-project-page .dash-main {
       display: none;
@@ -505,7 +505,7 @@
               <div class="project-section-title">Этапы работ</div>
               <div class="project-section-subtitle">План, факт, сроки и примечания по выполнению проекта.</div>
             </div>
-            <button class="btn btn-primary btn-sm" id="btn-add-stage">+ Добавить этап</button>
+            <button class="manager-add-stage-btn" id="btn-add-stage" type="button"><span>+</span> Добавить этап</button>
           </div>
           <div id="stages-list"></div>
         </div>
@@ -606,28 +606,55 @@
 
         <!-- Документы -->
         <div class="project-tab-panel" id="ptab-documents" style="display:none">
-          <form id="upload-doc-form" style="margin-bottom:1rem">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
-              <div class="form-group" style="margin:0">
-                <label class="form-label">Тип документа</label>
-                <select class="form-control" name="doc_type" id="doc-type-select" required>
-                  <option value="">— выберите тип —</option>
-                </select>
-              </div>
-              <div class="form-group" style="margin:0">
-                <label class="form-label">Файл (PDF, Word, Excel, фото)</label>
-                <input type="file" class="form-control" name="file" id="doc-file-input"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" required
-                  style="padding:.4rem .6rem;font-size:.85rem">
-              </div>
+          <div class="project-section-head">
+            <div>
+              <div class="project-section-title">Документы проекта</div>
+              <div class="project-section-subtitle">Финансовые, технические и договорные файлы по объекту.</div>
             </div>
-            <div class="form-group" style="margin-bottom:.5rem">
-              <input type="text" class="form-control" name="description" placeholder="Описание (необязательно)"
-                style="font-size:.85rem">
-            </div>
-            <button type="submit" class="btn btn-outline btn-sm">Загрузить</button>
-          </form>
-          <div id="project-docs-list" style="font-size:.875rem"></div>
+          </div>
+
+          <div class="manager-docs-grid">
+            <section class="manager-docs-card manager-docs-upload-card">
+              <div class="manager-docs-card-head">
+                <div>
+                  <div class="manager-docs-title">Загрузка документа</div>
+                  <div class="manager-docs-hint">PDF, Word, Excel или изображение до 10 МБ.</div>
+                </div>
+              </div>
+
+              <form id="upload-doc-form" class="manager-docs-upload-form">
+                <div class="manager-docs-upload-grid">
+                  <div class="form-group">
+                    <label class="form-label">Тип документа</label>
+                    <select class="form-control" name="doc_type" id="doc-type-select" required>
+                      <option value="">— выберите тип —</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Файл</label>
+                    <input type="file" class="form-control manager-docs-file-input" name="file" id="doc-file-input"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Описание</label>
+                  <input type="text" class="form-control" name="description" placeholder="Например: подписанный договор или смета к КП">
+                </div>
+                <div class="manager-docs-form-actions">
+                  <button type="submit" class="manager-primary-action-btn is-text-only">Загрузить документ</button>
+                </div>
+              </form>
+              <div class="manager-docs-next" id="manager-docs-next">
+                <div class="manager-docs-empty">Следующий документ появится после загрузки списка.</div>
+              </div>
+            </section>
+
+            <section class="manager-docs-card manager-docs-summary-card" id="manager-docs-summary">
+              <div class="manager-docs-empty">Документы загружаются...</div>
+            </section>
+          </div>
+
+          <div id="project-docs-list" class="manager-docs-list"></div>
         </div>
 
       </div>
@@ -853,6 +880,6 @@
   <script src="/js/auth.js"></script>
   <script src="/js/dashboard.js"></script>
   <script>window.MANAGER_PAGE_MODE = 'project';</script>
-  <script src="/js/manager.js?v=manager-project-page-22"></script>
+  <script src="/js/manager.js?v=manager-project-page-37"></script>
 </body>
 </html>

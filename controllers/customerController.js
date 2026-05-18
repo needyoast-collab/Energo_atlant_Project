@@ -7,6 +7,11 @@ const { ROLES } = require('../middleware/auth');
 const { checkMembership, makeJoinProject } = require('../utils/project');
 const { createRequestSchema } = require('../utils/validate');
 const { sendNotification, notifyManagersAboutRequest } = require('../utils/notifications');
+const {
+  getUploadFileExtension,
+  normalizeStoredFileName,
+  normalizeUploadFileName,
+} = require('../utils/fileNames');
 
 const ALLOWED_EXTS = ['pdf', 'dwg', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'webp'];
 
@@ -106,7 +111,8 @@ async function createRequest(req, res, next) {
 
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          const ext = file.originalname.split('.').pop().toLowerCase();
+          const originalFileName = normalizeUploadFileName(file.originalname);
+          const ext = getUploadFileExtension(originalFileName);
           if (!ALLOWED_EXTS.includes(ext)) continue;
           const fileKey = `requests/${requestId}/${randomUUID()}.${ext}`;
           await s3.send(new PutObjectCommand({
@@ -118,7 +124,7 @@ async function createRequest(req, res, next) {
           await pool.query(
             `INSERT INTO public_request_files (request_id, file_key, file_name, doc_type)
              VALUES ($1, $2, $3, $4)`,
-            [requestId, fileKey, file.originalname, docTypes[i] || null]
+            [requestId, fileKey, originalFileName, docTypes[i] || null]
           );
         }
       }
@@ -214,6 +220,7 @@ async function getDocuments(req, res, next) {
 
     const docs = await Promise.all(result.rows.map(async doc => ({
       ...doc,
+      file_name: normalizeStoredFileName(doc.file_name),
       url: await getSignedDownloadUrl(doc.file_key),
     })));
 

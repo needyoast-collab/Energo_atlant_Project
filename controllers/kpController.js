@@ -11,6 +11,7 @@ const { s3, BUCKET } = require('../config/storage');
 const { exec } = require('child_process');
 const util = require('util');
 const os = require('os');
+const { normalizeUploadFileName } = require('../utils/fileNames');
 
 const execPromise = util.promisify(exec);
 
@@ -222,7 +223,7 @@ async function sendKp(req, res, next) {
 
     if (req.file) {
       fileBuffer = req.file.buffer;
-      const originalName = (req.file.originalname || `${safeProjectName}.docx`).replace(/[/\\?%*:|"<>]/g, '_');
+      const originalName = normalizeUploadFileName(req.file.originalname, `${safeProjectName}.docx`);
       fileName = `КП_${kpNumber.number}_${originalName}`;
       if (fileName.toLowerCase().endsWith('.docx')) {
         const pdfBuffer = await convertWordToPdf(fileBuffer, id);

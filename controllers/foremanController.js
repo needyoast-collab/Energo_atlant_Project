@@ -6,6 +6,7 @@ const { s3, BUCKET } = require('../config/storage');
 const { randomUUID } = require('crypto');
 const { ROLES } = require('../middleware/auth');
 const { checkMembership, makeJoinProject } = require('../utils/project');
+const { getUploadFileExtension, normalizeStoredFileName } = require('../utils/fileNames');
 const {
   createStageSchema,
   updateStageSchema,
@@ -309,7 +310,16 @@ async function getStages(req, res, next) {
        ORDER BY order_num, created_at`,
       [id]
     );
-    return res.json({ success: true, data: stages.rows });
+    const data = stages.rows.map((stage) => ({
+      ...stage,
+      planned_start: toDateOnly(stage.planned_start),
+      planned_end: toDateOnly(stage.planned_end),
+      actual_end: toDateOnly(stage.actual_end),
+      planned_date: toDateOnly(stage.planned_date),
+      actual_date: toDateOnly(stage.actual_date),
+    }));
+
+    return res.json({ success: true, data });
   } catch (err) {
     return next(err);
   }
@@ -325,14 +335,23 @@ async function createStage(req, res, next) {
     const isMember = await checkMembership(id, req.session.userId);
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
-    const { name, order_num, planned_start, planned_end } = parsed.data;
+    const { name, order_num, planned_start, planned_end, planned_value, unit } = parsed.data;
     const result = await pool.query(
-      `INSERT INTO project_stages (project_id, name, order_num, planned_start, planned_end)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, name, status, order_num, planned_start, planned_end`,
-      [id, name, order_num ?? 0, planned_start || null, planned_end || null]
+      `INSERT INTO project_stages
+         (project_id, name, order_num, planned_start, planned_end, planned_value, unit, actual_value)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, name, status, order_num, planned_start, planned_end, planned_value, unit, actual_value`,
+      [id, name, order_num ?? 0, planned_start || null, planned_end || null, planned_value || null, unit || null, 0]
     );
-    return res.status(201).json({ success: true, data: result.rows[0] });
+    const created = result.rows[0];
+    return res.status(201).json({
+      success: true,
+      data: {
+        ...created,
+        planned_start: toDateOnly(created.planned_start),
+        planned_end: toDateOnly(created.planned_end),
+      },
+    });
   } catch (err) {
     return next(err);
   }
@@ -346,7 +365,7 @@ async function updateStage(req, res, next) {
 
     const { id } = req.params;
     const stage = await pool.query(
-      `SELECT project_id, status, is_from_vor, planned_end, actual_end, planned_date, actual_date, note
+      `SELECT project_id, status, is_from_vor, planned_value, planned_end, actual_end, planned_date, actual_date, note
        FROM project_stages WHERE id = $1 AND is_deleted = FALSE`,
       [id]
     );
@@ -362,21 +381,22 @@ async function updateStage(req, res, next) {
     const currentStage = stage.rows[0];
     const nextStatus = parsed.data.status || currentStage.status;
     const nextNote = parsed.data.note !== undefined ? parsed.data.note : currentStage.note;
-    const nextPlannedEnd = parsed.data.planned_end || currentStage.planned_end;
-    const nextActualEnd = parsed.data.actual_end || currentStage.actual_end;
-    const nextPlannedDate = parsed.data.planned_date || currentStage.planned_date;
-    const nextActualDate = parsed.data.actual_date || currentStage.actual_date;
+    const nextPlannedEnd = parsed.data.planned_end || toDateOnly(currentStage.planned_end);
+    const nextActualEnd = parsed.data.actual_end || toDateOnly(currentStage.actual_end);
+    const nextPlannedDate = parsed.data.planned_date || toDateOnly(currentStage.planned_date);
+    const nextActualDate = parsed.data.actual_date || toDateOnly(currentStage.actual_date);
     const hasNote = Boolean(String(nextNote || '').trim());
-    if (nextStatus === 'done' && currentStage.is_from_vor && !nextActualDate) {
+    const isVolumeStage = currentStage.is_from_vor || Number(currentStage.planned_value) > 0;
+    if (nextStatus === 'done' && isVolumeStage && !nextActualDate) {
       return res.status(400).json({ success: false, error: 'Для выполненной работы укажите фактическое окончание' });
     }
-    if (nextStatus === 'done' && !currentStage.is_from_vor && !nextActualEnd) {
+    if (nextStatus === 'done' && !isVolumeStage && !nextActualEnd) {
       return res.status(400).json({ success: false, error: 'Для завершённого этапа укажите фактическое окончание' });
     }
-    if (currentStage.is_from_vor && nextPlannedDate && nextActualDate && nextActualDate > nextPlannedDate && !hasNote) {
+    if (isVolumeStage && nextPlannedDate && nextActualDate && nextActualDate > nextPlannedDate && !hasNote) {
       return res.status(400).json({ success: false, error: 'При просрочке укажите пояснение в примечании' });
     }
-    if (!currentStage.is_from_vor && nextPlannedEnd && nextActualEnd && nextActualEnd > nextPlannedEnd && !hasNote) {
+    if (!isVolumeStage && nextPlannedEnd && nextActualEnd && nextActualEnd > nextPlannedEnd && !hasNote) {
       return res.status(400).json({ success: false, error: 'При просрочке укажите пояснение в примечании' });
     }
 
@@ -393,7 +413,9 @@ async function updateStage(req, res, next) {
     const result = await pool.query(
       `UPDATE project_stages SET ${fields.join(', ')}
        WHERE id = $${idx} AND is_deleted = FALSE
-       RETURNING id, name, status, order_num, planned_start, planned_end, actual_end`,
+       RETURNING id, name, status, order_num, planned_start, planned_end, actual_end,
+                 is_from_vor, is_calendar_mobilization, vor_item_id, unit, planned_value, actual_value,
+                 planned_date, actual_date, note, customer_agreed, created_at`,
       values
     );
 
@@ -433,7 +455,18 @@ async function updateStage(req, res, next) {
       ));
     }
 
-    return res.json({ success: true, data: result.rows[0] });
+    const updated = result.rows[0];
+    return res.json({
+      success: true,
+      data: {
+        ...updated,
+        planned_start: toDateOnly(updated.planned_start),
+        planned_end: toDateOnly(updated.planned_end),
+        actual_end: toDateOnly(updated.actual_end),
+        planned_date: toDateOnly(updated.planned_date),
+        actual_date: toDateOnly(updated.actual_date),
+      },
+    });
   } catch (err) {
     return next(err);
   }
@@ -454,7 +487,7 @@ async function uploadPhoto(req, res, next) {
     const isMember = await checkMembership(stage.rows[0].project_id, req.session.userId);
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа' });
 
-    const ext = req.file.originalname.split('.').pop().toLowerCase();
+    const ext = getUploadFileExtension(req.file.originalname);
     const fileKey = `photos/${stage.rows[0].project_id}/${id}/${randomUUID()}.${ext}`;
 
     await s3.send(new PutObjectCommand({
@@ -1044,7 +1077,11 @@ async function getProjectDocuments(req, res, next) {
        ORDER BY pd.uploaded_at DESC`,
       [id]
     );
-    return res.json({ success: true, data: result.rows });
+    const docs = result.rows.map((doc) => ({
+      ...doc,
+      file_name: normalizeStoredFileName(doc.file_name),
+    }));
+    return res.json({ success: true, data: docs });
   } catch (err) {
     return next(err);
   }

@@ -3,13 +3,20 @@ const SPEC_STATUS = {
   approved: 'Согласовано', rejected: 'Отклонено',
 };
 const SOURCE_LABELS = { company: 'Общий склад', purchase: 'Закупка', customer: 'От заказчика' };
-const VOR_STATUS_LABELS = { planned: 'Запланировано', done: 'Выполнено', not_done: 'Не выполнено' };
+const VOR_STATUS_LABELS = {
+  pending: 'Запланировано',
+  planned: 'Запланировано',
+  in_progress: 'В работе',
+  done: 'Выполнено',
+  not_done: 'Не выполнено',
+};
 
 let currentUser       = null;
 let projectsList      = [];
 let activeProjectId   = null;
 let activeStageId     = null;
 let activeStageIsVor  = false;
+let activeStageUsesVolume = false;
 let activeWarehouseId = null;
 let activeSpecId      = null;
 let activeWriteoffProjectId = null;
@@ -17,6 +24,7 @@ let rejectSpecMode = 'single';
 let stageWriteoffItems = [];
 let calendarPlan = null;
 let calendarRangeDraft = null;
+let currentStagesList = [];
 let foremanPageMode = window.FOREMAN_PAGE_MODE || 'dashboard';
 let isForemanProjectPage = foremanPageMode === 'project';
 
@@ -197,6 +205,25 @@ function addCalendarDays(dateOnly, days) {
   return `${nextYear}-${nextMonth}-${nextDay}`;
 }
 
+function getLocalDateOnly(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getCalendarDayInfo(day) {
+  const dateOnly = addCalendarDays(calendarPlan.calendar_start, day - 1);
+  const [year, month, date] = dateOnly.split('-').map(Number);
+  const weekDay = new Date(year, month - 1, date).getDay();
+  return {
+    dateOnly,
+    label: `${String(date).padStart(2, '0')}.${String(month).padStart(2, '0')}`,
+    isWeekend: weekDay === 0 || weekDay === 6,
+    isToday: dateOnly === getLocalDateOnly(),
+  };
+}
+
 function calendarDayIndex(dateOnly) {
   if (!calendarPlan?.calendar_start || !dateOnly) return null;
   const [fromYear, fromMonth, fromDay] = String(calendarPlan.calendar_start).slice(0, 10).split('-').map(Number);
@@ -204,6 +231,15 @@ function calendarDayIndex(dateOnly) {
   const from = new Date(fromYear, fromMonth - 1, fromDay);
   const to = new Date(toYear, toMonth - 1, toDay);
   return Math.round((to - from) / 86400000) + 1;
+}
+
+function calendarDateDiffDays(fromDateOnly, toDateOnly) {
+  if (!fromDateOnly || !toDateOnly) return 0;
+  const [fromYear, fromMonth, fromDay] = String(fromDateOnly).slice(0, 10).split('-').map(Number);
+  const [toYear, toMonth, toDay] = String(toDateOnly).slice(0, 10).split('-').map(Number);
+  const from = new Date(fromYear, fromMonth - 1, fromDay);
+  const to = new Date(toYear, toMonth - 1, toDay);
+  return Math.round((to - from) / 86400000);
 }
 
 function getCalendarItemRange(item) {
@@ -214,6 +250,147 @@ function getCalendarItemRange(item) {
   return {
     start: Math.max(1, Math.min(start, end)),
     end: Math.min(calendarPlan.duration_days, Math.max(start, end)),
+  };
+}
+
+function getCalendarItemProgress(item) {
+  if (item.planned_value) {
+    return Math.min(100, Math.round((Number(item.actual_value || 0) / Number(item.planned_value)) * 100));
+  }
+  return item.status === 'done' ? 100 : 0;
+}
+
+function isCalendarItemDone(item) {
+  return item.status === 'done' || getCalendarItemProgress(item) >= 100;
+}
+
+function getCalendarItemActualEnd(item) {
+  return item.actual_date || item.actual_end || null;
+}
+
+function getCalendarItemDelayDays(item) {
+  const actualEnd = getCalendarItemActualEnd(item);
+  if (!item.planned_end || !actualEnd) return 0;
+  return Math.max(0, calendarDateDiffDays(item.planned_end, actualEnd));
+}
+
+function isCalendarItemActiveOverdue(item) {
+  if (!item.planned_end || isCalendarItemDone(item)) return false;
+  return String(item.planned_end).slice(0, 10) < getLocalDateOnly();
+}
+
+function isCalendarItemOverdue(item) {
+  return isCalendarItemActiveOverdue(item) || getCalendarItemDelayDays(item) > 0;
+}
+
+function getCalendarStatusClass(item) {
+  if (isCalendarItemOverdue(item) || item.status === 'not_done') return 'is-danger';
+  if (isCalendarItemDone(item)) return 'is-done';
+  if (item.status === 'in_progress') return 'is-progress';
+  return 'is-planned';
+}
+
+function getForemanStageStatusLabel(stage) {
+  return stage.is_from_vor
+    ? VOR_STATUS_LABELS[stage.status] || stage.status || '—'
+    : VOR_STATUS_LABELS[stage.status] || stage.status || '—';
+}
+
+function getForemanStageStatusClass(stage) {
+  if (stage.status === 'done') return 'is-done';
+  if (stage.status === 'in_progress') return 'is-progress';
+  if (stage.status === 'not_done' || stage.status === 'rejected') return 'is-danger';
+  return 'is-planned';
+}
+
+function isForemanVolumeStage(stage) {
+  return Boolean(stage.is_from_vor) || Number(stage.planned_value) > 0;
+}
+
+function getForemanStageProgress(stage) {
+  if (isForemanVolumeStage(stage) && Number(stage.planned_value) > 0) {
+    return Math.min(100, Math.round((Number(stage.actual_value || 0) / Number(stage.planned_value)) * 100));
+  }
+  return stage.status === 'done' ? 100 : 0;
+}
+
+function formatForemanStagePlan(stage) {
+  if (isForemanVolumeStage(stage)) {
+    return stage.planned_date ? formatDate(stage.planned_date) : '—';
+  }
+  if (stage.planned_start && stage.planned_end) {
+    return `${formatDate(stage.planned_start)} — ${formatDate(stage.planned_end)}`;
+  }
+  return stage.planned_start ? formatDate(stage.planned_start) : '—';
+}
+
+function formatForemanStageActual(stage) {
+  const value = isForemanVolumeStage(stage) ? stage.actual_date : stage.actual_end;
+  return value ? formatDate(value) : '—';
+}
+
+function formatForemanStageDetails(stage) {
+  if (!isForemanVolumeStage(stage)) {
+    return stage.planned_start || stage.planned_end
+      ? formatForemanStagePlan(stage)
+      : 'Плановые сроки не заданы';
+  }
+
+  const actual = stage.actual_value != null ? stage.actual_value : 0;
+  const planned = stage.planned_value != null ? stage.planned_value : 0;
+  const unit = escHtml(stage.unit || '');
+  return `${actual} / ${planned}${unit ? ` ${unit}` : ''}`;
+}
+
+function getForemanStageNote(stage) {
+  return stage.note || '—';
+}
+
+function buildCalendarPhaseRows(items) {
+  const rows = [];
+  const mobilization = items.filter(item => item.is_calendar_mobilization);
+  const works = items.filter(item => !item.is_calendar_mobilization);
+
+  if (mobilization.length) {
+    rows.push(...mobilization);
+  }
+
+  if (works.length) {
+    if (mobilization.length) {
+      rows.push(createCalendarPhaseRow('works', 'Основные работы', `${works.length} этапов`, works));
+    }
+    rows.push(...works);
+  }
+
+  return rows;
+}
+
+function createCalendarPhaseRow(key, title, subtitle, items) {
+  const planned = items.filter(item => item.planned_start && item.planned_end);
+  const starts = planned.map(item => item.planned_start).sort();
+  const ends = planned.map(item => item.planned_end).sort();
+  const progress = items.length
+    ? Math.round(items.reduce((sum, item) => sum + getCalendarItemProgress(item), 0) / items.length)
+    : 0;
+
+  return {
+    type: 'phase',
+    key,
+    name: title,
+    subtitle,
+    planned_start: starts[0] || null,
+    planned_end: ends[ends.length - 1] || null,
+    progress,
+    is_overdue: items.some(isCalendarItemOverdue),
+  };
+}
+
+function getCalendarPlanStats(items) {
+  const plannedCount = items.filter(item => item.planned_start && item.planned_end).length;
+  const mobilizationCount = items.filter(item => item.is_calendar_mobilization).length;
+  return {
+    plannedCount,
+    workCount: items.length - mobilizationCount,
   };
 }
 
@@ -228,6 +405,7 @@ async function loadCalendarPlan(id) {
   }
   calendarPlan = data.data;
   updateCalendarSummary();
+  updateCalendarActions();
   renderCalendarPlan();
 }
 
@@ -235,10 +413,18 @@ function updateCalendarSummary() {
   const summary = document.getElementById('calendar-plan-summary');
   if (!summary || !calendarPlan) return;
   const items = calendarPlan.items || [];
-  const planned = items.filter(item => item.planned_start && item.planned_end).length;
-  summary.innerHTML = items.length
-    ? `План сформирован: <strong style="color:var(--text)">${items.length}</strong> строк, запланировано <strong style="color:var(--text)">${planned}</strong>. Старт календаря: ${formatDate(calendarPlan.calendar_start)}, горизонт: ${calendarPlan.duration_days} дней.`
+  const stats = getCalendarPlanStats(items);
+  summary.textContent = items.length
+    ? `${stats.plannedCount} из ${items.length} строк запланированы · работы: ${stats.workCount} · старт: ${formatDate(calendarPlan.calendar_start)} · горизонт: ${calendarPlan.duration_days} дней.`
     : 'Календарный план ещё не сформирован. Нажмите кнопку справа.';
+}
+
+function updateCalendarActions() {
+  const generateBtn = document.getElementById('btn-generate-calendar-plan');
+  if (!generateBtn || !calendarPlan) return;
+  const items = calendarPlan.items || [];
+  const hasMobilization = items.some(item => item.is_calendar_mobilization);
+  generateBtn.style.display = hasMobilization ? 'none' : '';
 }
 
 function renderCalendarPlan() {
@@ -248,80 +434,112 @@ function renderCalendarPlan() {
 
   if (!items.length) {
     container.innerHTML = `
-      <div style="border:1px solid var(--border);border-radius:8px;padding:1rem;color:var(--muted);font-size:.9rem">
-        Календарный план ещё не сформирован. Нажмите «Сформировать план», чтобы добавить мобилизацию и строки из ВОР.
+      <div class="calendar-plan-empty">
+        <strong>Календарный план ещё не сформирован</strong>
+        <span>Будет создана строка мобилизации и работы из ВОР. Старт берётся от даты подписания договора.</span>
       </div>`;
     return;
   }
+
+  const nameCol = 440;
+  const dayCol = 32;
+  const gridWidth = nameCol + days.length * dayCol;
+  const rows = buildCalendarPhaseRows(items);
 
   container.innerHTML = `
     <div class="calendar-plan-toolbar">
       <div class="calendar-plan-legend">
         <span><i class="calendar-legend-work"></i>Работы</span>
         <span><i class="calendar-legend-mobilization"></i>Мобилизация</span>
-        <span><i class="calendar-legend-draft"></i>Первый клик</span>
+        <span><i class="calendar-legend-overdue"></i>Просрочка</span>
+        <span><i class="calendar-legend-today"></i>Сегодня</span>
       </div>
-      <div class="calendar-plan-hint">Кликните первый и последний день в одной строке.</div>
+      <div class="calendar-plan-hint">Выберите начало и окончание в одной строке.</div>
     </div>
     <div class="calendar-plan-shell">
-      <div style="display:grid;grid-template-columns:310px 90px 88px repeat(${days.length},34px);min-width:${488 + days.length * 34}px">
-        <div class="calendar-plan-head calendar-plan-sticky-left">Наименование работ</div>
-        <div class="calendar-plan-head">Выполнение</div>
-        <div class="calendar-plan-head">Приёмка</div>
-        ${days.map(day => `
-          <div class="calendar-plan-day-head ${day % 7 === 1 ? 'week-start' : ''}">
+      <div class="calendar-plan-grid" style="grid-template-columns:${nameCol}px repeat(${days.length},${dayCol}px);min-width:${gridWidth}px">
+        <div class="calendar-plan-head calendar-plan-sticky-left">Работы</div>
+        ${days.map(day => {
+          const dayInfo = getCalendarDayInfo(day);
+          return `
+          <div class="calendar-plan-day-head ${day % 7 === 1 ? 'week-start' : ''} ${dayInfo.isWeekend ? 'is-weekend' : ''} ${dayInfo.isToday ? 'is-today' : ''}">
             <div>${day}</div>
-            <span>${formatCalendarDayLabel(day)}</span>
-          </div>
-        `).join('')}
-        ${items.map(item => renderCalendarRow(item, days)).join('')}
+            <span>${dayInfo.label}</span>
+          </div>`;
+        }).join('')}
+        ${rows.map(row => row.type === 'phase' ? renderCalendarPhaseRow(row, days) : renderCalendarRow(row, days)).join('')}
       </div>
     </div>`;
+}
+
+function renderCalendarPhaseRow(row, days) {
+  const rangeText = row.planned_start && row.planned_end
+    ? `${formatDate(row.planned_start)} — ${formatDate(row.planned_end)}`
+    : 'Диапазон не задан';
+
+  return `
+    <div class="calendar-plan-left calendar-plan-sticky-left calendar-phase-left ${row.is_overdue ? 'is-overdue' : ''}">
+      <div class="calendar-phase-title">${escHtml(row.name)}</div>
+      <div class="calendar-phase-meta">${escHtml(row.subtitle)} · ${rangeText}</div>
+    </div>
+    ${days.map(day => {
+      const dayInfo = getCalendarDayInfo(day);
+      return `
+        <div class="calendar-cell calendar-phase-cell ${row.is_overdue ? 'is-overdue' : ''} ${day % 7 === 1 ? 'week-start' : ''} ${dayInfo.isWeekend ? 'is-weekend' : ''} ${dayInfo.isToday ? 'is-today' : ''}"></div>`;
+    }).join('')}`;
 }
 
 function renderCalendarRow(item, days) {
   const range = getCalendarItemRange(item);
   const isMobilization = item.is_calendar_mobilization;
-  const actual = item.actual_date || item.actual_end;
-  const title = isMobilization
-    ? `<div class="calendar-stage-name calendar-stage-name-fixed">${escHtml(item.name)}</div>`
-    : `<div class="calendar-stage-name">${escHtml(item.name)}</div>`;
+  const actual = getCalendarItemActualEnd(item);
   const dates = item.planned_start && item.planned_end
     ? `${formatDate(item.planned_start)} — ${formatDate(item.planned_end)}`
     : 'Диапазон не задан';
-  const progress = item.planned_value
-    ? Math.min(100, Math.round((Number(item.actual_value || 0) / Number(item.planned_value)) * 100))
-    : (item.status === 'done' ? 100 : 0);
+  const progress = getCalendarItemProgress(item);
+  const delayDays = getCalendarItemDelayDays(item);
+  const isDelayed = delayDays > 0;
+  const isActiveOverdue = isCalendarItemActiveOverdue(item);
+  const hasDeadlineIssue = isActiveOverdue || isDelayed;
   const statusLabel = VOR_STATUS_LABELS[item.status] || item.status || '—';
+  const deadlineLabel = isDelayed ? `Просрочка +${delayDays} дн.` : 'Просрочка';
+  const stageNameClass = isMobilization
+    ? 'calendar-stage-name calendar-stage-name-fixed'
+    : 'calendar-stage-name';
+  const statusClass = getCalendarStatusClass(item);
+  const actualDay = actual ? calendarDayIndex(actual) : null;
+  const delayEndDay = actualDay ? Math.min(calendarPlan.duration_days, actualDay) : null;
 
   return `
-    <div class="calendar-plan-left calendar-plan-sticky-left ${isMobilization ? 'is-mobilization' : ''}">
-      ${title}
-      <div class="calendar-stage-meta">${dates}${actual ? ` · факт: ${formatDate(actual)}` : ''}</div>
-      <div class="calendar-stage-status">${escHtml(statusLabel)}</div>
+    <div class="calendar-plan-left calendar-plan-sticky-left ${isMobilization ? 'is-mobilization' : ''} ${hasDeadlineIssue ? 'is-overdue' : ''}">
+      <div class="calendar-stage-row-main">
+        <div class="calendar-stage-text">
+          <div class="${stageNameClass}">${escHtml(item.name)}</div>
+          <div class="calendar-stage-meta">${dates}${actual ? ` · факт: ${formatDate(actual)}` : ''}${isDelayed ? ` · +${delayDays} дн.` : ''}${isActiveOverdue ? ' · просрочено' : ''}</div>
+        </div>
+        <div class="calendar-stage-badges">
+          <span class="calendar-stage-progress ${hasDeadlineIssue ? 'is-danger' : ''}">${progress}%</span>
+          <span class="calendar-stage-status ${statusClass}">${escHtml(hasDeadlineIssue ? deadlineLabel : statusLabel)}</span>
+        </div>
+      </div>
     </div>
-    <div class="calendar-plan-meta">${progress}%</div>
-    <div class="calendar-plan-meta">${actual ? formatDate(actual) : '—'}</div>
     ${days.map(day => {
+      const dayInfo = getCalendarDayInfo(day);
       const selected = range && day >= range.start && day <= range.end;
       const isStart = selected && day === range.start;
       const isEnd = selected && day === range.end;
+      const isDelayTail = isDelayed && range && delayEndDay && day > range.end && day <= delayEndDay;
+      const isDelayStart = isDelayTail && day === range.end + 1;
+      const isDelayEnd = isDelayTail && day === delayEndDay;
       return `
         <button type="button"
-          class="calendar-cell ${selected ? 'selected' : ''} ${isStart ? 'range-start' : ''} ${isEnd ? 'range-end' : ''} ${isMobilization ? 'mobilization' : ''} ${day % 7 === 1 ? 'week-start' : ''}"
+          class="calendar-cell ${selected ? 'selected' : ''} ${isStart ? 'range-start' : ''} ${isEnd ? 'range-end' : ''} ${isActiveOverdue ? 'is-overdue' : ''} ${isDelayTail ? 'delay-tail' : ''} ${isDelayStart ? 'delay-start' : ''} ${isDelayEnd ? 'delay-end' : ''} ${isMobilization ? 'mobilization' : ''} ${day % 7 === 1 ? 'week-start' : ''} ${dayInfo.isWeekend ? 'is-weekend' : ''} ${dayInfo.isToday ? 'is-today' : ''}"
           data-id="${item.id}"
           data-day="${day}"
-          title="${escHtml(item.name)} · день ${day}">
-          <span></span>
+          title="${escHtml(item.name)} · ${formatDate(dayInfo.dateOnly)}${isDelayTail ? ` · просрочка +${delayDays} дн.` : ''}">
+          <span style="--calendar-progress:${progress}%"></span>
         </button>`;
     }).join('')}`;
-}
-
-function formatCalendarDayLabel(day) {
-  if (!calendarPlan?.calendar_start) return '';
-  const dateOnly = addCalendarDays(calendarPlan.calendar_start, day - 1);
-  const [, month, date] = dateOnly.split('-');
-  return `${date}.${month}`;
 }
 
 async function saveCalendarRange(itemId, startDay, endDay) {
@@ -368,6 +586,7 @@ document.getElementById('btn-generate-calendar-plan').addEventListener('click', 
   }
   calendarPlan = data.data;
   updateCalendarSummary();
+  updateCalendarActions();
   renderCalendarPlan();
   const count = calendarPlan.items?.length || 0;
   showToast(`Календарный план сформирован: ${count} строк`, 'success');
@@ -405,63 +624,93 @@ async function loadStages(id) {
 
   const list = document.getElementById('stages-list');
   const visibleStages = data.data.filter(s => !s.is_calendar_mobilization);
+  currentStagesList = visibleStages;
   if (!visibleStages.length) {
-    list.innerHTML = '<div style="color:var(--muted);font-size:.9rem">Этапов нет. Сформируйте этапы из ВОР.</div>';
+    list.innerHTML = '<div class="foreman-stage-empty">Этапов нет. Сформируйте этапы из ВОР.</div>';
     return;
   }
 
-  const vorStages = visibleStages.filter(s => s.is_from_vor && Number(s.planned_value) > 0);
-  let progressHtml = '';
-  if (vorStages.length) {
-    const sumPlan   = vorStages.reduce((a, s) => a + Number(s.planned_value), 0);
-    const sumActual = vorStages.reduce((a, s) => a + Number(s.actual_value || 0), 0);
-    const pct = sumPlan > 0 ? Math.min(100, Math.round(sumActual / sumPlan * 100)) : 0;
-    progressHtml = `
-      <div style="margin-bottom:1rem">
-        <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.35rem">
-          <span style="color:var(--muted)">Прогресс (факт/план)</span>
-          <span style="font-weight:700;color:var(--accent)">${pct}%</span>
-        </div>
-        <div style="height:5px;background:var(--border);border-radius:9999px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:9999px;transition:width .4s"></div>
-        </div>
-      </div>`;
-  }
+  const vorStages = visibleStages.filter(s => isForemanVolumeStage(s) && Number(s.planned_value) > 0);
+  const sumPlan = vorStages.reduce((a, s) => a + Number(s.planned_value), 0);
+  const sumActual = vorStages.reduce((a, s) => a + Number(s.actual_value || 0), 0);
+  const doneCount = visibleStages.filter(s => s.status === 'done').length;
+  const progressPct = sumPlan > 0
+    ? Math.min(100, Math.round(sumActual / sumPlan * 100))
+    : Math.round(doneCount / visibleStages.length * 100);
+  const inProgressCount = visibleStages.filter(s => s.status === 'in_progress').length;
+  const problemCount = visibleStages.filter(s => s.status === 'not_done' || s.status === 'rejected').length;
 
-  list.innerHTML = progressHtml + visibleStages.map(s => {
-    const isVor = s.is_from_vor;
-    const statusLabel = isVor ? (VOR_STATUS_LABELS[s.status] || s.status) : s.status;
-    const subInfo = isVor
-      ? `${s.actual_value != null ? s.actual_value : 0} / ${s.planned_value} ${escHtml(s.unit || '')}`
-        + (s.note ? ` · <span style="color:var(--danger)">${escHtml(s.note)}</span>` : '')
-      : (s.planned_start ? `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}` : '')
-        + (s.actual_end ? ` · Факт. окончание: ${formatDate(s.actual_end)}` : '');
-
-    return `
-    <div class="stage-item">
-      <div class="stage-status-dot dot-${s.status}"></div>
-      <div style="flex:1">
-        <div class="stage-name">${escHtml(s.name)}</div>
-        <div class="stage-dates">${subInfo}</div>
+  const progressHtml = `
+    <div class="foreman-stage-overview">
+      <div class="foreman-stage-progress-card">
+        <div>
+          <span>Готовность по этапам</span>
+          <strong>${progressPct}%</strong>
+        </div>
+        <div class="foreman-stage-progress-track">
+          <span style="width:${progressPct}%"></span>
+        </div>
       </div>
-      <div style="display:flex;gap:.4rem;align-items:center">
-        ${badge(s.status)}
-        <button class="btn btn-outline btn-sm" data-action="edit-stage"
-          data-id="${s.id}"
-          data-name="${escHtml(s.name)}"
-          data-status="${s.status}"
-          data-is-vor="${isVor ? '1' : '0'}"
-          data-planned-value="${s.planned_value || ''}"
-          data-actual-value="${s.actual_value || ''}"
-          data-unit="${escHtml(s.unit || '')}"
-          data-planned-date="${s.planned_date || ''}"
-          data-actual-date="${s.actual_date || ''}"
-          data-note="${escHtml(s.note || '')}"
-          data-ps="${s.planned_start||''}" data-pe="${s.planned_end||''}" data-ae="${s.actual_end||''}">
-          Изменить
-        </button>
+      <div class="foreman-stage-stats">
+        <div><span>Всего</span><strong>${visibleStages.length}</strong></div>
+        <div><span>Выполнено</span><strong>${doneCount}</strong></div>
+        <div><span>В работе</span><strong>${inProgressCount}</strong></div>
+        <div><span>Проблемы</span><strong>${problemCount}</strong></div>
       </div>
     </div>`;
+
+  list.innerHTML = progressHtml + visibleStages.map(s => {
+    const isVor = Boolean(s.is_from_vor);
+    const isVolume = isForemanVolumeStage(s);
+    const statusLabel = getForemanStageStatusLabel(s);
+    const statusClass = getForemanStageStatusClass(s);
+    const stageProgress = getForemanStageProgress(s);
+    const note = getForemanStageNote(s);
+
+    return `
+    <article class="foreman-stage-card ${isVor ? 'is-vor' : ''}" role="button" tabindex="0"
+      data-action="edit-stage"
+      data-id="${s.id}"
+      data-name="${escHtml(s.name)}"
+      data-status="${s.status}"
+      data-is-vor="${isVor ? '1' : '0'}"
+      data-is-volume="${isVolume ? '1' : '0'}"
+      data-planned-value="${s.planned_value || ''}"
+      data-actual-value="${s.actual_value || ''}"
+      data-unit="${escHtml(s.unit || '')}"
+      data-planned-date="${s.planned_date || ''}"
+      data-actual-date="${s.actual_date || ''}"
+      data-note="${escHtml(s.note || '')}"
+      data-ps="${s.planned_start||''}" data-pe="${s.planned_end||''}" data-ae="${s.actual_end||''}">
+      <div class="foreman-stage-main">
+        <span class="foreman-stage-order">${s.order_num ?? 0}</span>
+        <div class="foreman-stage-text">
+          <div class="foreman-stage-name">${escHtml(s.name)}</div>
+          <div class="foreman-stage-subline">${formatForemanStageDetails(s)}</div>
+        </div>
+      </div>
+      <div class="foreman-stage-meta-grid">
+        <div>
+          <span>Плановые сроки</span>
+          <strong>${formatForemanStagePlan(s)}</strong>
+        </div>
+        <div>
+          <span>Факт окончания</span>
+          <strong>${formatForemanStageActual(s)}</strong>
+        </div>
+        <div class="wide">
+          <span>Примечание</span>
+          <strong>${escHtml(note)}</strong>
+        </div>
+      </div>
+      <div class="foreman-stage-status ${statusClass}">${escHtml(statusLabel)}</div>
+      <div class="foreman-stage-progress-row">
+        <div class="foreman-stage-progress-track">
+          <span style="width:${stageProgress}%"></span>
+        </div>
+        <strong>${stageProgress}%</strong>
+      </div>
+    </article>`;
   }).join('');
 }
 
@@ -470,25 +719,32 @@ document.getElementById('stages-list').addEventListener('click', async (e) => {
   if (!btn) return;
   activeStageId    = btn.dataset.id;
   activeStageIsVor = btn.dataset.isVor === '1';
+  activeStageUsesVolume = btn.dataset.isVolume === '1';
 
   const f = document.getElementById('edit-stage-form');
   document.getElementById('edit-stage-name').value = btn.dataset.name;
   document.getElementById('edit-stage-name').readOnly = activeStageIsVor;
+  f.note.value = btn.dataset.note || '';
 
-  document.getElementById('edit-stage-regular').style.display = activeStageIsVor ? 'none' : '';
-  document.getElementById('edit-stage-vor').style.display     = activeStageIsVor ? '' : 'none';
+  document.getElementById('edit-stage-regular').style.display = activeStageUsesVolume ? 'none' : '';
+  document.getElementById('edit-stage-vor').style.display     = activeStageUsesVolume ? '' : 'none';
 
-  if (activeStageIsVor) {
+  if (activeStageUsesVolume) {
+    f.actual_end.required = false;
+    document.getElementById('edit-stage-actual-end-required').style.display = 'none';
     document.getElementById('edit-stage-status-vor').value  = btn.dataset.status;
     document.getElementById('edit-stage-planned-val').value = btn.dataset.plannedValue;
     document.getElementById('edit-stage-unit').value        = btn.dataset.unit;
     f.actual_value.value  = btn.dataset.actualValue;
     f.planned_date.value  = btn.dataset.plannedDate;
     f.actual_date.value   = btn.dataset.actualDate;
-    f.note.value          = btn.dataset.note;
     updateNoteRequired();
-    document.getElementById('edit-stage-status-vor').addEventListener('change', updateNoteRequired);
   } else {
+    f.actual_date.required = false;
+    document.getElementById('edit-stage-actual-date-required').style.display = 'none';
+    f.actual_value.value = '';
+    f.planned_date.value = '';
+    f.actual_date.value = '';
     document.getElementById('edit-stage-status-regular').value = btn.dataset.status;
     f.planned_start.value = btn.dataset.ps;
     f.planned_end.value   = btn.dataset.pe;
@@ -497,6 +753,14 @@ document.getElementById('stages-list').addEventListener('click', async (e) => {
   }
   await loadStageWriteoffPanel(btn.dataset.id, activeProjectId);
   openModal('modal-edit-stage');
+});
+
+document.getElementById('stages-list').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('[data-action="edit-stage"]');
+  if (!card) return;
+  e.preventDefault();
+  card.click();
 });
 
 function updateNoteRequired() {
@@ -525,28 +789,41 @@ function updateRegularStageDateRequirements() {
 }
 
 document.getElementById('edit-stage-status-regular').addEventListener('change', updateRegularStageDateRequirements);
+document.getElementById('edit-stage-status-vor').addEventListener('change', updateNoteRequired);
 document.getElementById('edit-stage-form').planned_end.addEventListener('change', updateRegularStageDateRequirements);
 document.getElementById('edit-stage-form').actual_end.addEventListener('change', updateRegularStageDateRequirements);
 document.getElementById('edit-stage-form').planned_date.addEventListener('change', updateNoteRequired);
 document.getElementById('edit-stage-form').actual_date.addEventListener('change', updateNoteRequired);
 
 document.getElementById('btn-add-stage').addEventListener('click', () => {
-  document.getElementById('add-stage-form').reset();
-  openModal('modal-add-stage');
-});
+  const project = projectsList.find(p => p.id == activeProjectId);
+  openBatchModal(project?.name || '', 'этапы', 'Название этапа', async (items) => {
+    const maxOrder = currentStagesList.reduce((max, stage) => {
+      const order = Number(stage.order_num);
+      return Number.isFinite(order) ? Math.max(max, order) : max;
+    }, -1);
+    let created = 0;
 
-document.getElementById('add-stage-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const body = Object.fromEntries(fd.entries());
-  body.order_num = parseInt(body.order_num) || 0;
+    for (const [index, item] of items.entries()) {
+      const { ok, data } = await apiRequest('POST', `/api/foreman/projects/${activeProjectId}/stages`, {
+        name: item.name,
+        order_num: maxOrder + index + 1,
+        planned_value: item.quantity,
+        unit: item.unit || undefined,
+      });
+      if (!ok) {
+        showToast(data.error || 'Не удалось добавить этап', 'error');
+        break;
+      }
+      created += 1;
+    }
 
-  const { ok, data } = await apiRequest('POST', `/api/foreman/projects/${activeProjectId}/stages`, body);
-  if (ok) {
-    showToast('Этап добавлен', 'success');
-    closeModal('modal-add-stage');
-    loadStages(activeProjectId);
-  } else showToast(data.error, 'error');
+    if (created) {
+      showToast(`Добавлено этапов: ${created}`, 'success');
+      closeModal('modal-batch');
+      loadStages(activeProjectId);
+    }
+  }, { mode: 'stages', saveText: 'Сохранить этапы' });
 });
 
 document.getElementById('edit-stage-form').addEventListener('submit', async (e) => {
@@ -554,7 +831,7 @@ document.getElementById('edit-stage-form').addEventListener('submit', async (e) 
   const fd = new FormData(e.target);
   let body = {};
 
-  if (activeStageIsVor) {
+  if (activeStageUsesVolume) {
     const status = document.getElementById('edit-stage-status-vor').value;
     body.status = status;
     body.name   = document.getElementById('edit-stage-name').value;
@@ -679,13 +956,13 @@ async function loadProjectSpecs(id) {
                 <div style="display:flex;gap:.35rem;align-items:center;justify-content:flex-end;flex-wrap:wrap">
                   ${badge(s.status)}
                   ${s.status === 'pending_approval' ? `
-                    <button class="btn btn-sm" style="font-size:.75rem;background:var(--success);color:#000;border:none"
+                    <button class="foreman-action-btn is-success is-compact"
                       data-action="approve-spec" data-id="${s.id}" data-name="${escHtml(s.material_name)}">
-                      ✓
+                      Согласовать
                     </button>
-                    <button class="btn btn-sm" style="font-size:.75rem;color:var(--danger);border:1px solid var(--border);background:transparent"
+                    <button class="foreman-action-btn is-danger is-compact"
                       data-action="reject-spec" data-id="${s.id}" data-name="${escHtml(s.material_name)}">
-                      ✕
+                      Отклонить
                     </button>
                   ` : ''}
                 </div>
@@ -899,9 +1176,11 @@ document.getElementById('btn-add-work-spec').addEventListener('click', () => {
   });
 });
 
-// ─── Табличное добавление ВОР ─────────────────────────────────
+// ─── Табличное добавление ВОР и этапов ────────────────────────
 const BATCH_UNITS = ['шт', 'м', 'м²', 'км', 'компл', 'рул', 'кг', 'т', 'л'];
 let batchSaveCallback = null;
+let batchMode = 'work-specs';
+let batchSaveText = 'Сохранить в проект';
 
 function batchUnitOptions() {
   return '<option value="">—</option>' +
@@ -912,21 +1191,22 @@ function addBatchRow() {
   const tbody = document.getElementById('batch-tbody');
   const rowNum = tbody.querySelectorAll('tr').length + 1;
   const tr = document.createElement('tr');
+  const isStagesMode = batchMode === 'stages';
   tr.innerHTML = `
     <td style="padding:.3rem .5rem;color:var(--muted);font-size:.8rem;text-align:center">${rowNum}</td>
     <td style="padding:.2rem .3rem">
-      <input type="text" class="batch-cell batch-name" placeholder="Наименование работы"
+      <input type="text" class="batch-cell batch-name" placeholder="${isStagesMode ? 'Название этапа' : 'Наименование работы'}"
         style="width:100%;min-width:200px;background:var(--bg2);color:var(--text);
                border:1px solid var(--border);border-radius:4px;padding:.35rem .55rem;font-size:.84rem;font-family:inherit;box-sizing:border-box">
     </td>
-    <td style="padding:.2rem .3rem">
+    <td class="batch-work-field" style="padding:.2rem .3rem">
       <select class="batch-cell batch-unit"
         style="width:100%;background:var(--bg2);color:var(--text);
                border:1px solid var(--border);border-radius:4px;padding:.35rem .4rem;font-size:.84rem;font-family:inherit">
         ${batchUnitOptions()}
       </select>
     </td>
-    <td style="padding:.2rem .3rem">
+    <td class="batch-work-field" style="padding:.2rem .3rem">
       <input type="number" class="batch-cell batch-qty" placeholder="0" min="0.001" step="any"
         style="width:100%;min-width:80px;background:var(--bg2);color:var(--text);
                border:1px solid var(--border);border-radius:4px;padding:.35rem .55rem;font-size:.84rem;font-family:inherit;box-sizing:border-box">
@@ -941,16 +1221,29 @@ function updateBatchCounter() {
   const rows = document.querySelectorAll('#batch-tbody tr');
   let filled = 0;
   rows.forEach(tr => {
-    if (tr.querySelector('.batch-name').value.trim() && tr.querySelector('.batch-qty').value) filled++;
+    const name = tr.querySelector('.batch-name').value.trim();
+    const qty = tr.querySelector('.batch-qty')?.value;
+    if (name && qty) filled++;
   });
-  const s = filled % 10 === 1 && filled % 100 !== 11 ? 'позиция' : filled % 10 >= 2 && filled % 10 <= 4 && (filled % 100 < 10 || filled % 100 >= 20) ? 'позиции' : 'позиций';
-  document.getElementById('batch-counter').textContent = `${filled} ${s} заполнено`;
+  const label = batchMode === 'stages'
+    ? (filled % 10 === 1 && filled % 100 !== 11 ? 'этап' : filled % 10 >= 2 && filled % 10 <= 4 && (filled % 100 < 10 || filled % 100 >= 20) ? 'этапа' : 'этапов')
+    : (filled % 10 === 1 && filled % 100 !== 11 ? 'позиция' : filled % 10 >= 2 && filled % 10 <= 4 && (filled % 100 < 10 || filled % 100 >= 20) ? 'позиции' : 'позиций');
+  document.getElementById('batch-counter').textContent = `${filled} ${label} заполнено`;
 }
 
-function openBatchModal(projectName, type, namePlaceholder, saveCallback) {
-  document.getElementById('batch-modal-title').textContent = `Добавить позиции — ${type}`;
+function openBatchModal(projectName, type, namePlaceholder, saveCallback, options = {}) {
+  batchMode = options.mode || 'work-specs';
+  batchSaveText = options.saveText || 'Сохранить в проект';
+  const isStagesMode = batchMode === 'stages';
+  document.getElementById('batch-modal-title').textContent = isStagesMode
+    ? 'Добавить этапы'
+    : `Добавить позиции — ${type}`;
   document.getElementById('batch-modal-subtitle').textContent = projectName;
   batchSaveCallback = saveCallback;
+  document.getElementById('btn-batch-save').textContent = batchSaveText;
+  document.querySelectorAll('#modal-batch .batch-work-field').forEach((el) => {
+    el.style.display = '';
+  });
 
   const tbody = document.getElementById('batch-tbody');
   tbody.innerHTML = '';
@@ -967,7 +1260,8 @@ document.getElementById('modal-batch').addEventListener('keydown', e => {
   if (!cell.classList.contains('batch-cell')) return;
   if (e.key !== 'Tab' && e.key !== 'Enter') return;
   e.preventDefault();
-  const cells = [...document.getElementById('modal-batch').querySelectorAll('.batch-cell')];
+  const cells = [...document.getElementById('modal-batch').querySelectorAll('.batch-cell')]
+    .filter(el => el.offsetParent !== null);
   const idx = cells.indexOf(cell);
   if (idx === cells.length - 1) {
     const tr = addBatchRow();
@@ -1029,14 +1323,21 @@ document.getElementById('btn-batch-save').addEventListener('click', async () => 
     const name = tr.querySelector('.batch-name').value.trim();
     const unit = tr.querySelector('.batch-unit').value.trim();
     const qty  = parseFloat(tr.querySelector('.batch-qty').value);
+    if (batchMode === 'stages') {
+      if (name && qty > 0) items.push({ name, unit: unit || undefined, quantity: qty });
+      return;
+    }
     if (name && qty > 0) items.push({ work_name: name, unit: unit || undefined, quantity: qty });
   });
-  if (!items.length) { showToast('Заполните хотя бы одну позицию', 'error'); return; }
+  if (!items.length) {
+    showToast(batchMode === 'stages' ? 'Заполните хотя бы один этап' : 'Заполните хотя бы одну позицию', 'error');
+    return;
+  }
 
   const btn = document.getElementById('btn-batch-save');
   btn.disabled = true; btn.textContent = 'Сохранение...';
   if (batchSaveCallback) await batchSaveCallback(items);
-  btn.disabled = false; btn.textContent = 'Сохранить в проект';
+  btn.disabled = false; btn.textContent = batchSaveText;
 });
 
 // ─── Склад объекта (вкладка проекта) ─────────────────────────
@@ -1371,6 +1672,7 @@ async function initCatalogAutocomplete(role) {
   const batchBody = document.getElementById('batch-tbody');
   if (batchBody) {
     batchBody.addEventListener('input', (e) => {
+      if (batchMode === 'stages') return;
       if (e.target.classList.contains('batch-name')) {
          const val = e.target.value.trim().toLowerCase();
          const match = catalogData.find(c => c.item_name.toLowerCase() === val);
@@ -1390,6 +1692,7 @@ async function initCatalogAutocomplete(role) {
       }
     });
     batchBody.addEventListener('focusin', (e) => {
+      if (batchMode === 'stages') return;
       if (e.target.classList.contains('batch-name') && !e.target.hasAttribute('list')) {
          e.target.setAttribute('list', 'catalog-datalist');
       }

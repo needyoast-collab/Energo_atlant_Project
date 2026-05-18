@@ -7,6 +7,11 @@ const { randomUUID } = require('crypto');
 const { ROLES } = require('../middleware/auth');
 const { checkMembership, makeJoinProject } = require('../utils/project');
 const { uploadDocSchema } = require('../utils/validate');
+const {
+  getUploadFileExtension,
+  normalizeStoredFileName,
+  normalizeUploadFileName,
+} = require('../utils/fileNames');
 
 const DOC_LABELS = {
   hidden_works_act:    'Акт скрытых работ',
@@ -121,7 +126,8 @@ async function uploadDocument(req, res, next) {
 
     const { doc_type, description } = parsed.data;
 
-    const ext = req.file.originalname.split('.').pop().toLowerCase();
+    const originalFileName = normalizeUploadFileName(req.file.originalname);
+    const ext = getUploadFileExtension(originalFileName);
     const fileKey = `documents/${id}/${doc_type}/${randomUUID()}.${ext}`;
 
     await s3.send(new PutObjectCommand({
@@ -135,7 +141,7 @@ async function uploadDocument(req, res, next) {
       `INSERT INTO project_documents (project_id, uploaded_by, doc_type, file_key, file_name, description)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, doc_type, file_name, description, uploaded_at`,
-      [id, req.session.userId, doc_type, fileKey, req.file.originalname, description || null]
+      [id, req.session.userId, doc_type, fileKey, originalFileName, description || null]
     );
 
     // Уведомить менеджера и заказчиков проекта
@@ -193,6 +199,7 @@ async function getDocuments(req, res, next) {
 
     const docs = await Promise.all(result.rows.map(async doc => ({
       ...doc,
+      file_name: normalizeStoredFileName(doc.file_name),
       url: await getSignedDownloadUrl(doc.file_key),
     })));
 

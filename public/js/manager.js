@@ -46,6 +46,8 @@ let coefficientCatalog = [];
 let activeProjectCoefficientIds = [];
 let draftProjectCoefficientIds = [];
 let activeEstimateTab = 'summary';
+let activeDocsFilter = 'all';
+let managerDocsCache = [];
 let managerPageMode = window.MANAGER_PAGE_MODE || 'dashboard';
 let isManagerProjectPage = managerPageMode === 'project';
 
@@ -704,16 +706,27 @@ function getManagerStageStatusClass(status) {
   return 'is-planned';
 }
 
+function getManagerStageDateRange(start, end) {
+  if (start && end) return `${formatDate(start)} — ${formatDate(end)}`;
+  if (start) return formatDate(start);
+  if (end) return formatDate(end);
+  return '—';
+}
+
 function getManagerStageDates(stage) {
   if (stage.is_from_vor) {
     return {
-      planned: stage.planned_date ? formatDate(stage.planned_date) : '—',
-      actual: stage.actual_date ? formatDate(stage.actual_date) : '—',
+      planned: (stage.planned_start || stage.planned_end)
+        ? getManagerStageDateRange(stage.planned_start, stage.planned_end)
+        : (stage.planned_date ? formatDate(stage.planned_date) : '—'),
+      actual: stage.actual_date
+        ? formatDate(stage.actual_date)
+        : (stage.actual_end ? formatDate(stage.actual_end) : '—'),
     };
   }
 
   return {
-    planned: `${stage.planned_start ? formatDate(stage.planned_start) : '—'} — ${stage.planned_end ? formatDate(stage.planned_end) : '—'}`,
+    planned: getManagerStageDateRange(stage.planned_start, stage.planned_end),
     actual: stage.actual_end ? formatDate(stage.actual_end) : '—',
   };
 }
@@ -902,8 +915,9 @@ document.getElementById('stages-list').addEventListener('click', async (e) => {
 });
 
 document.addEventListener('click', (e) => {
-  if (e.target.closest('.manager-stage-menu-wrap')) return;
+  if (e.target.closest('.manager-stage-menu-wrap') || e.target.closest('.manager-docs-menu-wrap')) return;
   document.querySelectorAll('.manager-stage-menu-wrap.open').forEach((item) => item.classList.remove('open'));
+  document.querySelectorAll('.manager-docs-menu-wrap.open').forEach((item) => item.classList.remove('open'));
 });
 
 document.getElementById('btn-add-stage').addEventListener('click', () => {
@@ -1380,28 +1394,212 @@ async function loadManagerEstimate(id) {
 }
 
 // ─── Документы ───────────────────────────────────────────────
-async function loadProjectDocs(id) {
-  const container = document.getElementById('project-docs-list');
-  container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
-  const { ok, data } = await apiRequest('GET', `/api/manager/projects/${id}/documents`);
-  if (!ok) { container.innerHTML = '<span style="color:var(--muted)">Ошибка загрузки</span>'; return; }
-  if (!data.data.length) { container.innerHTML = '<span style="color:var(--muted)">Документов нет</span>'; return; }
+const MANAGER_FINANCE_DOC_TYPES = new Set(['kp', 'estimate', 'contract', 'addendum', 'ks2', 'ks3']);
+const MANAGER_TECH_DOC_TYPES = new Set(['rd', 'pd', 'tz', 'tu', 'permit', 'boundary_act']);
+const MANAGER_REQUIRED_DOC_GROUPS = [
+  { label: 'КП', types: ['kp'] },
+  { label: 'Смета', types: ['estimate'] },
+  { label: 'Договор', types: ['contract'] },
+  { label: 'КС-2', types: ['ks2'] },
+  { label: 'КС-3', types: ['ks3'] },
+  { label: 'РД / ТУ', types: ['rd', 'tu'] },
+];
+const MANAGER_DOC_FILTERS = [
+  { key: 'all', label: 'Все' },
+  { key: 'finance', label: 'Финансы' },
+  { key: 'tech', label: 'Тех.' },
+  { key: 'other', label: 'Прочие' },
+];
 
-  container.innerHTML = data.data.map(doc => `
-    <div data-doc-id="${doc.id}" style="display:flex;align-items:center;justify-content:space-between;padding:.6rem;border:1px solid transparent;border-bottom-color:var(--border);border-radius:8px">
-      <div>
-        <div style="font-weight:600">${escHtml(docTypes[doc.doc_type] || doc.doc_type)}</div>
-        <div style="color:var(--muted);font-size:.8rem">${escHtml(doc.file_name)}${doc.description ? ' — ' + escHtml(doc.description) : ''}</div>
-        <div style="color:var(--muted);font-size:.78rem">${formatDate(doc.uploaded_at)} · ${escHtml(doc.uploaded_by_name)}</div>
-      </div>
-      <div style="display:flex;gap:.4rem;flex-shrink:0;margin-left:.75rem">
-        <a href="${doc.url}" target="_blank" class="btn btn-outline btn-sm" style="font-size:.78rem">Скачать</a>
-        ${doc.uploaded_by_id === currentUser.id
-      ? `<button class="btn btn-sm" style="font-size:.78rem;color:var(--muted);border:1px solid var(--border);background:transparent"
-               data-action="delete-doc" data-id="${doc.id}">✕</button>` : ''}
+function getManagerDocKind(docType) {
+  if (MANAGER_FINANCE_DOC_TYPES.has(docType)) {
+    return { label: 'Финансовый', className: 'is-finance' };
+  }
+  if (MANAGER_TECH_DOC_TYPES.has(docType)) {
+    return { label: 'Технический', className: 'is-tech' };
+  }
+  return { label: 'Прочее', className: '' };
+}
+
+function getManagerDocExt(fileName = '') {
+  const ext = String(fileName).split('.').pop();
+  if (!ext || ext === fileName) return 'DOC';
+  return ext.slice(0, 4).toUpperCase();
+}
+
+function getManagerFilesLabel(count) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${count} файл`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} файла`;
+  return `${count} файлов`;
+}
+
+function renderManagerDocsSummary(docs) {
+  const container = document.getElementById('manager-docs-summary');
+  if (!container) return;
+
+  const latest = docs[0];
+  const checklist = MANAGER_REQUIRED_DOC_GROUPS.map(item => {
+    const doc = docs.find(candidate => item.types.includes(candidate.doc_type));
+    return { ...item, doc };
+  });
+  const readyCount = checklist.filter(item => item.doc).length;
+
+  container.innerHTML = `
+    <div class="manager-docs-summary-head">
+      <div class="manager-docs-summary-title">Обязательные документы</div>
+      <div class="manager-docs-summary-subtitle">
+        ${latest ? `Последнее обновление: ${formatDate(latest.uploaded_at)}` : 'Закрывайте архив по мере движения проекта.'}
       </div>
     </div>
-  `).join('');
+    <div class="manager-docs-check-progress">
+      <span>${readyCount} из ${checklist.length}</span>
+      <div><i style="width:${Math.round((readyCount / checklist.length) * 100)}%"></i></div>
+    </div>
+    <div class="manager-docs-checklist">
+      ${checklist.map(item => `
+        <div class="manager-docs-check ${item.doc ? 'is-ready' : ''}">
+          <span>${item.doc ? '✓' : '—'}</span>
+          <div>
+            <strong>${escHtml(item.label)}</strong>
+            <em>${item.doc ? escHtml(item.doc.file_name) : 'Не загружено'}</em>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="manager-docs-total-line">
+      <div>
+        <span>Всего в архиве</span>
+        <strong>${docs.length}</strong>
+      </div>
+    </div>
+  `;
+}
+
+function renderManagerNextDoc(docs) {
+  const container = document.getElementById('manager-docs-next');
+  if (!container) return;
+
+  const nextItem = MANAGER_REQUIRED_DOC_GROUPS.find(item =>
+    !docs.some(doc => item.types.includes(doc.doc_type))
+  );
+
+  if (!nextItem) {
+    container.innerHTML = `
+      <div class="manager-docs-next-card is-complete">
+        <span>✓</span>
+        <div>
+          <strong>Обязательный комплект собран</strong>
+          <p>Можно загружать дополнительные файлы по проекту.</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="manager-docs-next-card">
+      <span>→</span>
+      <div>
+        <strong>Следующий документ: ${escHtml(nextItem.label)}</strong>
+        <p>Подставьте тип в форму и загрузите нужный файл.</p>
+      </div>
+      <button type="button" data-action="select-next-doc" data-doc-type="${nextItem.types[0]}">Выбрать тип</button>
+    </div>
+  `;
+}
+
+function renderManagerDocRow(doc) {
+  const kind = getManagerDocKind(doc.doc_type);
+  const canDelete = String(doc.uploaded_by_id) === String(currentUser.id);
+
+  return `
+    <article class="manager-docs-row" data-doc-id="${doc.id}">
+      <div class="manager-docs-icon">${escHtml(getManagerDocExt(doc.file_name))}</div>
+      <div class="manager-docs-row-main">
+        <div class="manager-docs-row-head">
+          <strong>${escHtml(docTypes[doc.doc_type] || doc.doc_type)}</strong>
+          <span class="manager-docs-kind ${kind.className}">${kind.label}</span>
+        </div>
+        <div class="manager-docs-file-name">${escHtml(doc.file_name)}</div>
+      </div>
+      <div class="manager-docs-actions">
+        <a href="${doc.url}" target="_blank" class="manager-docs-action manager-docs-download"><span>↓</span> Скачать</a>
+        ${canDelete ? `
+          <div class="manager-docs-menu-wrap">
+            <button class="manager-docs-menu-btn" type="button" data-doc-menu aria-label="Действия по документу">...</button>
+            <div class="manager-docs-menu">
+              <button class="danger" type="button" data-action="delete-doc" data-id="${doc.id}"><span>×</span> Удалить</button>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    </article>
+  `;
+}
+
+function matchesManagerDocFilter(doc, filter) {
+  if (filter === 'finance') return MANAGER_FINANCE_DOC_TYPES.has(doc.doc_type);
+  if (filter === 'tech') return MANAGER_TECH_DOC_TYPES.has(doc.doc_type);
+  if (filter === 'other') {
+    return !MANAGER_FINANCE_DOC_TYPES.has(doc.doc_type) && !MANAGER_TECH_DOC_TYPES.has(doc.doc_type);
+  }
+  return true;
+}
+
+function renderManagerDocsList(docs) {
+  const container = document.getElementById('project-docs-list');
+  if (!container) return;
+
+  if (!docs.length) {
+    container.innerHTML = '<div class="manager-docs-empty">Документов пока нет. Загрузите первый файл через форму выше.</div>';
+    return;
+  }
+
+  const filteredDocs = docs.filter(doc => matchesManagerDocFilter(doc, activeDocsFilter));
+  const counter = activeDocsFilter === 'all'
+    ? getManagerFilesLabel(docs.length)
+    : `${filteredDocs.length} из ${docs.length}`;
+
+  container.innerHTML = `
+    <div class="manager-docs-list-head">
+      <div>
+        <strong>Архив документов</strong>
+        <span>Загруженные файлы по проекту</span>
+      </div>
+      <div class="manager-docs-list-tools">
+        <div class="manager-docs-filters">
+          ${MANAGER_DOC_FILTERS.map(filter => `
+            <button type="button" data-doc-filter="${filter.key}" class="${activeDocsFilter === filter.key ? 'active' : ''}">
+              ${filter.label}
+            </button>
+          `).join('')}
+        </div>
+        <em>${counter}</em>
+      </div>
+    </div>
+    ${filteredDocs.length
+      ? filteredDocs.map(renderManagerDocRow).join('')
+      : '<div class="manager-docs-empty">В этой категории документов пока нет.</div>'}
+  `;
+}
+
+async function loadProjectDocs(id) {
+  const container = document.getElementById('project-docs-list');
+  container.innerHTML = '<div class="manager-docs-empty">Загрузка документов...</div>';
+  const { ok, data } = await apiRequest('GET', `/api/manager/projects/${id}/documents`);
+  if (!ok) {
+    renderManagerDocsSummary([]);
+    container.innerHTML = '<div class="manager-docs-empty">Не удалось загрузить документы.</div>';
+    return;
+  }
+
+  const docs = data.data || [];
+  managerDocsCache = docs;
+  renderManagerDocsSummary(docs);
+  renderManagerNextDoc(docs);
+  renderManagerDocsList(docs);
 
   if (pendingDocumentHighlightId) {
     const target = container.querySelector(`[data-doc-id="${pendingDocumentHighlightId}"]`);
@@ -1414,21 +1612,51 @@ async function loadProjectDocs(id) {
 }
 
 document.getElementById('project-docs-list').addEventListener('click', async (e) => {
+  const filterBtn = e.target.closest('[data-doc-filter]');
+  if (filterBtn) {
+    activeDocsFilter = filterBtn.dataset.docFilter || 'all';
+    renderManagerDocsList(managerDocsCache);
+    return;
+  }
+
+  const menuBtn = e.target.closest('[data-doc-menu]');
+  if (menuBtn) {
+    const wrap = menuBtn.closest('.manager-docs-menu-wrap');
+    document.querySelectorAll('.manager-docs-menu-wrap.open').forEach((item) => {
+      if (item !== wrap) item.classList.remove('open');
+    });
+    wrap?.classList.toggle('open');
+    return;
+  }
+
   const btn = e.target.closest('[data-action="delete-doc"]');
   if (!btn) return;
+  btn.closest('.manager-docs-menu-wrap')?.classList.remove('open');
   if (!confirm('Удалить документ?')) return;
   const { ok, data } = await apiRequest('DELETE', `/api/manager/documents/${btn.dataset.id}`);
   if (ok) { showToast('Документ удалён', 'success'); loadProjectDocs(activeProjectId); }
   else showToast(data.error, 'error');
 });
 
+document.getElementById('manager-docs-next')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action="select-next-doc"]');
+  if (!btn) return;
+
+  const select = document.getElementById('doc-type-select');
+  select.value = btn.dataset.docType || '';
+  select.focus();
+});
+
 document.getElementById('upload-doc-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   const btn = e.target.querySelector('button[type=submit]');
-  btn.disabled = true; btn.textContent = 'Загрузка...';
+  btn.disabled = true;
+  const oldHtml = btn.innerHTML;
+  btn.textContent = 'Загрузка...';
   const { ok, data } = await apiRequest('POST', `/api/manager/projects/${activeProjectId}/documents`, fd);
-  btn.disabled = false; btn.textContent = 'Загрузить';
+  btn.disabled = false;
+  btn.innerHTML = oldHtml;
   if (ok) { showToast('Документ загружен', 'success'); e.target.reset(); loadProjectDocs(activeProjectId); }
   else showToast(data.error, 'error');
 });

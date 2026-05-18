@@ -71,9 +71,17 @@ async function init() {
     initNotificationBell();
     initRequestPhonePrefill();
     await loadProjects();
+    openInitialSectionFromUrl();
   } finally {
     window.hidePreloader?.();
   }
+}
+
+function openInitialSectionFromUrl() {
+  const section = new URLSearchParams(window.location.search).get('section');
+  if (!section) return;
+  const button = document.querySelector(`.nav-item[data-section="${section}"]`);
+  if (button) button.click();
 }
 
 // ─── Навигация ────────────────────────────────────────────────
@@ -115,11 +123,7 @@ async function loadProjects() {
   container.innerHTML = projectsList.map(p => {
     const stageTotal = parseInt(p.stage_total) || 0;
     const stageDone = parseInt(p.stage_done) || 0;
-    const workPlanTotal = Number(p.work_plan_total || 0);
-    const workActualTotal = Number(p.work_actual_total || 0);
-    const pct = workPlanTotal > 0
-      ? Math.min(100, Math.round(workActualTotal / workPlanTotal * 100))
-      : stageTotal ? Math.round(stageDone / stageTotal * 100) : 0;
+    const pct = stageTotal ? Math.round(stageDone / stageTotal * 100) : 0;
     const managerName = p.manager_name || 'Менеджер назначен';
     const isActive = p.status === 'work';
 
@@ -167,47 +171,19 @@ async function loadProjects() {
   }).join('');
 }
 
-async function openCustomerProject(projectId, tab = 'stages', notification = null) {
-  activeProjectId = projectId;
-  pendingDocumentHighlightId = notification?.entity_type === 'document' ? String(notification.entity_id || '') : null;
-  const project = projectsList.find(p => p.id == activeProjectId);
-  if (!project) return;
-
-  document.getElementById('modal-project-title').textContent = project.name;
-  document.getElementById('modal-project-meta').innerHTML = `
-    <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.5rem">
-      ${badge(project.status)}
-      <span style="color:var(--muted);font-size:.85rem">${escHtml(project.code)}</span>
-      ${project.address ? `<span style="color:var(--muted);font-size:.85rem">📍 ${escHtml(project.address)}</span>` : ''}
-    </div>
-    ${project.contract_value ? `<div style="color:var(--muted);font-size:.85rem">Сумма договора: <strong style="color:var(--text)">${formatMoney(project.contract_value)}</strong></div>` : ''}
-    ${project.manager_name ? `<div style="color:var(--muted);font-size:.85rem">Менеджер: <strong style="color:var(--text)">${escHtml(project.manager_name)}</strong></div>` : ''}
-  `;
-
-  switchTab(tab);
-  openModal('modal-project');
-  if (tab === 'documents') {
-    await loadDocuments(activeProjectId);
-    await clearDocDot(activeProjectId);
-    return;
-  }
-  if (tab === 'warehouse') {
-    await loadWarehouse(activeProjectId);
-    return;
-  }
-  await loadStages(activeProjectId);
+async function openCustomerProject(projectId, tab = 'overview', notification = null) {
+  const url = new URL('/customer_project.html', window.location.origin);
+  url.searchParams.set('id', projectId);
+  url.searchParams.set('tab', tab);
 
   if (notification?.entity_type === 'stage' && notification.entity_id) {
-    const stage = stagesCache.find(s => String(s.id) === String(notification.entity_id));
-    if (stage) openStageDetailModal(stage);
-    return;
+    url.searchParams.set('stage', notification.entity_id);
+  }
+  if (notification?.entity_type === 'document' && notification.entity_id) {
+    url.searchParams.set('doc', notification.entity_id);
   }
 
-  const stageName = extractStageNameFromNotification(notification?.message || '');
-  if (stageName) {
-    const stage = stagesCache.find(s => s.name === stageName);
-    if (stage) openStageDetailModal(stage);
-  }
+  window.location.href = url.toString();
 }
 
 function extractStageNameFromNotification(message) {
@@ -556,7 +532,7 @@ function renderFilesList() {
   const fileNameEl = document.getElementById('req-selected-filename');
   const errorEl = document.getElementById('req-file-error');
   const ALLOWED = ['pdf', 'dwg', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'webp'];
-  const MAX = 130 * 1024 * 1024;
+  const MAX = 10 * 1024 * 1024;
 
   fileInput.addEventListener('change', () => {
     errorEl.style.display = 'none';
@@ -579,7 +555,7 @@ function renderFilesList() {
       errorEl.style.display = ''; return;
     }
     if (file.size > MAX) {
-      errorEl.textContent = 'Файл превышает 130 МБ';
+      errorEl.textContent = 'Файл превышает 10 МБ';
       errorEl.style.display = ''; return;
     }
     const docType = document.getElementById('req-doc-type').value;
