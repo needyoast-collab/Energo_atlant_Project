@@ -7,53 +7,17 @@ let pendingDocumentHighlightId = null;
 // projectId (string) → array of unread document notification ids
 let unreadDocNotifs = {};
 
-const VOR_STATUS_LABELS = { planned: 'Запланировано', done: 'Выполнено', not_done: 'Не выполнено' };
-
-// ─── Маппинг статусов для заказчика ──────────────────────────
-const CUSTOMER_STATUS_MAP = {
-  lead: 'Рассматривается',
-  qualification: 'Рассматривается',
-  visit: 'Рассматривается',
-  offer: 'Согласование',
-  negotiation: 'Согласование',
-  contract: 'Договор подписан',
-  work: 'В работе',
-  won: 'Завершён',
-  lost: 'Отменён',
-};
-
-const CUSTOMER_STATUS_CLASS = {
-  'Рассматривается': 'badge-gray',
-  'Согласование': 'badge-yellow',
-  'Договор подписан': 'badge-blue',
-  'В работе': 'badge-green',
-  'Завершён': 'badge-gray',
-  'Отменён': 'badge-red',
-};
-
 function customerBadge(status) {
-  const label = CUSTOMER_STATUS_MAP[status] || status;
-  const cls = CUSTOMER_STATUS_CLASS[label] || 'badge-gray';
+  const label = CustomerStatus.getProjectLabel(status);
+  const cls = CustomerStatus.getProjectBadgeClass(status);
   return `<span class="badge ${cls}">${label}</span>`;
 }
 
-const DOC_LABELS = {
-  hidden_works_act: 'Акт скрытых работ',
-  exec_scheme: 'Исполнительная схема',
-  geodetic_survey: 'Геодезическая съёмка',
-  general_works_log: 'Общий журнал работ',
-  author_supervision: 'Журнал авторского надзора',
-  interim_acceptance: 'Акт промежуточной приёмки',
-  cable_test_act: 'Акт испытания КЛ',
-  measurement_protocol: 'Протокол измерений',
-  rd: 'Рабочая документация (РД)', pd: 'Проектная документация (ПД)',
-  tz: 'Техническое задание (ТЗ)', tu: 'Технические условия (ТУ)',
-  kp: 'Коммерческое предложение (КП)', estimate: 'Смета',
-  contract: 'Договор подряда', addendum: 'Дополнительное соглашение',
-  ks2: 'Акт КС-2', ks3: 'Справка КС-3',
-  permit: 'Разрешение на строительство', boundary_act: 'Акт разграничения',
-  other: 'Прочее',
-};
+function customerStageBadge(stage) {
+  return `<span class="badge ${CustomerStatus.getStageBadgeClass(stage)} customer-stage-badge">${escHtml(CustomerStatus.getStageLabel(stage))}</span>`;
+}
+
+const DOC_LABELS = window.PROJECT_DOC_LABELS;
 
 const WAREHOUSE_SOURCE_LABELS = {
   company: 'Склад компании',
@@ -64,7 +28,7 @@ const WAREHOUSE_SOURCE_LABELS = {
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
   try {
-    currentUser = await requireAuth('customer');
+    currentUser = await requireAuth(window.APP_ROLES.CUSTOMER);
     if (!currentUser) return;
     document.getElementById('user-name').textContent = currentUser.name;
     renderUserAvatar(currentUser);
@@ -112,10 +76,10 @@ async function loadProjects() {
   const container = document.getElementById('projects-list');
   if (!projectsList.length) {
     container.innerHTML = `
-      <div class="card" style="color:var(--muted);text-align:center;padding:2.5rem;grid-column:1/-1">
-        <div style="font-size:2rem;margin-bottom:1rem">🏗</div>
-        <div style="margin-bottom:.5rem">У вас пока нет объектов</div>
-        <div style="font-size:.85rem">Оставьте заявку или войдите по коду проекта</div>
+      <div class="card customer-empty-projects">
+        <div class="customer-empty-icon">🏗</div>
+        <div class="customer-empty-title">У вас пока нет объектов</div>
+        <div class="customer-empty-text">Оставьте заявку или войдите по коду проекта</div>
       </div>`;
     return;
   }
@@ -140,11 +104,9 @@ async function loadProjects() {
       <div class="pcc-progress-wrap">
         <div class="pcc-progress-label">
           <span>Прогресс</span>
-          <span style="color:var(--accent);font-weight:700">${pct}%</span>
+          <span class="pcc-progress-value">${pct}%</span>
         </div>
-        <div class="pcc-progress-bar">
-          <div class="pcc-progress-fill" style="width:${pct}%"></div>
-        </div>
+        <progress class="pcc-progress-bar" value="${pct}" max="100"></progress>
       </div>
       <div class="pcc-stats-row">
         <div class="pcc-stat">
@@ -152,20 +114,20 @@ async function loadProjects() {
           <div class="pcc-stat-lbl">фото</div>
         </div>
         <div class="pcc-stat">
-          <div class="pcc-stat-val" style="position:relative;display:inline-block">
+          <div class="pcc-stat-val pcc-stat-docs">
             ${p.doc_count}
             ${unreadDocNotifs[String(p.id)]?.length ? `<span class="doc-new-dot" data-project-id="${p.id}"></span>` : ''}
           </div>
           <div class="pcc-stat-lbl">документов</div>
         </div>
         <div class="pcc-stat">
-          <div class="pcc-stat-val">${stageDone}<span style="font-size:.9rem;color:var(--muted)">/${stageTotal}</span></div>
+          <div class="pcc-stat-val">${stageDone}<span class="pcc-stat-total">/${stageTotal}</span></div>
           <div class="pcc-stat-lbl">этапов</div>
         </div>
       </div>
       <div class="pcc-footer">
-        <span style="color:var(--muted)">Менеджер: <strong style="color:var(--text)">${escHtml(managerName)}</strong></span>
-        <span style="color:${isActive ? 'var(--success)' : 'var(--muted)'}">● ${isActive ? 'Онлайн' : 'Офлайн'}</span>
+        <span class="pcc-manager">Менеджер: <strong>${escHtml(managerName)}</strong></span>
+        <span class="${isActive ? 'pcc-online' : 'pcc-offline'}">● ${isActive ? 'Онлайн' : 'Офлайн'}</span>
       </div>
     </div>`;
   }).join('');
@@ -228,9 +190,9 @@ async function clearDocDot(projectId) {
 }
 
 function switchTab(tab) {
-  document.getElementById('tab-stages').style.display = tab === 'stages' ? '' : 'none';
-  document.getElementById('tab-documents').style.display = tab === 'documents' ? '' : 'none';
-  document.getElementById('tab-warehouse').style.display = tab === 'warehouse' ? '' : 'none';
+  document.getElementById('tab-stages').classList.toggle('is-hidden', tab !== 'stages');
+  document.getElementById('tab-documents').classList.toggle('is-hidden', tab !== 'documents');
+  document.getElementById('tab-warehouse').classList.toggle('is-hidden', tab !== 'warehouse');
   document.querySelectorAll('[data-tab]').forEach(b => {
     b.className = b.dataset.tab === tab ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
   });
@@ -256,28 +218,25 @@ async function loadStages(id) {
   }
 
   document.getElementById('stages-progress').innerHTML = total ? `
-    <div style="margin-bottom:1rem">
-      <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:.4rem">
-        <span style="color:var(--muted)">Готовность</span>
-        <span style="font-weight:700;color:var(--accent)">${pct}%</span>
+    <div class="customer-stage-progress-wrap">
+      <div class="customer-stage-progress-label">
+        <span>Готовность</span>
+        <span class="customer-stage-progress-value">${pct}%</span>
       </div>
-      <div style="height:6px;background:var(--border);border-radius:9999px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:9999px;transition:width .5s"></div>
-      </div>
+      <progress class="customer-stage-progress-bar" value="${pct}" max="100"></progress>
     </div>
   ` : '';
 
   const list = document.getElementById('stages-list');
   if (!stages.length) {
-    list.innerHTML = '<div style="color:var(--muted)">Этапы ещё не добавлены</div>';
+    list.innerHTML = '<div class="text-muted">Этапы ещё не добавлены</div>';
     return;
   }
 
   stagesCache = stages;
 
   list.innerHTML = stages.map(s => {
-    const isNotDone = s.status === 'not_done';
-    const isAgreed = s.customer_agreed;
+    const needsAttention = CustomerStatus.getStageKind(s) === 'attention';
 
     let subInfo = '';
     if (s.is_from_vor) {
@@ -292,19 +251,15 @@ async function loadStages(id) {
     }
     if (s.note && !s.is_from_vor) subInfo += ` · пояснение: ${escHtml(s.note)}`;
 
-    const statusBadge = isNotDone
-      ? `<span class="badge badge-red" style="font-size:.72rem">${isAgreed ? 'Согласовано' : 'Требует согласования'}</span>`
-      : badge(s.status);
-
     return `
-    <div class="stage-item" style="cursor:pointer${isNotDone && !isAgreed ? ';border-left:2px solid var(--danger);padding-left:.5rem' : ''}"
+    <div class="stage-item customer-stage-item ${needsAttention ? 'needs-attention' : ''}"
          data-action="open-stage" data-id="${s.id}">
-      <div class="stage-status-dot dot-${s.status}"></div>
-      <div style="flex:1">
+      <div class="stage-status-dot ${CustomerStatus.getStageDotClass(s)}"></div>
+      <div class="customer-stage-content">
         <div class="stage-name">${escHtml(s.name)}</div>
         <div class="stage-dates">${subInfo}</div>
       </div>
-      ${statusBadge}
+      ${customerStageBadge(s)}
     </div>`;
   }).join('');
 }
@@ -325,9 +280,6 @@ function openStageDetailModal(s) {
 
   const isNotDone = s.status === 'not_done';
   const isAgreed = s.customer_agreed;
-  const statusLabel = s.is_from_vor
-    ? (VOR_STATUS_LABELS[s.status] || s.status)
-    : (s.status === 'pending' ? 'Не начат' : s.status === 'in_progress' ? 'В работе' : s.status === 'done' ? 'Завершён' : s.status);
 
   let detailRows = '';
 
@@ -343,41 +295,40 @@ function openStageDetailModal(s) {
   }
 
   const noteBlock = s.note
-    ? `<div style="margin-top:1rem">
-         <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem">Пояснение</div>
-         <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem;
-                     font-size:.88rem;line-height:1.5${isNotDone ? ';border-color:var(--danger)' : ''}">${escHtml(s.note)}</div>
+    ? `<div class="customer-note-block">
+         <div class="customer-note-label">Пояснение</div>
+         <div class="customer-note-text ${isNotDone ? 'is-danger' : ''}">${escHtml(s.note)}</div>
        </div>`
     : '';
 
   const approveBlock = (isNotDone && !isAgreed)
-    ? `<div style="margin-top:1.25rem;padding:1rem;background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:10px">
-         <div style="color:var(--danger);font-weight:600;font-size:.88rem;margin-bottom:.5rem">⚠ Требует вашего согласования</div>
-         <p style="color:var(--muted);font-size:.82rem;margin-bottom:.75rem">
+    ? `<div class="customer-approval-card">
+         <div class="customer-approval-title">⚠ Требует вашего согласования</div>
+         <p class="customer-approval-text">
            Ознакомьтесь с примечанием прораба и подтвердите, что приняли информацию к сведению.
          </p>
          <button class="btn btn-primary btn-sm" id="btn-approve-in-modal">Согласовать</button>
        </div>`
     : isAgreed && isNotDone
-      ? `<div style="margin-top:1rem;color:var(--muted);font-size:.85rem">✓ Вы согласовали этот этап</div>`
+      ? `<div class="customer-stage-approved">✓ Вы согласовали этот этап</div>`
       : '';
 
   const photosBlock = Number(s.photo_count) > 0
-    ? `<div style="margin-top:1.25rem">
-         <div style="font-size:.8rem;color:var(--muted);margin-bottom:.5rem">Фото (${s.photo_count})</div>
-         <div id="stage-photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem">
-           <div style="color:var(--muted);font-size:.82rem">Загрузка...</div>
+    ? `<div class="customer-photos-block">
+         <div class="customer-photos-title">Фото (${s.photo_count})</div>
+         <div id="stage-photos-grid" class="customer-photos-grid">
+           <div class="text-muted customer-empty-text">Загрузка...</div>
          </div>
        </div>`
     : '';
 
   document.getElementById('stage-detail-body').innerHTML = `
-    <div style="margin-bottom:.75rem">
-      <div style="font-size:1.15rem;font-weight:700;color:var(--accent);line-height:1.25">${escHtml(project?.name || 'Проект')}</div>
-      <div style="font-size:.95rem;color:var(--muted);margin-top:.2rem">${escHtml(s.name)}</div>
+    <div class="customer-stage-detail-head">
+      <div class="customer-stage-project-name">${escHtml(project?.name || 'Проект')}</div>
+      <div class="customer-stage-name-muted">${escHtml(s.name)}</div>
     </div>
-    <div style="margin-bottom:1rem">${badge(s.status)}</div>
-    <div style="display:grid;gap:.4rem">${detailRows}</div>
+    <div class="customer-stage-badge-row">${customerStageBadge(s)}</div>
+    <div class="customer-stage-detail-grid">${detailRows}</div>
     ${noteBlock}
     ${photosBlock}
     ${approveBlock}
@@ -405,8 +356,8 @@ function openStageDetailModal(s) {
 }
 
 function row(label, value) {
-  return `<div style="display:flex;gap:.5rem;font-size:.88rem">
-    <span style="color:var(--muted);min-width:130px;flex-shrink:0">${label}</span>
+  return `<div class="customer-stage-detail-row">
+    <span class="customer-stage-detail-label">${label}</span>
     <span>${value}</span>
   </div>`;
 }
@@ -415,7 +366,7 @@ async function loadStagePhotos(stageId) {
   const grid = document.getElementById('stage-photos-grid');
   if (!grid) return;
   const { ok, data } = await apiRequest('GET', `/api/customer/stages/${stageId}/photos`);
-  if (!ok || !data.data.length) { grid.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Нет фото</span>'; return; }
+  if (!ok || !data.data.length) { grid.innerHTML = '<span class="text-muted customer-empty-text">Нет фото</span>'; return; }
   grid.innerHTML = data.data.map(p => `
     <a href="${p.url}" target="_blank" rel="noopener" class="stage-photo-thumb">
       <img src="${p.url}" alt="${escHtml(p.description || '')}">
@@ -426,27 +377,27 @@ async function loadStagePhotos(stageId) {
 // ─── Документы ───────────────────────────────────────────────
 async function loadDocuments(id) {
   const container = document.getElementById('documents-list');
-  container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
+  container.innerHTML = '<span class="text-muted">Загрузка...</span>';
 
   const { ok, data } = await apiRequest('GET', `/api/customer/projects/${id}/documents`);
-  if (!ok) { container.innerHTML = '<span style="color:var(--danger)">Ошибка загрузки</span>'; return; }
+  if (!ok) { container.innerHTML = '<span class="text-danger">Ошибка загрузки</span>'; return; }
 
   if (!data.data.length) {
-    container.innerHTML = '<span style="color:var(--muted)">Документов пока нет</span>';
+    container.innerHTML = '<span class="text-muted">Документов пока нет</span>';
     return;
   }
 
   container.innerHTML = data.data.map(doc => `
-    <div data-doc-id="${doc.id}" style="display:flex;align-items:center;justify-content:space-between;padding:.6rem;border:1px solid transparent;border-bottom-color:var(--border);border-radius:8px">
+    <div data-doc-id="${doc.id}" class="customer-doc-row">
       <div>
-        <div style="font-weight:600;font-size:.9rem">${escHtml(DOC_LABELS[doc.doc_type] || doc.doc_type)}</div>
-        <div style="color:var(--muted);font-size:.8rem">
+        <div class="customer-doc-title">${escHtml(doc.doc_label || DOC_LABELS[doc.doc_type] || doc.doc_type)}</div>
+        <div class="customer-doc-file">
           ${escHtml(doc.file_name)}
           ${doc.description ? ' — ' + escHtml(doc.description) : ''}
         </div>
-        <div style="color:var(--muted);font-size:.78rem">${formatDate(doc.uploaded_at)} · ${escHtml(doc.uploaded_by_name)}</div>
+        <div class="customer-doc-meta">${formatDate(doc.uploaded_at)} · ${escHtml(doc.uploaded_by_name)}</div>
       </div>
-      <a href="${doc.url}" target="_blank" class="btn btn-outline btn-sm" style="flex-shrink:0;margin-left:.75rem;font-size:.78rem">
+      <a href="${doc.url}" target="_blank" class="btn btn-outline btn-sm customer-doc-download">
         Скачать
       </a>
     </div>
@@ -465,29 +416,36 @@ async function loadDocuments(id) {
 // ─── Материалы (склад) ───────────────────────────────────────
 async function loadWarehouse(id) {
   const container = document.getElementById('warehouse-list');
-  container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
+  container.innerHTML = '<span class="text-muted">Загрузка...</span>';
   const { ok, data } = await apiRequest('GET', `/api/customer/projects/${id}/warehouse`);
-  if (!ok) { container.innerHTML = '<span style="color:var(--danger)">Ошибка загрузки</span>'; return; }
-  if (!data.data.length) { container.innerHTML = '<span style="color:var(--muted)">Позиций нет</span>'; return; }
+  if (!ok) { container.innerHTML = '<span class="text-danger">Ошибка загрузки</span>'; return; }
+  if (!data.data.length) { container.innerHTML = '<span class="text-muted">Позиций нет</span>'; return; }
 
   container.innerHTML = `
-    <div style="color:var(--muted);font-size:.82rem;margin-bottom:.75rem">Остатки материалов на объекте</div>
+    <div class="customer-warehouse-note">Остатки материалов на объекте</div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr><th>Материал</th><th>Ед.</th><th>Получено</th><th>Использовано</th><th>Остаток</th></tr>
         </thead>
         <tbody>
-          ${data.data.map(r => `
+          ${data.data.map(r => {
+            const balanceClass = Number(r.qty_balance) > 0
+              ? 'text-success'
+              : Number(r.qty_balance) < 0
+                ? 'text-danger'
+                : 'text-muted';
+            return `
             <tr>
               <td>${escHtml(r.material_name)}</td>
               <td>${escHtml(r.unit || '—')}</td>
               <td>${r.qty_total}</td>
               <td>${r.qty_used}</td>
-              <td style="font-weight:600;color:${Number(r.qty_balance) > 0 ? 'var(--success)' : Number(r.qty_balance) < 0 ? 'var(--danger)' : 'var(--muted)'}">
+              <td class="customer-warehouse-balance ${balanceClass}">
                 ${r.qty_balance}
               </td>
-            </tr>`).join('')}
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>`;
@@ -496,14 +454,7 @@ async function loadWarehouse(id) {
 // ─── Заявка — мульти-файловая очередь ────────────────────────
 let attachedFiles = [];
 
-const REQUEST_DOC_LABELS = {
-  tu: 'Технические условия',
-  rd: 'Рабочая документация',
-  pd: 'Проектная документация',
-  tz: 'Техническое задание',
-  situation_plan: 'Ситуационный план',
-  other: 'Прочее',
-};
+const REQUEST_DOC_LABELS = window.REQUEST_DOC_LABELS;
 
 function truncateFilename(name, maxLen = 40) {
   if (name.length <= maxLen) return name;
@@ -516,14 +467,11 @@ function renderFilesList() {
   const container = document.getElementById('req-files-list');
   if (!attachedFiles.length) { container.innerHTML = ''; return; }
   container.innerHTML = attachedFiles.map((f, i) => `
-    <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;
-                background:var(--bg3);border:1px solid var(--border);border-radius:6px;margin-top:.3rem;font-size:.82rem">
-      <span style="color:var(--muted);flex-shrink:0;white-space:nowrap">${escHtml(REQUEST_DOC_LABELS[f.docType] || '—')}</span>
-      <span style="color:var(--muted)">|</span>
-      <span style="color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(truncateFilename(f.file.name))}</span>
-      <button type="button" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;
-                                   padding:0 .2rem;line-height:1;flex-shrink:0"
-              data-remove-file="${i}">×</button>
+    <div class="request-file-item">
+      <span class="request-file-type">${escHtml(REQUEST_DOC_LABELS[f.docType] || '—')}</span>
+      <span class="request-file-divider">|</span>
+      <span class="request-file-name">${escHtml(truncateFilename(f.file.name))}</span>
+      <button type="button" class="request-file-remove" data-remove-file="${i}">×</button>
     </div>`).join('');
 }
 
@@ -535,33 +483,33 @@ function renderFilesList() {
   const MAX = 10 * 1024 * 1024;
 
   fileInput.addEventListener('change', () => {
-    errorEl.style.display = 'none';
+    errorEl.classList.add('is-hidden');
     const file = fileInput.files[0];
-    if (!file) { fileNameEl.style.display = 'none'; return; }
+    if (!file) { fileNameEl.classList.add('is-hidden'); return; }
     fileNameEl.textContent = truncateFilename(file.name);
-    fileNameEl.style.display = '';
+    fileNameEl.classList.remove('is-hidden');
   });
 
   document.getElementById('btn-add-file').addEventListener('click', () => {
-    errorEl.style.display = 'none';
+    errorEl.classList.add('is-hidden');
     const file = fileInput.files[0];
     if (!file) {
       errorEl.textContent = 'Сначала выберите файл';
-      errorEl.style.display = ''; return;
+      errorEl.classList.remove('is-hidden'); return;
     }
     const ext = file.name.split('.').pop().toLowerCase();
     if (!ALLOWED.includes(ext)) {
       errorEl.textContent = 'Недопустимый формат. Разрешены: PDF, DWG, DOC, DOCX, XLS, XLSX, JPG, PNG, WEBP';
-      errorEl.style.display = ''; return;
+      errorEl.classList.remove('is-hidden'); return;
     }
     if (file.size > MAX) {
       errorEl.textContent = 'Файл превышает 10 МБ';
-      errorEl.style.display = ''; return;
+      errorEl.classList.remove('is-hidden'); return;
     }
     const docType = document.getElementById('req-doc-type').value;
     attachedFiles.push({ file, docType });
     fileInput.value = '';
-    fileNameEl.style.display = 'none';
+    fileNameEl.classList.add('is-hidden');
     document.getElementById('req-doc-type').value = '';
     renderFilesList();
   });
@@ -577,8 +525,8 @@ function renderFilesList() {
 function resetRequestForm() {
   attachedFiles = [];
   document.getElementById('req-files-list').innerHTML = '';
-  document.getElementById('req-selected-filename').style.display = 'none';
-  document.getElementById('req-file-error').style.display = 'none';
+  document.getElementById('req-selected-filename').classList.add('is-hidden');
+  document.getElementById('req-file-error').classList.add('is-hidden');
   document.getElementById('req-file-input').value = '';
   document.getElementById('req-doc-type').value = '';
   requestManualPhone = '';
@@ -586,7 +534,7 @@ function resetRequestForm() {
   const checkbox = document.getElementById('request-use-account-phone');
   const phoneInput = document.querySelector('#request-form [name="phone"]');
   if (checkboxWrap) {
-    checkboxWrap.style.display = currentUser?.phone ? 'flex' : 'none';
+    checkboxWrap.classList.toggle('is-hidden', !currentUser?.phone);
   }
   if (checkbox) checkbox.checked = false;
   if (phoneInput) {
@@ -602,7 +550,7 @@ function initRequestPhonePrefill() {
   if (!checkbox || !phoneInput) return;
 
   if (checkboxWrap) {
-    checkboxWrap.style.display = currentUser?.phone ? 'flex' : 'none';
+    checkboxWrap.classList.toggle('is-hidden', !currentUser?.phone);
   }
 
   const applyAccountPhone = () => {
@@ -700,11 +648,11 @@ async function loadMessages() {
       <tr>
         <td>${isOut ? `→ ${escHtml(m.receiver_name)}` : `← ${escHtml(m.sender_name)}`}</td>
         <td>${escHtml(m.subject || '(без темы)')}</td>
-        <td style="color:var(--muted);font-size:.85rem">${formatDate(m.created_at)}</td>
+        <td class="customer-message-date">${formatDate(m.created_at)}</td>
         <td>${!isOut && !m.is_read ? '<span class="badge badge-blue">Новое</span>' : '<span class="badge badge-gray">Прочитано</span>'}</td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="4" style="color:var(--muted)">Сообщений нет</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="text-muted">Сообщений нет</td></tr>';
 }
 
 document.getElementById('btn-new-message').addEventListener('click', () => {

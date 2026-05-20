@@ -4,7 +4,7 @@ let statsData = null;
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
   try {
-    currentUser = await requireAuth('partner');
+    currentUser = await requireAuth(window.APP_ROLES.PARTNER);
     if (!currentUser) return;
     document.getElementById('user-name').textContent = currentUser.name;
     renderUserAvatar(currentUser);
@@ -45,19 +45,17 @@ async function loadStats() {
   else                { level = 'Старт';   pct = 5;  nextTarget = 3; }
 
   document.getElementById('level-info').innerHTML = `
-    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+    <div class="partner-level-summary">
       <div>
-        <div style="font-family:'Stolzl',sans-serif;font-size:2rem;color:var(--accent);line-height:1">${level}</div>
-        <div style="color:var(--muted);font-size:.85rem">Комиссия: <strong style="color:var(--text)">${pct}%</strong></div>
+        <div class="partner-level-title">${level}</div>
+        <div class="partner-level-meta">Комиссия: <strong>${pct}%</strong></div>
       </div>
       ${nextTarget ? `
-        <div style="flex:1;min-width:200px">
-          <div style="color:var(--muted);font-size:.8rem;margin-bottom:.35rem">До следующего уровня: ${nextTarget - paid} клиентов</div>
-          <div style="height:6px;background:var(--border);border-radius:9999px;overflow:hidden">
-            <div style="height:100%;width:${Math.min(paid/(nextTarget)*100,100)}%;background:var(--accent);border-radius:9999px"></div>
-          </div>
+        <div class="partner-level-next">
+          <div class="partner-level-next-label">До следующего уровня: ${nextTarget - paid} клиентов</div>
+          <progress class="partner-level-progress" value="${paid}" max="${nextTarget}"></progress>
         </div>
-      ` : '<div style="color:var(--success);font-size:.9rem">Максимальный уровень!</div>'}
+      ` : '<div class="partner-level-max">Максимальный уровень!</div>'}
     </div>
   `;
 
@@ -83,18 +81,18 @@ async function loadRefs() {
 
   const tbody = document.querySelector('#refs-table tbody');
   if (!data.data.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">Рефералов пока нет. Поделитесь ссылкой!</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Рефералов пока нет. Поделитесь ссылкой!</td></tr>';
     return;
   }
 
   tbody.innerHTML = data.data.map(r => `
     <tr>
       <td><strong>${escHtml(r.referred_name)}</strong></td>
-      <td style="color:var(--muted);font-size:.85rem">${escHtml(r.referred_email)}</td>
-      <td style="color:var(--muted);font-size:.85rem">${escHtml(r.referred_role)}</td>
+      <td class="partner-table-muted">${escHtml(r.referred_email)}</td>
+      <td class="partner-table-muted">${escHtml(r.referred_role)}</td>
       <td>${r.status === 'paid' ? '<span class="badge badge-green">Оплачен</span>' : '<span class="badge badge-gray">Ожидание</span>'}</td>
       <td>${r.commission > 0 ? formatMoney(r.commission) : '—'}</td>
-      <td style="color:var(--muted);font-size:.85rem">${formatDate(r.created_at)}</td>
+      <td class="partner-table-muted">${formatDate(r.created_at)}</td>
     </tr>
   `).join('');
 }
@@ -106,17 +104,17 @@ async function loadPayouts() {
 
   const tbody = document.querySelector('#payouts-table tbody');
   if (!data.data.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">Выплат пока нет</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-muted">Выплат пока нет</td></tr>';
     return;
   }
 
   tbody.innerHTML = data.data.map(p => `
     <tr>
       <td><strong>${formatMoney(p.amount)}</strong></td>
-      <td style="color:var(--muted);font-size:.85rem;max-width:200px">${escHtml(p.payment_details)}</td>
+      <td class="partner-table-muted partner-payout-details">${escHtml(p.payment_details)}</td>
       <td>${badge(p.status)}</td>
-      <td style="color:var(--muted);font-size:.85rem">${formatDate(p.created_at)}</td>
-      <td style="color:var(--muted);font-size:.85rem">${p.processed_at ? formatDate(p.processed_at) : '—'}</td>
+      <td class="partner-table-muted">${formatDate(p.created_at)}</td>
+      <td class="partner-table-muted">${p.processed_at ? formatDate(p.processed_at) : '—'}</td>
     </tr>
   `).join('');
 }

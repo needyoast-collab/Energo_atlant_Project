@@ -10,16 +10,16 @@ const STATUS_COLORS = {
   work: '#3b82f6', won: '#22c55e', lost: '#ef4444',
 };
 
-const PROGRESS_COLORS = {
-  green: '#22c55e',
-  yellow: '#f59e0b',
-  red: '#ef4444',
-};
-
 const PROGRESS_LABELS = {
   green: 'Завершён',
   yellow: 'В работе',
   red: 'Не начат',
+};
+
+const PROGRESS_CLASSES = {
+  green: 'is-green',
+  yellow: 'is-yellow',
+  red: 'is-red',
 };
 
 const STAGE_NAMES = {
@@ -30,32 +30,21 @@ const STAGE_NAMES = {
   in_progress: 'В работе',
 };
 
-let pendingDocumentHighlightId = null;
-
 let currentUser = null;
 let activeProjectId = null;
 let activeProject = null;
 let activeRequestId = null;
 let activeRequestData = null;
 let requestIdForProject = null;
+let projectsList = [];
 let staffList = [];
-let docTypes = {};
-let activeWorkSpecEditId = null;
-let currentKpData = null;
 let coefficientCatalog = [];
 let activeProjectCoefficientIds = [];
 let draftProjectCoefficientIds = [];
-let activeEstimateTab = 'summary';
-let activeDocsFilter = 'all';
-let managerDocsCache = [];
-let managerPageMode = window.MANAGER_PAGE_MODE || 'dashboard';
+let managerPageMode = document.body?.dataset.managerPageMode || window.MANAGER_PAGE_MODE || 'dashboard';
 let isManagerProjectPage = managerPageMode === 'project';
 
-const REQUEST_DOC_LABELS = {
-  tu: 'Технические условия', rd: 'Рабочая документация',
-  pd: 'Проектная документация', tz: 'Техническое задание',
-  situation_plan: 'Ситуационный план', other: 'Прочее',
-};
+const REQUEST_DOC_LABELS = window.REQUEST_DOC_LABELS;
 
 const WAREHOUSE_SOURCE_LABELS = {
   company: 'Склад компании',
@@ -64,25 +53,62 @@ const WAREHOUSE_SOURCE_LABELS = {
 };
 
 const PROJECT_TEAM_ROLE_LABELS = {
-  foreman: 'Прораб',
-  pto: 'Инженер ПТО',
-  supplier: 'Специалист МТР',
-  customer: 'Заказчик',
+  [window.APP_ROLES.FOREMAN]: 'Прораб',
+  [window.APP_ROLES.PTO]: 'Инженер ПТО',
+  [window.APP_ROLES.SUPPLIER]: 'Специалист МТР',
+  [window.APP_ROLES.CUSTOMER]: 'Заказчик',
 };
+
+window.ManagerKp?.configure({
+  getActiveProjectId: () => activeProjectId,
+  onSent: async ({ projectId, sentAt }) => {
+    if (activeProject && String(activeProject.id) === String(projectId)) {
+      activeProject.kp_sent_at = sentAt;
+    }
+
+    const project = projectsList.find((item) => String(item.id) === String(projectId));
+    if (project) project.kp_sent_at = sentAt;
+
+    const generateBtn = document.getElementById('btn-generate-stages');
+    const stagesGenerated = Boolean(activeProject?.stages_generated || project?.stages_generated);
+    if (generateBtn && !stagesGenerated) {
+      generateBtn.disabled = false;
+      generateBtn.title = '';
+    }
+
+    window.ManagerDocuments?.load(projectId);
+    loadFunnel();
+    loadProjects();
+  },
+});
+window.ManagerKp?.init();
+
+window.ManagerEstimate?.configure({
+  getActiveProjectId: () => activeProjectId,
+  getActiveProject: () => activeProject,
+  getProjectsList: () => projectsList,
+});
+window.ManagerEstimate?.init();
+
+window.ManagerDocuments?.configure({
+  getActiveProjectId: () => activeProjectId,
+  getCurrentUser: () => currentUser,
+});
+window.ManagerDocuments?.init();
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
   try {
-    currentUser = await requireAuth('manager');
+    currentUser = await requireAuth(window.APP_ROLES.MANAGER);
     if (!currentUser) return;
     document.getElementById('user-name').textContent = currentUser.name;
     renderUserAvatar(currentUser);
     initNotificationBell();
-    initCatalogAutocomplete('manager');
+    initCatalogAutocomplete(window.APP_ROLES.MANAGER);
     if (isManagerProjectPage) {
       document.querySelectorAll('.sidebar-nav .nav-item[data-section]').forEach((btn) => btn.classList.remove('active'));
     }
-    await loadDocTypes();
+    await window.ManagerDocuments?.loadTypes();
     if (isManagerProjectPage) {
       const params = new URLSearchParams(window.location.search);
       const projectId = params.get('id');
@@ -99,15 +125,6 @@ async function init() {
   } finally {
     window.hidePreloader?.();
   }
-}
-
-async function loadDocTypes() {
-  const { ok, data } = await apiRequest('GET', '/api/manager/doc-types');
-  if (!ok) return;
-  docTypes = data.data;
-  const sel = document.getElementById('doc-type-select');
-  sel.innerHTML = '<option value="">— выберите тип —</option>' +
-    Object.entries(docTypes).map(([v, l]) => `<option value="${v}">${escHtml(l)}</option>`).join('');
 }
 
 // ─── Навигация ────────────────────────────────────────────────
@@ -166,7 +183,7 @@ async function loadFunnel() {
 
   board.innerHTML = FUNNEL_COLS.map(status => `
     <div class="kanban-col" data-col="${status}">
-      <div class="kanban-col-title">${FUNNEL_NAMES[status]} <span style="color:var(--muted)">(${grouped[status].length})</span></div>
+      <div class="kanban-col-title">${FUNNEL_NAMES[status]} <span class="text-muted">(${grouped[status].length})</span></div>
       ${grouped[status].map(p => `
         <div class="kanban-card" draggable="true" data-action="open-project" data-id="${p.id}" data-status="${p.status}">
           <div class="kanban-card-name">${escHtml(p.name)}</div>
@@ -187,21 +204,21 @@ function initKanbanDragDrop() {
     card.addEventListener('dragstart', (e) => {
       dragId = card.dataset.id;
       e.dataTransfer.effectAllowed = 'move';
-      card.style.opacity = '.4';
+      card.classList.add('is-dragging');
     });
-    card.addEventListener('dragend', () => { card.style.opacity = ''; });
+    card.addEventListener('dragend', () => { card.classList.remove('is-dragging'); });
   });
 
   document.querySelectorAll('.kanban-col').forEach(col => {
     col.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      col.style.background = 'var(--surface-alt, rgba(255,255,255,.06))';
+      col.classList.add('is-drag-over');
     });
-    col.addEventListener('dragleave', () => { col.style.background = ''; });
+    col.addEventListener('dragleave', () => { col.classList.remove('is-drag-over'); });
     col.addEventListener('drop', async (e) => {
       e.preventDefault();
-      col.style.background = '';
+      col.classList.remove('is-drag-over');
       const newStatus = col.dataset.col;
       if (!dragId || !newStatus) return;
       if (newStatus === 'contract') {
@@ -225,6 +242,7 @@ document.getElementById('kanban-board').addEventListener('click', (e) => {
 async function loadProjects() {
   const { ok, data } = await apiRequest('GET', '/api/manager/projects');
   if (!ok) return;
+  projectsList = data.data || [];
 
   const tbody = document.querySelector('#projects-table tbody');
   if (!tbody) return;
@@ -236,18 +254,18 @@ async function loadProjects() {
     return 'red';
   };
 
-  tbody.innerHTML = data.data.map(p => `
-    <tr style="cursor:pointer" data-action="open-project" data-id="${p.id}">
-      <td style="white-space:nowrap">
-        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${PROGRESS_COLORS[getProgress(p)]};vertical-align:middle;margin-right:6px"></span>
-        <span style="font-size:.8rem;color:var(--muted)">${PROGRESS_LABELS[getProgress(p)]}</span>
+  tbody.innerHTML = projectsList.map(p => `
+    <tr class="manager-project-row" data-action="open-project" data-id="${p.id}">
+      <td class="manager-project-progress-cell">
+        <span class="manager-project-progress-dot ${PROGRESS_CLASSES[getProgress(p)] || 'is-red'}"></span>
+        <span class="manager-project-progress-label">${PROGRESS_LABELS[getProgress(p)]}</span>
       </td>
-      <td style="font-size:.82rem;color:var(--muted)">${escHtml(p.code)}</td>
-      <td style="font-weight:600">${escHtml(p.name)}</td>
+      <td class="manager-project-code">${escHtml(p.code)}</td>
+      <td class="manager-project-name">${escHtml(p.name)}</td>
       <td>${badge(p.status)}</td>
-      <td style="font-size:.83rem;color:var(--muted)">${escHtml(p.address || '—')}</td>
+      <td class="manager-project-address">${escHtml(p.address || '—')}</td>
     </tr>
-  `).join('') || '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted)">Проектов нет</td></tr>';
+  `).join('') || '<tr><td colspan="5" class="text-muted manager-table-empty is-centered">Проектов нет</td></tr>';
 }
 
 document.getElementById('projects-table').addEventListener('click', (e) => {
@@ -259,7 +277,7 @@ document.getElementById('projects-table').addEventListener('click', (e) => {
 // ─── Проект (модалка табы) ────────────────────────────────────
 async function openProject(id, tab = 'main', notification = null) {
   activeProjectId = id;
-  pendingDocumentHighlightId = notification?.entity_type === 'document' ? String(notification.entity_id || '') : null;
+  window.ManagerDocuments?.setHighlight(notification);
 
   const { ok, data } = await apiRequest('GET', `/api/manager/projects/${id}`);
   if (!ok) return;
@@ -274,26 +292,15 @@ async function openProject(id, tab = 'main', notification = null) {
   updateContractDateRequirement();
   document.getElementById('project-regional-coeff-display').textContent = Number(project.regional_coeff || 1).toFixed(3);
   document.getElementById('analyze-result').textContent = '';
-  document.getElementById('upload-doc-form').reset();
-  document.getElementById('vor-add-form').reset();
-  document.getElementById('vor-add-form').style.display = 'none';
-  activeWorkSpecEditId = null;
-
-  const generateBtn = document.getElementById('btn-generate-stages');
-  const generated = !!project.stages_generated;
-  const kpSent = Boolean(project.kp_sent_at);
-  generateBtn.disabled = generated || !kpSent;
-  generateBtn.style.display = generated ? 'none' : '';
-  generateBtn.title = kpSent ? '' : 'Сначала отправьте КП заказчику';
+  window.ManagerDocuments?.resetForm();
+  window.ManagerEstimate?.resetForProject(project);
 
   const kpBtn = document.getElementById('btn-open-kp');
-  kpBtn.style.display = '';
-  syncKpActionVisibility(kpBtn.style.display !== 'none');
+  kpBtn.classList.remove('is-hidden');
+  window.ManagerKp?.syncActionVisibility(!kpBtn.classList.contains('is-hidden'));
   kpBtn.disabled = true;
   kpBtn.title = 'Проверка состава КП...';
-  if (kpBtn.style.display !== 'none') {
-    refreshKpButtonState(project.id);
-  }
+  window.ManagerKp?.refreshButtonState(project.id);
 
   switchProjectTab(tab);
   if (!isManagerProjectPage) openModal('modal-project');
@@ -370,7 +377,7 @@ function renderProjectOverview(project) {
   }
 
   projectInfo.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">
+    <div class="manager-dashboard-project-grid">
       <div><span class="text-muted">Название:</span> <strong>${escHtml(project.name)}</strong></div>
       <div><span class="text-muted">Код:</span> ${escHtml(project.code)}</div>
       <div><span class="text-muted">Статус:</span> ${badge(project.status)}</div>
@@ -379,7 +386,7 @@ function renderProjectOverview(project) {
       <div><span class="text-muted">Тип объекта:</span> ${escHtml(project.object_type || '—')}</div>
       <div><span class="text-muted">Класс напряжения:</span> ${escHtml(project.voltage_class || '—')}</div>
       <div><span class="text-muted">Закупка материалов (ВОМ):</span> <strong>${project.include_materials ? 'Требуется' : 'Не требуется'}</strong></div>
-      <div style="grid-column:1/-1"><span class="text-muted">Виды работ:</span> ${workTypes}</div>
+      <div class="wide"><span class="text-muted">Виды работ:</span> ${workTypes}</div>
       <div><span class="text-muted">Контакт:</span> ${escHtml(project.contact_name || '—')}</div>
       <div><span class="text-muted">Телефон:</span> ${escHtml(project.contact_phone || '—')}</div>
       <div><span class="text-muted">Email:</span> ${escHtml(project.contact_email || '—')}</div>
@@ -401,7 +408,7 @@ function renderProjectTeam(team) {
   const container = document.getElementById('project-team-list');
   if (!container) return;
 
-  const visibleTeam = team.filter((member) => member.role !== 'customer');
+  const visibleTeam = team.filter((member) => member.role !== window.APP_ROLES.CUSTOMER);
   if (!visibleTeam.length) {
     container.innerHTML = '<div class="manager-main-empty">Команда еще не назначена</div>';
     return;
@@ -425,7 +432,7 @@ function updateContractDateRequirement() {
   const requiredMark = document.getElementById('project-contract-required');
   const required = status === 'contract' || status === 'work' || status === 'won';
   dateInput.required = required;
-  requiredMark.style.display = required ? '' : 'none';
+  requiredMark.classList.toggle('is-hidden', !required);
   if (!required || dateInput.value) dateInput.setCustomValidity('');
 }
 
@@ -453,7 +460,7 @@ function switchProjectTab(tab) {
     btn.classList.toggle('active', btn.dataset.projectTab === tab);
   });
   document.querySelectorAll('.project-tab-panel').forEach(panel => {
-    panel.style.display = panel.id === `ptab-${tab}` ? '' : 'none';
+    panel.classList.toggle('is-hidden', panel.id !== `ptab-${tab}`);
   });
   if (isManagerProjectPage) {
     const url = new URL(window.location.href);
@@ -462,36 +469,16 @@ function switchProjectTab(tab) {
     window.history.replaceState(null, '', url.toString());
   }
   if (tab === 'stages') loadManagerStages(activeProjectId);
-  if (tab === 'estimate') {
-    loadManagerEstimate(activeProjectId);
-    switchEstimateTab(activeEstimateTab);
-  }
+  if (tab === 'estimate') window.ManagerEstimate?.open(activeProjectId);
   if (tab === 'warehouse') loadManagerWarehouse(activeProjectId);
-  if (tab === 'documents') loadProjectDocs(activeProjectId);
+  if (tab === 'documents') window.ManagerDocuments?.load(activeProjectId);
 }
 
 document.getElementById('modal-project').addEventListener('click', (e) => {
   const tab = e.target.closest('.project-tab');
   if (tab) switchProjectTab(tab.dataset.tab);
 
-  const estimateTab = e.target.closest('[data-estimate-tab]');
-  if (estimateTab) switchEstimateTab(estimateTab.dataset.estimateTab);
 });
-
-function switchEstimateTab(tab) {
-  activeEstimateTab = tab;
-  document.querySelectorAll('[data-estimate-tab]').forEach((btn) => {
-    const isActive = btn.dataset.estimateTab === tab;
-    if (btn.classList.contains('manager-estimate-tab')) {
-      btn.classList.toggle('active', isActive);
-    } else {
-      btn.className = isActive ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
-    }
-  });
-  document.getElementById('estimate-tab-summary').style.display = tab === 'summary' ? '' : 'none';
-  document.getElementById('estimate-tab-works').style.display = tab === 'works' ? '' : 'none';
-  document.getElementById('estimate-tab-materials').style.display = tab === 'materials' ? '' : 'none';
-}
 
 document.getElementById('btn-save-status').addEventListener('click', async () => {
   const status = document.getElementById('project-status-select').value;
@@ -528,14 +515,22 @@ document.getElementById('project-status-select')?.addEventListener('change', upd
 document.getElementById('project-contract-signed-at')?.addEventListener('input', updateContractDateRequirement);
 
 // ─── Команда ─────────────────────────────────────────────────
-const TEAM_ROLES = { foreman: 'foreman', pto: 'pto', supplier: 'supplier' };
+const TEAM_ROLES = {
+  foreman: window.APP_ROLES.FOREMAN,
+  pto: window.APP_ROLES.PTO,
+  supplier: window.APP_ROLES.SUPPLIER,
+};
 
 async function loadStaff() {
   if (staffList.length === 0) {
     const { ok, data } = await apiRequest('GET', '/api/manager/staff');
     if (ok) staffList = data.data;
   }
-  for (const [role, selId] of [['foreman', 'select-foreman'], ['pto', 'select-pto'], ['supplier', 'select-supplier']]) {
+  for (const [role, selId] of [
+    [window.APP_ROLES.FOREMAN, 'select-foreman'],
+    [window.APP_ROLES.PTO, 'select-pto'],
+    [window.APP_ROLES.SUPPLIER, 'select-supplier'],
+  ]) {
     const filtered = staffList.filter(u => u.role === role);
     document.getElementById(selId).innerHTML = filtered.length
       ? filtered.map(u => `<option value="${u.id}">${escHtml(u.name)}</option>`).join('')
@@ -607,16 +602,16 @@ function renderProjectCoefficientRows() {
   tbody.innerHTML = rows.map((item, index) => {
     const selected = draftProjectCoefficientIds.includes(item.id);
     return `
-      <tr data-id="${item.id}" style="cursor:pointer;border-bottom:1px solid var(--border);background:${selected ? 'rgba(var(--accent-rgb),.08)' : 'transparent'}">
-        <td style="padding:.55rem .6rem;text-align:center;color:${selected ? 'var(--accent)' : 'var(--muted)'};font-weight:${selected ? '700' : '500'}">${index + 1}</td>
-        <td style="padding:.55rem .6rem">
-          <div style="font-weight:600">${escHtml(item.name)}</div>
-          ${item.description ? `<div style="font-size:.76rem;color:var(--muted);margin-top:.15rem">${escHtml(item.description)}</div>` : ''}
+      <tr data-id="${item.id}" class="manager-coeff-row ${selected ? 'is-selected' : ''}">
+        <td class="manager-coeff-num">${index + 1}</td>
+        <td class="manager-coeff-main">
+          <div class="manager-coeff-name">${escHtml(item.name)}</div>
+          ${item.description ? `<div class="manager-coeff-description">${escHtml(item.description)}</div>` : ''}
         </td>
-        <td style="padding:.55rem .6rem;text-align:right;font-weight:700">${Number(item.value).toFixed(3)}</td>
+        <td class="manager-coeff-value">${Number(item.value).toFixed(3)}</td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="3" class="text-muted" style="padding:.9rem .6rem">Ничего не найдено</td></tr>';
+  }).join('') || '<tr><td colspan="3" class="text-muted manager-table-empty">Ничего не найдено</td></tr>';
 
   const total = calculateCoefficientTotalByIds(draftProjectCoefficientIds);
   document.getElementById('project-coeff-selected').textContent = `Выбрано: ${draftProjectCoefficientIds.length}`;
@@ -691,7 +686,7 @@ document.getElementById('btn-project-coeffs-save').addEventListener('click', asy
   updateProjectCoefficientSummary(data.data.items, data.data.total);
   showToast('Коэффициенты проекта обновлены', 'success');
   closeModal('modal-project-coeffs');
-  loadManagerVOR(activeProjectId);
+  window.ManagerEstimate?.loadVOR(activeProjectId);
 });
 
 // ─── Этапы ───────────────────────────────────────────────────
@@ -768,9 +763,7 @@ function renderManagerStageItem(stage) {
           </div>
         </div>
         <div class="manager-stage-progress-row">
-          <div class="manager-stage-progress">
-            <span style="width:${progress}%"></span>
-          </div>
+          <progress class="manager-stage-progress" value="${progress}" max="100"></progress>
           <strong>${progress}%</strong>
         </div>
       </div>
@@ -815,7 +808,7 @@ async function loadManagerStages(id) {
       <div class="manager-stages-summary-main">
         <span>Готовность по этапам</span>
         <strong>${overallProgress}%</strong>
-        <div class="manager-stage-progress"><span style="width:${overallProgress}%"></span></div>
+        <progress class="manager-stage-progress" value="${overallProgress}" max="100"></progress>
       </div>
       <div class="manager-stages-summary-metrics">
         <div><span>Всего</span><strong>${stages.length}</strong></div>
@@ -832,8 +825,8 @@ async function loadManagerStages(id) {
 
 function setManagerStageMode(isVor) {
   document.getElementById('stage-form-is-vor').value = isVor ? 'true' : 'false';
-  document.getElementById('stage-form-regular').style.display = isVor ? 'none' : '';
-  document.getElementById('stage-form-vor').style.display = isVor ? '' : 'none';
+  document.getElementById('stage-form-regular').classList.toggle('is-hidden', isVor);
+  document.getElementById('stage-form-vor').classList.toggle('is-hidden', !isVor);
   document.getElementById('stage-form-planned-start').required = !isVor;
   document.getElementById('stage-form-planned-end').required = !isVor;
   updateManagerStageRequirements();
@@ -854,11 +847,11 @@ function updateManagerStageRequirements() {
   const noteRequired = (isVor && vorStatus === 'not_done') || isRegularLate || isVorLate;
 
   document.getElementById('stage-form-actual-end').required = actualEndRequired;
-  document.getElementById('stage-form-actual-end-required').style.display = actualEndRequired ? '' : 'none';
+  document.getElementById('stage-form-actual-end-required').classList.toggle('is-hidden', !actualEndRequired);
   document.getElementById('stage-form-actual-date').required = actualDateRequired;
-  document.getElementById('stage-form-actual-date-required').style.display = actualDateRequired ? '' : 'none';
+  document.getElementById('stage-form-actual-date-required').classList.toggle('is-hidden', !actualDateRequired);
   document.getElementById('stage-form-note').required = noteRequired;
-  document.getElementById('stage-form-note-required').style.display = noteRequired ? '' : 'none';
+  document.getElementById('stage-form-note-required').classList.toggle('is-hidden', !noteRequired);
 }
 
 document.getElementById('stage-form-status-regular')?.addEventListener('change', updateManagerStageRequirements);
@@ -889,8 +882,7 @@ document.getElementById('stages-list').addEventListener('click', async (e) => {
     document.getElementById('stage-form-id').value = btn.dataset.id;
     document.getElementById('stage-form-name').value = btn.dataset.name;
     document.getElementById('stage-form-name').readOnly = isVor;
-    document.getElementById('stage-form-name').style.background = isVor ? 'var(--bg3)' : '';
-    document.getElementById('stage-form-name').style.color = isVor ? 'var(--muted)' : '';
+    document.getElementById('stage-form-name').classList.toggle('is-readonly', isVor);
     document.getElementById('stage-form-order').value = btn.dataset.order || '';
     document.getElementById('stage-form-planned-start').value = btn.dataset.start || '';
     document.getElementById('stage-form-planned-end').value = btn.dataset.end || '';
@@ -925,8 +917,7 @@ document.getElementById('btn-add-stage').addEventListener('click', () => {
   document.getElementById('stage-form').reset();
   document.getElementById('stage-form-id').value = '';
   document.getElementById('stage-form-name').readOnly = false;
-  document.getElementById('stage-form-name').style.background = '';
-  document.getElementById('stage-form-name').style.color = '';
+  document.getElementById('stage-form-name').classList.remove('is-readonly');
   document.getElementById('stage-form-status-regular').value = 'pending';
   document.getElementById('stage-form-status-vor').value = 'planned';
   setManagerStageMode(false);
@@ -1010,289 +1001,34 @@ document.getElementById('stage-form').addEventListener('submit', async (e) => {
   }
 });
 
-// ─── ВОР ─────────────────────────────────────────────────────
-function getVorPriceMeta(ws) {
-  const hasManagerPrice = ws.manager_price !== null && ws.manager_price !== undefined && ws.manager_price !== '';
-  const managerPrice = hasManagerPrice ? Number(ws.manager_price) : null;
-  const catalogPrice = ws.catalog_price !== null && ws.catalog_price !== undefined && ws.catalog_price !== ''
-    ? Number(ws.catalog_price)
-    : null;
-
-  if (managerPrice !== null && !Number.isNaN(managerPrice)) {
-    return {
-      price: managerPrice,
-      source: 'manager',
-      hint: catalogPrice !== null ? 'Ручная цена менеджера' : 'Цена задана менеджером',
-    };
-  }
-
-  if (catalogPrice !== null && !Number.isNaN(catalogPrice) && catalogPrice > 0) {
-    return {
-      price: catalogPrice,
-      source: 'catalog',
-      hint: 'Цена из справочника работ',
-    };
-  }
-
-  return {
-    price: 0,
-    source: 'empty',
-    hint: 'Цена не задана',
-  };
-}
-
-function setVorPriceHint({ catalogPrice = null, isOverride = false } = {}) {
-  const hint = document.getElementById('vor-price-hint');
-  if (!hint) return;
-
-  if (catalogPrice && !isOverride) {
-    hint.textContent = `Если поле пустое, используется цена из утверждённого справочника работ: ${formatMoney(catalogPrice)}.`;
-    return;
-  }
-
-  if (catalogPrice && isOverride) {
-    hint.textContent = `Сейчас задана ручная цена менеджера. Очистите поле и сохраните, чтобы вернуться к цене из справочника: ${formatMoney(catalogPrice)}.`;
-    return;
-  }
-
-  hint.textContent = 'Если поле пустое, используется цена из утверждённого справочника работ.';
-}
-
-function renderVorRow(ws) {
-  const priceMeta = getVorPriceMeta(ws);
-  const price = priceMeta.price;
-  const rCoeff = Number(activeProject.regional_coeff || 1.0);
-  const sum = price * Number(ws.quantity) * rCoeff;
-  const sumStr = sum ? sum.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽' : '—';
-  const priceLabel = price
-    ? `${price.toLocaleString('ru-RU')} ₽`
-    : '<span class="manager-estimate-warning">Не задана</span>';
-  const priceHint = priceMeta.source === 'empty'
-    ? ''
-    : `<div class="manager-estimate-cell-hint">${priceMeta.hint}</div>`;
-
-  return `
-    <tr>
-      <td>${escHtml(ws.work_name)}</td>
-      <td class="num">${ws.quantity}</td>
-      <td class="muted">${escHtml(ws.unit || '—')}</td>
-      <td class="num strong">
-        ${priceLabel}
-        ${priceHint}
-      </td>
-      <td class="num strong">${sumStr}</td>
-      <td class="actions">
-        <div class="manager-estimate-row-actions">
-          <button class="manager-stage-action manager-stage-action-edit"
-          data-action="edit-vor"
-          data-id="${ws.id}"
-          data-work-name="${escHtml(ws.work_name)}"
-          data-unit="${escHtml(ws.unit || '')}"
-          data-quantity="${ws.quantity}"
-          data-price="${ws.manager_price ?? ''}"
-          data-catalog-price="${ws.catalog_price ?? ''}">Ред.</button>
-          <button class="manager-stage-action manager-stage-action-delete"
-            data-action="delete-vor" data-id="${ws.id}" aria-label="Удалить позицию">×</button>
-        </div>
-      </td>
-    </tr>
-  `;
-}
-
-async function loadManagerVOR(id) {
-  const container = document.getElementById('vor-list');
-  container.innerHTML = '<div class="manager-estimate-empty">Загрузка...</div>';
-  const { ok, data } = await apiRequest('GET', `/api/manager/projects/${id}/work-specs`);
-  if (!ok) { container.innerHTML = '<div class="manager-estimate-empty">Ошибка загрузки</div>'; return; }
-  if (!data.data.length) {
-    container.innerHTML = '<div class="manager-estimate-empty">ВОР пустой</div>';
-    refreshKpButtonState(id);
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="manager-estimate-table-wrap">
-      <table class="manager-estimate-table">
-        <thead><tr>
-          <th>Вид работ</th>
-          <th class="num">Количество</th>
-          <th>Ед.</th>
-          <th class="num">Цена за ед.</th>
-          <th class="num">Сумма</th>
-          <th></th>
-        </tr></thead>
-        <tbody>
-          ${data.data.map(renderVorRow).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-  refreshKpButtonState(id);
-}
-
-document.getElementById('vor-list').addEventListener('click', async (e) => {
-  const editBtn = e.target.closest('[data-action="edit-vor"]');
-  if (editBtn) {
-    const form = document.getElementById('vor-add-form');
-    const priceInput = form.querySelector('[name="manager_price"]');
-    const catalogPrice = editBtn.dataset.catalogPrice ? Number(editBtn.dataset.catalogPrice) : null;
-    form.style.display = '';
-    form.querySelector('[name="work_name"]').value = editBtn.dataset.workName || '';
-    form.querySelector('[name="quantity"]').value = editBtn.dataset.quantity || '';
-    form.querySelector('[name="unit"]').value = editBtn.dataset.unit || '';
-    priceInput.value = editBtn.dataset.price || '';
-    priceInput.placeholder = catalogPrice ? formatMoney(catalogPrice) : 'Из справочника';
-    setVorPriceHint({ catalogPrice, isOverride: Boolean(editBtn.dataset.price) });
-    activeWorkSpecEditId = editBtn.dataset.id;
-    const submitBtn = form.querySelector('button[type="submit"]');
-    submitBtn.textContent = 'Сохранить';
-    return;
-  }
-
-  const btn = e.target.closest('[data-action="delete-vor"]');
-  if (!btn) return;
-  if (!confirm('Удалить позицию ВОР?')) return;
-  const { ok, data } = await apiRequest('DELETE', `/api/manager/work-specs/${btn.dataset.id}`);
-  if (ok) { showToast('Позиция удалена', 'success'); loadManagerVOR(activeProjectId); }
-  else showToast(data.error, 'error');
-});
-
-document.getElementById('btn-add-vor').addEventListener('click', () => {
-  const form = document.getElementById('vor-add-form');
-  activeWorkSpecEditId = null;
-  form.reset();
-  form.querySelector('[name="manager_price"]').placeholder = 'Из справочника';
-  setVorPriceHint();
-  form.querySelector('button[type="submit"]').textContent = 'Добавить';
-  form.style.display = form.style.display === 'none' ? '' : 'none';
-});
-
-document.getElementById('btn-cancel-vor').addEventListener('click', () => {
-  activeWorkSpecEditId = null;
-  const form = document.getElementById('vor-add-form');
-  form.reset();
-  form.querySelector('[name="manager_price"]').placeholder = 'Из справочника';
-  setVorPriceHint();
-  form.querySelector('button[type="submit"]').textContent = 'Добавить';
-  document.getElementById('vor-add-form').style.display = 'none';
-});
-
-document.getElementById('vor-add-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const body = {
-    work_name: fd.get('work_name'),
-    quantity: parseFloat(fd.get('quantity')),
-  };
-  if (fd.get('unit')) body.unit = fd.get('unit');
-  if (fd.get('manager_price')) {
-    body.manager_price = parseFloat(fd.get('manager_price'));
-  } else if (activeWorkSpecEditId) {
-    body.manager_price = null;
-  }
-
-  const isEdit = !!activeWorkSpecEditId;
-  const { ok, data } = isEdit
-    ? await apiRequest('PUT', `/api/manager/work-specs/${activeWorkSpecEditId}`, body)
-    : await apiRequest('POST', `/api/manager/projects/${activeProjectId}/work-specs`, body);
-  if (ok) {
-    showToast(isEdit ? 'Позиция обновлена' : 'Позиция добавлена', 'success');
-    e.target.reset();
-    e.target.querySelector('[name="manager_price"]').placeholder = 'Из справочника';
-    setVorPriceHint();
-    document.getElementById('vor-add-form').style.display = 'none';
-    e.target.querySelector('button[type="submit"]').textContent = 'Добавить';
-    activeWorkSpecEditId = null;
-    loadManagerVOR(activeProjectId);
-  } else showToast(data.error, 'error');
-});
-
-document.getElementById('btn-generate-stages').addEventListener('click', async () => {
-  const project = projectsList.find(p => p.id == activeProjectId);
-  if (!project?.kp_sent_at) {
-    showToast('Сначала отправьте КП заказчику', 'error');
-    return;
-  }
-  if (!confirm('Сформировать этапы из ВОР? Это действие нельзя отменить.')) return;
-  const btn = document.getElementById('btn-generate-stages');
-  btn.disabled = true;
-  const { ok, data } = await apiRequest('POST', `/api/manager/projects/${activeProjectId}/stages/generate-from-vor`);
-  btn.disabled = false;
-  if (ok) showToast(`Создано этапов: ${data.data.length}`, 'success');
-  else showToast(data.error, 'error');
-});
-
-// ─── ВОМ (read-only) ─────────────────────────────────────────
-async function loadManagerSpecs(id) {
-  const container = document.getElementById('vom-list');
-  container.innerHTML = '<div class="manager-estimate-empty">Загрузка...</div>';
-  const { ok, data } = await apiRequest('GET', `/api/manager/projects/${id}/specs`);
-  if (!ok) { container.innerHTML = '<div class="manager-estimate-empty">Ошибка загрузки</div>'; return; }
-  if (!data.data.length) {
-    container.innerHTML = '<div class="manager-estimate-empty">Ведомость материалов пуста</div>';
-    refreshKpButtonState(id);
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="manager-estimate-table-wrap">
-      <table class="manager-estimate-table">
-        <thead><tr>
-          <th>Материал</th>
-          <th class="num">Кол-во</th>
-          <th>Ед.</th>
-          <th class="num">Цена</th>
-          <th class="num">Сумма</th>
-          <th>Статус</th>
-          <th>Снабженец</th>
-        </tr></thead>
-        <tbody>
-          ${data.data.map(s => `
-            <tr>
-              <td>${escHtml(s.material_name)}</td>
-              <td class="num">${s.quantity}</td>
-              <td class="muted">${escHtml(s.unit || '—')}</td>
-              <td class="num">${formatMoney(Number(s.unit_price || 0))}</td>
-              <td class="num strong">${formatMoney(Number(s.quantity) * Number(s.unit_price || 0))}</td>
-              <td>${badge(s.status)}</td>
-              <td class="muted small">${escHtml(s.supplier_name || '—')}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-  refreshKpButtonState(id);
-}
-
 // ─── Склад (read-only) ────────────────────────────────────────
 async function loadManagerWarehouse(id) {
   const container = document.getElementById('manager-warehouse-list');
-  container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
+  container.innerHTML = '<span class="text-muted">Загрузка...</span>';
   const { ok, data } = await apiRequest('GET', `/api/manager/projects/${id}/warehouse`);
-  if (!ok) { container.innerHTML = '<span style="color:var(--muted)">Ошибка загрузки</span>'; return; }
-  if (!data.data.length) { container.innerHTML = '<span style="color:var(--muted)">Склад объекта пуст</span>'; return; }
+  if (!ok) { container.innerHTML = '<span class="text-muted">Ошибка загрузки</span>'; return; }
+  if (!data.data.length) { container.innerHTML = '<span class="text-muted">Склад объекта пуст</span>'; return; }
 
   container.innerHTML = `
     <div class="table-wrap">
-      <table style="width:100%;font-size:.875rem">
+      <table class="manager-warehouse-table">
         <thead><tr>
-          <th style="color:var(--muted);font-weight:500">Материал</th>
-          <th style="color:var(--muted);font-weight:500;text-align:right">Поступило</th>
-          <th style="color:var(--muted);font-weight:500;text-align:right">Списано</th>
-          <th style="color:var(--muted);font-weight:500;text-align:right">Остаток</th>
-          <th style="color:var(--muted);font-weight:500">Ед.</th>
-          <th style="color:var(--muted);font-weight:500">Источник</th>
+          <th>Материал</th>
+          <th class="text-right">Поступило</th>
+          <th class="text-right">Списано</th>
+          <th class="text-right">Остаток</th>
+          <th>Ед.</th>
+          <th>Источник</th>
         </tr></thead>
         <tbody>
           ${data.data.map(item => `
             <tr>
               <td>${escHtml(item.material_name)}</td>
-              <td style="text-align:right">${item.qty_total}</td>
-              <td style="text-align:right">${item.qty_used}</td>
-              <td style="text-align:right;font-weight:600">${item.qty_balance}</td>
-              <td style="color:var(--muted)">${escHtml(item.unit || '—')}</td>
-              <td style="color:var(--muted);font-size:.8rem">${escHtml(WAREHOUSE_SOURCE_LABELS[item.source] || item.source)}</td>
+              <td class="text-right">${item.qty_total}</td>
+              <td class="text-right">${item.qty_used}</td>
+              <td class="text-right manager-warehouse-balance">${item.qty_balance}</td>
+              <td class="text-muted">${escHtml(item.unit || '—')}</td>
+              <td class="text-muted manager-warehouse-source">${escHtml(WAREHOUSE_SOURCE_LABELS[item.source] || item.source)}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -1300,704 +1036,6 @@ async function loadManagerWarehouse(id) {
     </div>
   `;
 }
-
-async function loadEstimateSummary(id) {
-  const container = document.getElementById('estimate-summary');
-  container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
-
-  const [worksRes, materialsRes] = await Promise.all([
-    apiRequest('GET', `/api/manager/projects/${id}/work-specs`),
-    apiRequest('GET', `/api/manager/projects/${id}/specs`),
-  ]);
-
-  if (!worksRes.ok || !materialsRes.ok) {
-    container.innerHTML = '<span style="color:var(--muted)">Ошибка загрузки</span>';
-    return;
-  }
-
-  const works = worksRes.data.data || [];
-  const materials = materialsRes.data.data || [];
-  const worksBaseTotal = works.reduce((acc, item) => {
-    const price = Number(item.manager_price ?? item.catalog_price ?? 0);
-    return acc + (Number(item.quantity) * price);
-  }, 0);
-  const materialsTotal = materials.reduce((acc, item) => (
-    acc + (Number(item.quantity) * Number(item.unit_price || 0))
-  ), 0);
-  const regionalCoeff = Number(activeProject?.regional_coeff || 1);
-  const worksTotal = parseFloat((worksBaseTotal * regionalCoeff).toFixed(2));
-  const totalPositions = works.length + materials.length;
-  const grandTotal = parseFloat((worksTotal + materialsTotal).toFixed(2));
-
-  container.innerHTML = `
-    <div class="manager-estimate-summary-grid">
-      <div class="manager-estimate-summary-card manager-estimate-summary-card-main">
-        <div class="manager-estimate-summary-top">
-          <div>
-            <div class="manager-estimate-summary-label">Итог по проекту</div>
-            <div class="manager-estimate-summary-total">${formatMoney(grandTotal)}</div>
-          </div>
-          <div class="manager-estimate-summary-coeff">
-            <div class="manager-estimate-summary-label">Коэффициент проекта</div>
-            <strong>${regionalCoeff.toFixed(3)}</strong>
-          </div>
-        </div>
-        <div class="manager-estimate-metrics">
-          <div>
-            <span>Работы</span>
-            <strong>${formatMoney(worksTotal)}</strong>
-            <small>Позиций: ${works.length}${regionalCoeff !== 1 ? ` · с кэф. ${regionalCoeff.toFixed(3)}` : ''}</small>
-          </div>
-          <div>
-            <span>Материалы</span>
-            <strong>${formatMoney(materialsTotal)}</strong>
-            <small>Позиций: ${materials.length}</small>
-          </div>
-          <div>
-            <span>Состав</span>
-            <strong>${totalPositions}</strong>
-            <small>Всего позиций</small>
-          </div>
-        </div>
-      </div>
-      <div class="manager-estimate-summary-card">
-        <div class="manager-estimate-summary-label">Структура сметы</div>
-        <div class="manager-estimate-breakdown">
-          <div>
-            <span>Работы</span>
-            <strong>${formatMoney(worksTotal)}</strong>
-          </div>
-          <div>
-            <span>Материалы</span>
-            <strong>${formatMoney(materialsTotal)}</strong>
-          </div>
-          <div class="manager-estimate-breakdown-total">
-            <span>Итог сметы</span>
-            <strong>${formatMoney(grandTotal)}</strong>
-          </div>
-        </div>
-        <div class="manager-estimate-summary-note">
-          Материалы считаются по цене, указанной снабженцем в ведомости материалов. Этот же расчет используется при формировании КП.
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-async function loadManagerEstimate(id) {
-  await Promise.all([
-    loadManagerVOR(id),
-    loadManagerSpecs(id),
-    loadEstimateSummary(id),
-  ]);
-  await refreshKpButtonState(id);
-}
-
-// ─── Документы ───────────────────────────────────────────────
-const MANAGER_FINANCE_DOC_TYPES = new Set(['kp', 'estimate', 'contract', 'addendum', 'ks2', 'ks3']);
-const MANAGER_TECH_DOC_TYPES = new Set(['rd', 'pd', 'tz', 'tu', 'permit', 'boundary_act']);
-const MANAGER_REQUIRED_DOC_GROUPS = [
-  { label: 'КП', types: ['kp'] },
-  { label: 'Смета', types: ['estimate'] },
-  { label: 'Договор', types: ['contract'] },
-  { label: 'КС-2', types: ['ks2'] },
-  { label: 'КС-3', types: ['ks3'] },
-  { label: 'РД / ТУ', types: ['rd', 'tu'] },
-];
-const MANAGER_DOC_FILTERS = [
-  { key: 'all', label: 'Все' },
-  { key: 'finance', label: 'Финансы' },
-  { key: 'tech', label: 'Тех.' },
-  { key: 'other', label: 'Прочие' },
-];
-
-function getManagerDocKind(docType) {
-  if (MANAGER_FINANCE_DOC_TYPES.has(docType)) {
-    return { label: 'Финансовый', className: 'is-finance' };
-  }
-  if (MANAGER_TECH_DOC_TYPES.has(docType)) {
-    return { label: 'Технический', className: 'is-tech' };
-  }
-  return { label: 'Прочее', className: '' };
-}
-
-function getManagerDocExt(fileName = '') {
-  const ext = String(fileName).split('.').pop();
-  if (!ext || ext === fileName) return 'DOC';
-  return ext.slice(0, 4).toUpperCase();
-}
-
-function getManagerFilesLabel(count) {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${count} файл`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} файла`;
-  return `${count} файлов`;
-}
-
-function renderManagerDocsSummary(docs) {
-  const container = document.getElementById('manager-docs-summary');
-  if (!container) return;
-
-  const latest = docs[0];
-  const checklist = MANAGER_REQUIRED_DOC_GROUPS.map(item => {
-    const doc = docs.find(candidate => item.types.includes(candidate.doc_type));
-    return { ...item, doc };
-  });
-  const readyCount = checklist.filter(item => item.doc).length;
-
-  container.innerHTML = `
-    <div class="manager-docs-summary-head">
-      <div class="manager-docs-summary-title">Обязательные документы</div>
-      <div class="manager-docs-summary-subtitle">
-        ${latest ? `Последнее обновление: ${formatDate(latest.uploaded_at)}` : 'Закрывайте архив по мере движения проекта.'}
-      </div>
-    </div>
-    <div class="manager-docs-check-progress">
-      <span>${readyCount} из ${checklist.length}</span>
-      <div><i style="width:${Math.round((readyCount / checklist.length) * 100)}%"></i></div>
-    </div>
-    <div class="manager-docs-checklist">
-      ${checklist.map(item => `
-        <div class="manager-docs-check ${item.doc ? 'is-ready' : ''}">
-          <span>${item.doc ? '✓' : '—'}</span>
-          <div>
-            <strong>${escHtml(item.label)}</strong>
-            <em>${item.doc ? escHtml(item.doc.file_name) : 'Не загружено'}</em>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-    <div class="manager-docs-total-line">
-      <div>
-        <span>Всего в архиве</span>
-        <strong>${docs.length}</strong>
-      </div>
-    </div>
-  `;
-}
-
-function renderManagerNextDoc(docs) {
-  const container = document.getElementById('manager-docs-next');
-  if (!container) return;
-
-  const nextItem = MANAGER_REQUIRED_DOC_GROUPS.find(item =>
-    !docs.some(doc => item.types.includes(doc.doc_type))
-  );
-
-  if (!nextItem) {
-    container.innerHTML = `
-      <div class="manager-docs-next-card is-complete">
-        <span>✓</span>
-        <div>
-          <strong>Обязательный комплект собран</strong>
-          <p>Можно загружать дополнительные файлы по проекту.</p>
-        </div>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="manager-docs-next-card">
-      <span>→</span>
-      <div>
-        <strong>Следующий документ: ${escHtml(nextItem.label)}</strong>
-        <p>Подставьте тип в форму и загрузите нужный файл.</p>
-      </div>
-      <button type="button" data-action="select-next-doc" data-doc-type="${nextItem.types[0]}">Выбрать тип</button>
-    </div>
-  `;
-}
-
-function renderManagerDocRow(doc) {
-  const kind = getManagerDocKind(doc.doc_type);
-  const canDelete = String(doc.uploaded_by_id) === String(currentUser.id);
-
-  return `
-    <article class="manager-docs-row" data-doc-id="${doc.id}">
-      <div class="manager-docs-icon">${escHtml(getManagerDocExt(doc.file_name))}</div>
-      <div class="manager-docs-row-main">
-        <div class="manager-docs-row-head">
-          <strong>${escHtml(docTypes[doc.doc_type] || doc.doc_type)}</strong>
-          <span class="manager-docs-kind ${kind.className}">${kind.label}</span>
-        </div>
-        <div class="manager-docs-file-name">${escHtml(doc.file_name)}</div>
-      </div>
-      <div class="manager-docs-actions">
-        <a href="${doc.url}" target="_blank" class="manager-docs-action manager-docs-download"><span>↓</span> Скачать</a>
-        ${canDelete ? `
-          <div class="manager-docs-menu-wrap">
-            <button class="manager-docs-menu-btn" type="button" data-doc-menu aria-label="Действия по документу">...</button>
-            <div class="manager-docs-menu">
-              <button class="danger" type="button" data-action="delete-doc" data-id="${doc.id}"><span>×</span> Удалить</button>
-            </div>
-          </div>
-        ` : ''}
-      </div>
-    </article>
-  `;
-}
-
-function matchesManagerDocFilter(doc, filter) {
-  if (filter === 'finance') return MANAGER_FINANCE_DOC_TYPES.has(doc.doc_type);
-  if (filter === 'tech') return MANAGER_TECH_DOC_TYPES.has(doc.doc_type);
-  if (filter === 'other') {
-    return !MANAGER_FINANCE_DOC_TYPES.has(doc.doc_type) && !MANAGER_TECH_DOC_TYPES.has(doc.doc_type);
-  }
-  return true;
-}
-
-function renderManagerDocsList(docs) {
-  const container = document.getElementById('project-docs-list');
-  if (!container) return;
-
-  if (!docs.length) {
-    container.innerHTML = '<div class="manager-docs-empty">Документов пока нет. Загрузите первый файл через форму выше.</div>';
-    return;
-  }
-
-  const filteredDocs = docs.filter(doc => matchesManagerDocFilter(doc, activeDocsFilter));
-  const counter = activeDocsFilter === 'all'
-    ? getManagerFilesLabel(docs.length)
-    : `${filteredDocs.length} из ${docs.length}`;
-
-  container.innerHTML = `
-    <div class="manager-docs-list-head">
-      <div>
-        <strong>Архив документов</strong>
-        <span>Загруженные файлы по проекту</span>
-      </div>
-      <div class="manager-docs-list-tools">
-        <div class="manager-docs-filters">
-          ${MANAGER_DOC_FILTERS.map(filter => `
-            <button type="button" data-doc-filter="${filter.key}" class="${activeDocsFilter === filter.key ? 'active' : ''}">
-              ${filter.label}
-            </button>
-          `).join('')}
-        </div>
-        <em>${counter}</em>
-      </div>
-    </div>
-    ${filteredDocs.length
-      ? filteredDocs.map(renderManagerDocRow).join('')
-      : '<div class="manager-docs-empty">В этой категории документов пока нет.</div>'}
-  `;
-}
-
-async function loadProjectDocs(id) {
-  const container = document.getElementById('project-docs-list');
-  container.innerHTML = '<div class="manager-docs-empty">Загрузка документов...</div>';
-  const { ok, data } = await apiRequest('GET', `/api/manager/projects/${id}/documents`);
-  if (!ok) {
-    renderManagerDocsSummary([]);
-    container.innerHTML = '<div class="manager-docs-empty">Не удалось загрузить документы.</div>';
-    return;
-  }
-
-  const docs = data.data || [];
-  managerDocsCache = docs;
-  renderManagerDocsSummary(docs);
-  renderManagerNextDoc(docs);
-  renderManagerDocsList(docs);
-
-  if (pendingDocumentHighlightId) {
-    const target = container.querySelector(`[data-doc-id="${pendingDocumentHighlightId}"]`);
-    if (target) {
-      target.classList.add('entity-highlight');
-      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
-    pendingDocumentHighlightId = null;
-  }
-}
-
-document.getElementById('project-docs-list').addEventListener('click', async (e) => {
-  const filterBtn = e.target.closest('[data-doc-filter]');
-  if (filterBtn) {
-    activeDocsFilter = filterBtn.dataset.docFilter || 'all';
-    renderManagerDocsList(managerDocsCache);
-    return;
-  }
-
-  const menuBtn = e.target.closest('[data-doc-menu]');
-  if (menuBtn) {
-    const wrap = menuBtn.closest('.manager-docs-menu-wrap');
-    document.querySelectorAll('.manager-docs-menu-wrap.open').forEach((item) => {
-      if (item !== wrap) item.classList.remove('open');
-    });
-    wrap?.classList.toggle('open');
-    return;
-  }
-
-  const btn = e.target.closest('[data-action="delete-doc"]');
-  if (!btn) return;
-  btn.closest('.manager-docs-menu-wrap')?.classList.remove('open');
-  if (!confirm('Удалить документ?')) return;
-  const { ok, data } = await apiRequest('DELETE', `/api/manager/documents/${btn.dataset.id}`);
-  if (ok) { showToast('Документ удалён', 'success'); loadProjectDocs(activeProjectId); }
-  else showToast(data.error, 'error');
-});
-
-document.getElementById('manager-docs-next')?.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-action="select-next-doc"]');
-  if (!btn) return;
-
-  const select = document.getElementById('doc-type-select');
-  select.value = btn.dataset.docType || '';
-  select.focus();
-});
-
-document.getElementById('upload-doc-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const btn = e.target.querySelector('button[type=submit]');
-  btn.disabled = true;
-  const oldHtml = btn.innerHTML;
-  btn.textContent = 'Загрузка...';
-  const { ok, data } = await apiRequest('POST', `/api/manager/projects/${activeProjectId}/documents`, fd);
-  btn.disabled = false;
-  btn.innerHTML = oldHtml;
-  if (ok) { showToast('Документ загружен', 'success'); e.target.reset(); loadProjectDocs(activeProjectId); }
-  else showToast(data.error, 'error');
-});
-
-// ─── ФУНКЦИЯ СУММЫ ПРОПИСЬЮ ──────────────────────────────────────
-function numberToWordsRu(num) {
-  if (num === 0) return 'ноль';
-  const units = ['', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
-  const units_f = ['', 'одна', 'две', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
-  const teens = ['десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать', 'пятнадцать', 'шестнадцать', 'семнадцать', 'восемнадцать', 'девятнадцать'];
-  const tens = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят', 'шестьдесят', 'семьдесят', 'восемьдесят', 'девяносто'];
-  const hundreds = ['', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот', 'шестьсот', 'семьсот', 'восемьсот', 'девятьсот'];
-  const forms = [
-    ['', '', ''],
-    ['тысяча', 'тысячи', 'тысяч'],
-    ['миллион', 'миллиона', 'миллионов'],
-    ['миллиард', 'миллиарда', 'миллиардов']
-  ];
-  let n = Math.floor(num);
-  let words = [];
-  let group = 0;
-
-  function getPlural(n, formArr) {
-    let n10 = n % 10;
-    let n100 = n % 100;
-    if (n100 > 10 && n100 < 20) return formArr[2];
-    if (n10 > 1 && n10 < 5) return formArr[1];
-    if (n10 === 1) return formArr[0];
-    return formArr[2];
-  }
-
-  while (n > 0) {
-    let chunk = n % 1000;
-    if (chunk !== 0) {
-      let chunkWords = [];
-      let h = Math.floor(chunk / 100);
-      let t = Math.floor((chunk % 100) / 10);
-      let u = chunk % 10;
-
-      if (h > 0) chunkWords.push(hundreds[h]);
-      if (t === 1) {
-        chunkWords.push(teens[u]);
-      } else {
-        if (t > 1) chunkWords.push(tens[t]);
-        if (u > 0) chunkWords.push(group === 1 ? units_f[u] : units[u]);
-      }
-      let form = getPlural(chunk, forms[group]);
-      if (form) chunkWords.push(form);
-      words = chunkWords.concat(words);
-    }
-    n = Math.floor(n / 1000);
-    group++;
-  }
-  return words.join(' ').trim();
-}
-
-// ─── ФОРМИРОВАНИЕ И ОТПРАВКА КП ────────────────────────────────
-function getKpAvailability(payload) {
-  const hasWorks = payload.works.length > 0;
-  const requiresMaterials = !!payload.project.include_materials;
-  const hasMaterials = payload.materials.length > 0;
-
-  if (!hasWorks) {
-    return { disabled: true, reason: 'Для формирования КП нужно добавить хотя бы одну позицию ВОР' };
-  }
-
-  if (requiresMaterials && !hasMaterials) {
-    return { disabled: true, reason: 'Для формирования КП нужно заполнить ВОМ или отметить, что материалы не требуются' };
-  }
-
-  return { disabled: false, reason: '' };
-}
-
-function syncKpActionVisibility(isVisible) {
-  const action = document.getElementById('estimate-kp-action');
-  if (action) action.style.display = isVisible ? '' : 'none';
-}
-
-async function refreshKpButtonState(projectId) {
-  if (!projectId) return;
-
-  const kpBtn = document.getElementById('btn-open-kp');
-  if (!kpBtn) return;
-  if (kpBtn.style.display === 'none') {
-    syncKpActionVisibility(false);
-    return;
-  }
-
-  const { ok, data } = await apiRequest('GET', `/api/manager/projects/${projectId}/kp-data`);
-  if (!ok) {
-    kpBtn.disabled = true;
-    kpBtn.title = data.error || 'Не удалось проверить данные для КП';
-    syncKpActionVisibility(true);
-    return;
-  }
-
-  const availability = getKpAvailability(data.data);
-  kpBtn.disabled = availability.disabled;
-  kpBtn.title = availability.reason || '';
-  syncKpActionVisibility(true);
-}
-
-document.getElementById('btn-open-kp').addEventListener('click', async () => {
-  const kpBtn = document.getElementById('btn-open-kp');
-  if (kpBtn.disabled) return;
-
-  const container = document.getElementById('kp-preview-content');
-  container.innerHTML = '<span style="color:var(--muted)">Сбор данных для КП...</span>';
-  document.getElementById('kp-markup-input').value = '0';
-  document.getElementById('kp-final-sum-label').textContent = '0';
-  document.getElementById('kp-manual-file').value = '';
-
-  openModal('modal-generate-kp');
-
-  const { ok, data } = await apiRequest('GET', `/api/manager/projects/${activeProjectId}/kp-data`);
-  if (!ok) {
-    container.innerHTML = `<span style="color:red">Ошибка: ${data.error}</span>`;
-    return;
-  }
-
-  const payload = data.data;
-  const availability = getKpAvailability(payload);
-  if (availability.disabled) {
-    container.innerHTML = `<strong>${escHtml(availability.reason)}</strong>`;
-    kpBtn.disabled = true;
-    kpBtn.title = availability.reason;
-    return;
-  }
-
-  const regionalCoeff = Number(payload.project.regional_coeff || 1);
-
-  let worksTotal = 0;
-  payload.works.forEach((w) => {
-    w.effective_price = Number(w.effective_price || 0);
-    w.total = parseFloat((w.quantity * w.effective_price * regionalCoeff).toFixed(2));
-    worksTotal += w.total;
-  });
-
-  let materialsTotal = 0;
-  if (payload.project.include_materials) {
-    payload.materials.forEach((m) => {
-      m.unit_price = Number(m.unit_price || 0);
-      m.total = parseFloat((m.quantity * m.unit_price).toFixed(2));
-      materialsTotal += m.total;
-    });
-  }
-
-  const baseSum = parseFloat((worksTotal + materialsTotal).toFixed(2));
-
-  currentKpData = {
-    date: new Date().toLocaleDateString('ru-RU'),
-    customerName: payload.project.contact_name || 'Не указан',
-    projectName: payload.project.name,
-    projectAddress: payload.project.address || 'Не указан',
-    projectCode: payload.project.code,
-    include_materials: payload.project.include_materials,
-    regionalCoeff,
-    works: payload.works,
-    materials: payload.materials,
-    worksTotal,
-    materialsTotal,
-    baseSum,
-    baseSumWords: numberToWordsRu(baseSum),
-    finalSum: baseSum,
-    finalSumWords: numberToWordsRu(baseSum),
-  };
-
-  renderKpPreview();
-});
-
-function renderKpPreview() {
-  if (!currentKpData) return;
-
-  const markup = parseFloat(document.getElementById('kp-markup-input').value) || 0;
-  currentKpData.finalSum = parseFloat((currentKpData.baseSum + markup).toFixed(2));
-  currentKpData.finalSumWords = numberToWordsRu(currentKpData.finalSum);
-
-  document.getElementById('kp-final-sum-label').textContent = formatMoney(currentKpData.finalSum);
-
-  const container = document.getElementById('kp-preview-content');
-  container.innerHTML = `
-    <div style="font-family: serif; font-size: 1rem; line-height: 1.5; color: #000; padding: 1.5rem; background: #fff; border: 1px solid var(--border); border-radius: 8px;">
-      <div style="text-align:right; font-size: 0.9rem; margin-bottom: 2rem;">
-        Исх. № <strong>будет присвоен при отправке</strong><br>
-        Дата: <strong>${currentKpData.date}</strong>
-      </div>
-      <h2 style="text-align:center; margin-bottom:1.5rem; font-size:1.2rem; text-transform:uppercase;">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</h2>
-
-      <p style="text-indent: 1.5rem; text-align: justify; margin-bottom: 1rem;">
-        ИП Большакова Е.Ф. рассмотрело техническое задание на выполнение строительно-монтажных работ по <strong>"${escHtml(currentKpData.projectName)}"</strong> по адресу <strong>${escHtml(currentKpData.projectAddress)}</strong> и готово принять данный объём в работу в полном соответствии с предъявленными требованиями.
-      </p>
-
-      <p style="margin-bottom: 0.5rem;"><strong>Стоимость и условия:</strong></p>
-      <p style="margin-bottom: 0.5rem; text-indent: 1.5rem; text-align: justify;">
-        Общая стоимость работ составляет <strong>${formatMoney(currentKpData.finalSum)}</strong> (<strong>${currentKpData.finalSumWords}</strong>) руб., включая НДС 20%.
-      </p>
-      <p style="text-indent: 1.5rem; margin-bottom: 2rem;">
-        Детальная ведомость объемов работ ${currentKpData.include_materials ? 'и материалов ' : ''}с разбивкой по позициям приведена ниже.
-      </p>
-
-      <div style="margin-bottom:1.5rem;">
-        <div style="font-weight:700; margin-bottom:.75rem;">Ведомость работ</div>
-        <table style="width:100%; border-collapse:collapse; font-size:.92rem;">
-          <thead>
-            <tr>
-              <th style="text-align:left; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Работа</th>
-              <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Кол-во</th>
-              <th style="text-align:left; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Ед.</th>
-              <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Цена</th>
-              <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Сумма</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${currentKpData.works.map((w) => `
-              <tr>
-                <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem;">${escHtml(w.work_name)}</td>
-                <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right;">${w.quantity}</td>
-                <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem;">${escHtml(w.unit || '—')}</td>
-                <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right;">${w.effective_price ? formatMoney(w.effective_price) : '0 ₽'}</td>
-                <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right; font-weight:600;">${formatMoney(w.total)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-
-      ${currentKpData.include_materials ? `
-        <div style="margin-bottom:1.5rem;">
-          <div style="font-weight:700; margin-bottom:.75rem;">Ведомость материалов</div>
-          <table style="width:100%; border-collapse:collapse; font-size:.92rem;">
-            <thead>
-              <tr>
-                <th style="text-align:left; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Материал</th>
-                <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Кол-во</th>
-                <th style="text-align:left; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Ед.</th>
-                <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Цена</th>
-                <th style="text-align:right; border-bottom:1px solid #d1d5db; padding:.45rem .35rem;">Сумма</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${currentKpData.materials.map((m) => `
-                <tr>
-                  <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem;">${escHtml(m.material_name)}</td>
-                  <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right;">${m.quantity}</td>
-                  <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem;">${escHtml(m.unit || '—')}</td>
-                  <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right;">${m.unit_price ? formatMoney(m.unit_price) : '0 ₽'}</td>
-                  <td style="border-bottom:1px solid #e5e7eb; padding:.45rem .35rem; text-align:right; font-weight:600;">${formatMoney(m.total)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      ` : `
-        <div style="margin-bottom:1.5rem; padding:.9rem 1rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; font-size:.92rem;">
-          Материалы не включены в КП для этого проекта.
-        </div>
-      `}
-
-      <div style="display:grid; gap:.35rem; margin-bottom:1rem; font-size:.95rem;">
-        <div>Работы: <strong>${formatMoney(currentKpData.worksTotal)}</strong></div>
-        ${currentKpData.include_materials ? `<div>Материалы: <strong>${formatMoney(currentKpData.materialsTotal)}</strong></div>` : ''}
-        ${currentKpData.regionalCoeff !== 1 ? `<div>Региональный коэффициент для работ: <strong>${currentKpData.regionalCoeff}</strong></div>` : ''}
-        ${markup ? `<div>Ручная корректировка: <strong>${formatMoney(markup)}</strong></div>` : ''}
-      </div>
-
-      <div style="font-size: 0.85rem; color: var(--muted); border-top: 1px dashed #ccc; padding-top: 1rem;">
-        <em>* Предпросмотр перед отправкой. Итоговый документ будет сформирован из Word-шаблона и сохранён в документах проекта.</em>
-      </div>
-    </div>
-  `;
-}
-
-document.getElementById('kp-markup-input')?.addEventListener('input', renderKpPreview);
-
-document.getElementById('btn-kp-download')?.addEventListener('click', async () => {
-  if (!currentKpData) return;
-  const btn = document.getElementById('btn-kp-download');
-  btn.disabled = true; btn.textContent = 'Подготовка...';
-
-  try {
-    const res = await fetch(`/api/manager/projects/${activeProjectId}/kp-generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(currentKpData)
-    });
-    if (res.ok) {
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const safeName = currentKpData.projectName.replace(/[/\\?%*:|"<>]/g, '_');
-      a.download = `КП_${safeName}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } else {
-      const data = await res.json();
-      showToast(data.error || 'Ошибка скачивания', 'error');
-    }
-  } catch (e) {
-    console.error(e);
-    showToast('Сетевая ошибка', 'error');
-  }
-  btn.disabled = false; btn.textContent = 'Скачать Word (.docx)';
-});
-
-document.getElementById('btn-kp-send')?.addEventListener('click', async () => {
-  if (!currentKpData) return;
-  const btn = document.getElementById('btn-kp-send');
-  btn.disabled = true; btn.textContent = 'Отправка...';
-
-  const fd = new FormData();
-  const fileInput = document.getElementById('kp-manual-file');
-  if (fileInput.files.length > 0) {
-    fd.append('file', fileInput.files[0]);
-  } else {
-    fd.append('kpData', JSON.stringify(currentKpData));
-  }
-
-  const { ok, data } = await apiRequest('POST', `/api/manager/projects/${activeProjectId}/kp-send`, fd);
-
-  btn.disabled = false; btn.textContent = 'Отправить Заказчику';
-
-  if (ok) {
-    showToast(data.message || 'Коммерческое предложение отправлено!', 'success');
-    closeModal('modal-generate-kp');
-    const project = projectsList.find(p => p.id == activeProjectId);
-    if (project) project.kp_sent_at = new Date().toISOString().slice(0, 10);
-    const generateBtn = document.getElementById('btn-generate-stages');
-    if (generateBtn && !project?.stages_generated) {
-      generateBtn.disabled = false;
-      generateBtn.title = '';
-    }
-    loadProjectDocs(activeProjectId);
-    loadFunnel();
-    loadProjects();
-  } else {
-    showToast(data.error || 'Ошибка при отправке', 'error');
-  }
-});
 
 // ─── AI-анализ ───────────────────────────────────────────────
 document.getElementById('btn-analyze')?.addEventListener('click', async () => {
@@ -2079,7 +1117,7 @@ async function loadRequests() {
     <tr>
       <td>${escHtml(r.name || '—')}</td>
       <td>${escHtml(r.phone || '')} ${escHtml(r.email || '')}</td>
-      <td style="max-width:200px;font-size:.85rem">${escHtml((r.message || '').slice(0, 80))}${r.message?.length > 80 ? '...' : ''}</td>
+      <td class="manager-request-message">${escHtml((r.message || '').slice(0, 80))}${r.message?.length > 80 ? '...' : ''}</td>
       <td>${badge(r.status)}</td>
       <td>${formatDate(r.created_at)}</td>
       <td><button class="btn btn-sm btn-outline" data-action="open-request"
@@ -2101,7 +1139,7 @@ document.getElementById('requests-table')?.addEventListener('click', (e) => {
     <p><strong>Телефон:</strong> ${escHtml(phone || '—')}</p>
     <p><strong>Email:</strong> ${escHtml(email || '—')}</p>
     ${badge(status)}
-    <p class="mt-2" style="font-size:.9rem;color:var(--muted)">${escHtml(message || '—')}</p>
+    <p class="manager-request-modal-message">${escHtml(message || '—')}</p>
   `;
   document.getElementById('modal-request-files').innerHTML = '';
   loadRequestFiles(id);
@@ -2113,12 +1151,12 @@ async function loadRequestFiles(id) {
   const { ok, data } = await apiRequest('GET', `/api/manager/requests/${id}/files`);
   if (!ok || !data.data.length) return;
   container.innerHTML = `
-    <div style="font-size:.82rem;color:var(--muted);margin-bottom:.35rem">Файлы из заявки</div>
+    <div class="manager-request-files-title">Файлы из заявки</div>
     ${data.data.map(f => `
-      <div style="display:flex;align-items:center;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border);font-size:.83rem">
-        <span style="color:var(--muted);flex-shrink:0;white-space:nowrap">${escHtml(REQUEST_DOC_LABELS[f.doc_type] || f.doc_type || '—')}</span>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.file_name)}</span>
-        <a href="${f.url}" target="_blank" class="btn btn-outline btn-sm" style="font-size:.75rem;flex-shrink:0">Скачать</a>
+      <div class="manager-request-file-row">
+        <span class="manager-request-file-type">${escHtml(REQUEST_DOC_LABELS[f.doc_type] || f.doc_type || '—')}</span>
+        <span class="manager-request-file-name">${escHtml(f.file_name)}</span>
+        <a href="${f.url}" target="_blank" class="btn btn-outline btn-sm manager-request-file-download">Скачать</a>
       </div>`).join('')}
   `;
 }
@@ -2266,7 +1304,7 @@ async function loadCoefficients() {
     <tr>
       <td>${escHtml(c.name)}</td>
       <td>${Number(c.value).toFixed(3)}</td>
-      <td class="text-muted" style="font-size:.82rem">${escHtml(c.description || '—')}</td>
+      <td class="text-muted manager-coeff-catalog-description">${escHtml(c.description || '—')}</td>
     </tr>
   `).join('') || '<tr><td colspan="3" class="text-muted">Коэффициенты не заданы</td></tr>';
 }

@@ -1,19 +1,18 @@
 const { pool } = require('../config/database');
 const { generateProjectCode } = require('../utils/projectCode');
 const { sendNotification } = require('../utils/notifications');
-const { getSignedDownloadUrl } = require('../utils/signedUrl');
-const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
-const { s3, BUCKET } = require('../config/storage');
-const { randomUUID } = require('crypto');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { ROLES } = require('../middleware/auth');
 const {
-  getUploadFileExtension,
-  normalizeStoredFileName,
-  normalizeUploadFileName,
-} = require('../utils/fileNames');
+  ROLES,
+  MANAGER_STAFF_ROLES,
+} = require('../utils/constants');
 const {
-  managerUploadDocSchema,
+  isAdminSession,
+  formatHistoryValue,
+  logProjectHistory,
+  ensureManagerProjectAccess,
+} = require('../utils/managerProject');
+const {
   createProjectSchema,
   updateProjectSchema,
   updateRequestSchema,
@@ -24,26 +23,6 @@ const {
   updateWorkSpecSchema,
 } = require('../utils/validate');
 
-const MANAGER_DOC_LABELS = {
-  rd: 'Рабочая документация (РД)',
-  pd: 'Проектная документация (ПД)',
-  tz: 'Техническое задание (ТЗ)',
-  tu: 'Технические условия (ТУ)',
-  kp: 'Коммерческое предложение (КП)',
-  estimate: 'Смета / локальный сметный расчёт',
-  contract: 'Договор подряда',
-  addendum: 'Дополнительное соглашение',
-  ks2: 'Акт выполненных работ (КС-2)',
-  ks3: 'Справка о стоимости (КС-3)',
-  permit: 'Разрешение на строительство',
-  boundary_act: 'Акт разграничения балансовой принадлежности',
-  other: 'Прочее',
-};
-
-function isAdminSession(req) {
-  return req.session.userRole === ROLES.ADMIN;
-}
-
 function toDateOnly(value) {
   if (!value) return null;
   if (value instanceof Date) {
@@ -53,13 +32,6 @@ function toDateOnly(value) {
     return `${year}-${month}-${day}`;
   }
   return String(value).slice(0, 10);
-}
-
-function formatHistoryValue(value) {
-  if (value === undefined) return null;
-  if (value === null) return null;
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
 }
 
 async function getProjectWorkProgress(projectId) {
@@ -92,58 +64,6 @@ async function getProjectWorkProgress(projectId) {
     percent,
     isComplete: stageTotal > 0 && stageDone === stageTotal,
   };
-}
-
-async function logProjectHistory({
-  projectId,
-  changedBy,
-  action,
-  fieldName = null,
-  oldValue = null,
-  newValue = null,
-  details = null,
-}) {
-  await pool.query(
-    `INSERT INTO project_history
-      (project_id, changed_by, action, field_name, old_value, new_value, details)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [
-      projectId,
-      changedBy || null,
-      action,
-      fieldName,
-      formatHistoryValue(oldValue),
-      formatHistoryValue(newValue),
-      details,
-    ]
-  );
-}
-
-async function getManagerProject(projectId, req) {
-  const values = [projectId];
-  let where = 'p.id = $1 AND p.is_deleted = FALSE';
-
-  if (!isAdminSession(req)) {
-    values.push(req.session.userId);
-    where += ' AND p.manager_id = $2';
-  }
-
-  const result = await pool.query(
-    `SELECT p.id, p.manager_id
-     FROM projects p
-     WHERE ${where}`,
-    values
-  );
-  return result.rows[0] || null;
-}
-
-async function ensureManagerProjectAccess(projectId, req, res) {
-  const project = await getManagerProject(projectId, req);
-  if (!project) {
-    res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
-    return null;
-  }
-  return project;
 }
 
 async function syncPendingCatalogWork({ workName, unit, managerPrice, addedBy }) {
@@ -210,11 +130,11 @@ async function attachCustomerFromRequest({ projectId, requestId, changedBy }) {
     const byEmail = await pool.query(
       `SELECT id, name
        FROM users
-       WHERE role = 'customer'
+       WHERE role = $2
          AND is_deleted = FALSE
          AND email = $1
        LIMIT 1`,
-      [request.email]
+      [request.email, ROLES.CUSTOMER]
     );
     customer = byEmail.rows[0] || null;
   }
@@ -223,12 +143,12 @@ async function attachCustomerFromRequest({ projectId, requestId, changedBy }) {
     const byPhone = await pool.query(
       `SELECT id, name
        FROM users
-       WHERE role = 'customer'
+       WHERE role = $2
          AND is_deleted = FALSE
          AND regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') =
              regexp_replace($1, '\\D', '', 'g')
        LIMIT 1`,
-      [request.phone]
+      [request.phone, ROLES.CUSTOMER]
     );
     customer = byPhone.rows[0] || null;
   }
@@ -239,9 +159,9 @@ async function attachCustomerFromRequest({ projectId, requestId, changedBy }) {
 
   await pool.query(
     `INSERT INTO project_members (project_id, user_id, role)
-     VALUES ($1, $2, 'customer')
+     VALUES ($1, $2, $3)
      ON CONFLICT (project_id, user_id) DO NOTHING`,
-    [projectId, customer.id]
+    [projectId, customer.id, ROLES.CUSTOMER]
   );
 
   await sendNotification({
@@ -426,15 +346,9 @@ async function getProject(req, res, next) {
        JOIN users u ON u.id = pm.user_id
        WHERE pm.project_id = $1 AND u.is_deleted = FALSE
        ORDER BY
-         CASE pm.role
-           WHEN 'foreman' THEN 1
-           WHEN 'pto' THEN 2
-           WHEN 'supplier' THEN 3
-           WHEN 'customer' THEN 4
-           ELSE 5
-         END,
+         COALESCE(array_position($2::text[], pm.role), 99),
          u.name ASC`,
-      [id]
+      [id, [ROLES.FOREMAN, ROLES.PTO, ROLES.SUPPLIER, ROLES.CUSTOMER]]
     );
     return res.json({
       success: true,
@@ -824,192 +738,6 @@ ${mtr.rows.map(m => `- ${m.material_name} ${m.quantity} ${m.unit || ''} [${m.sta
     const analysis = geminiResult.response.text();
 
     return res.json({ success: true, data: { analysis } });
-  } catch (err) {
-    return next(err);
-  }
-}
-
-// POST /api/manager/projects/:id/documents
-async function uploadDocument(req, res, next) {
-  try {
-    const parsed = managerUploadDocSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({ success: false, error: 'Файл не загружен' });
-    }
-
-    const { id } = req.params;
-    const project = await ensureManagerProjectAccess(id, req, res);
-    if (!project) return;
-
-    const { doc_type, description } = parsed.data;
-    const originalFileName = normalizeUploadFileName(req.file.originalname);
-    const ext = getUploadFileExtension(originalFileName);
-    const fileKey = `documents/${id}/manager/${doc_type}/${randomUUID()}.${ext}`;
-
-    await s3.send(new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: fileKey,
-      Body: req.file.buffer,
-      ContentType: req.file.mimetype,
-    }));
-
-    const result = await pool.query(
-      `INSERT INTO project_documents (project_id, uploaded_by, doc_type, file_key, file_name, description)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, doc_type, file_name, description, uploaded_at`,
-      [id, req.session.userId, doc_type, fileKey, originalFileName, description || null]
-    );
-
-    await logProjectHistory({
-      projectId: parseInt(id, 10),
-      changedBy: req.session.userId,
-      action: 'upload_document',
-      fieldName: 'doc_type',
-      newValue: doc_type,
-      details: `Загружен документ ${originalFileName}`,
-    });
-
-    const members = await pool.query(
-      `SELECT user_id FROM project_members WHERE project_id = $1 AND role = 'customer'`,
-      [id]
-    );
-    members.rows.forEach(r => sendNotification({
-      userId:    r.user_id,
-      projectId: parseInt(id),
-      type:      'document',
-      entityType: 'document',
-      entityId:   result.rows[0].id,
-      message:   `Загружен новый документ: ${originalFileName}`,
-    }));
-
-    return res.status(201).json({ success: true, data: result.rows[0] });
-  } catch (err) {
-    return next(err);
-  }
-}
-
-// GET /api/manager/projects/:id/documents
-async function getDocuments(req, res, next) {
-  try {
-    const { id } = req.params;
-    const access = await ensureManagerProjectAccess(id, req, res);
-    if (!access) return;
-
-    const result = await pool.query(
-      `SELECT pd.id, pd.doc_type, pd.file_key, pd.file_name, pd.description, pd.uploaded_at,
-              u.name as uploaded_by_name, u.id as uploaded_by_id
-       FROM project_documents pd
-       JOIN users u ON u.id = pd.uploaded_by
-       WHERE pd.project_id = $1
-       ORDER BY pd.uploaded_at DESC`,
-      [id]
-    );
-
-    const docs = await Promise.all(result.rows.map(async doc => ({
-      ...doc,
-      file_name: normalizeStoredFileName(doc.file_name),
-      url: await getSignedDownloadUrl(doc.file_key),
-    })));
-
-    return res.json({ success: true, data: docs });
-  } catch (err) {
-    return next(err);
-  }
-}
-
-// DELETE /api/manager/documents/:id
-async function deleteDocument(req, res, next) {
-  try {
-    const { id } = req.params;
-
-    const doc = await pool.query(
-      `SELECT pd.id, pd.file_key, pd.uploaded_by, pd.project_id
-       FROM project_documents pd
-       WHERE pd.id = $1`,
-      [id]
-    );
-
-    if (!doc.rows[0]) {
-      return res.status(404).json({ success: false, error: 'Документ не найден' });
-    }
-
-    const access = await getManagerProject(doc.rows[0].project_id, req);
-    if (!access) {
-      return res.status(403).json({ success: false, error: 'Нет доступа' });
-    }
-
-    // Удалять может менеджер проекта или admin
-    if (!isAdminSession(req) && access.manager_id !== req.session.userId) {
-      return res.status(403).json({ success: false, error: 'Нет доступа' });
-    }
-
-    await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: doc.rows[0].file_key }));
-    await pool.query(`DELETE FROM project_documents WHERE id = $1`, [id]);
-
-    await logProjectHistory({
-      projectId: doc.rows[0].project_id,
-      changedBy: req.session.userId,
-      action: 'delete_document',
-      details: `Удалён документ id=${id}`,
-    });
-
-    return res.json({ success: true });
-  } catch (err) {
-    return next(err);
-  }
-}
-
-// GET /api/manager/requests/:id/files
-async function getRequestFiles(req, res, next) {
-  try {
-    const { id } = req.params;
-    const result = await pool.query(
-      `SELECT id, file_key, file_name, doc_type, uploaded_at
-       FROM public_request_files
-       WHERE request_id = $1
-       ORDER BY uploaded_at`,
-      [id]
-    );
-    const files = await Promise.all(result.rows.map(async f => ({
-      ...f,
-      file_name: normalizeStoredFileName(f.file_name),
-      url: await getSignedDownloadUrl(f.file_key),
-    })));
-    return res.json({ success: true, data: files });
-  } catch (err) {
-    return next(err);
-  }
-}
-
-// POST /api/manager/projects/:id/copy-request-files
-async function copyRequestFiles(req, res, next) {
-  try {
-    const { id } = req.params;
-    const access = await ensureManagerProjectAccess(id, req, res);
-    if (!access) return;
-    const { request_id } = req.body;
-    if (!request_id) {
-      return res.status(400).json({ success: false, error: 'request_id обязателен' });
-    }
-
-    const VALID_DOC_TYPES = ['rd', 'pd', 'tz', 'tu', 'kp', 'estimate', 'contract', 'addendum', 'ks2', 'ks3', 'permit', 'boundary_act', 'other'];
-
-    const files = await pool.query(
-      `SELECT file_key, file_name, doc_type FROM public_request_files WHERE request_id = $1`,
-      [request_id]
-    );
-
-    await Promise.all(files.rows.map(f => pool.query(
-      `INSERT INTO project_documents (project_id, uploaded_by, doc_type, file_key, file_name)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [id, req.session.userId, VALID_DOC_TYPES.includes(f.doc_type) ? f.doc_type : 'other', f.file_key, normalizeStoredFileName(f.file_name)]
-    )));
-
-    return res.json({ success: true });
   } catch (err) {
     return next(err);
   }
@@ -1461,11 +1189,6 @@ async function getProjectSpecs(req, res, next) {
   }
 }
 
-// GET /api/manager/doc-types
-function getDocTypes(req, res) {
-  return res.json({ success: true, data: MANAGER_DOC_LABELS });
-}
-
 // GET /api/manager/staff
 async function getStaff(req, res, next) {
   try {
@@ -1473,8 +1196,9 @@ async function getStaff(req, res, next) {
       `SELECT id, role, name, email, is_verified
        FROM users
        WHERE is_deleted = FALSE
-         AND role IN ('foreman','supplier','pto','customer','partner')
-       ORDER BY role, name`
+         AND role = ANY($1::text[])
+       ORDER BY role, name`,
+      [MANAGER_STAFF_ROLES]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -1485,14 +1209,12 @@ async function getStaff(req, res, next) {
 module.exports = {
   getRequests,
   updateRequest,
-  getRequestFiles,
   getProjects,
   getProject,
   createProject,
   updateProject,
   getProjectCoefficients,
   updateProjectCoefficients,
-  copyRequestFiles,
   addTeamMember,
   analyzeProject,
   getStaff,
@@ -1507,8 +1229,4 @@ module.exports = {
   generateStagesFromVOR,
   getProjectWarehouse,
   getProjectSpecs,
-  uploadDocument,
-  getDocuments,
-  deleteDocument,
-  getDocTypes,
 };

@@ -91,6 +91,7 @@ energoatlant/
 │   ├── pto.js
 │   ├── customer.js
 │   ├── partner.js
+│   ├── mobile.js
 │   ├── project.js
 │   ├── messages.js
 │   ├── notifications.js
@@ -106,6 +107,7 @@ energoatlant/
 │   ├── ptoController.js
 │   ├── customerController.js
 │   ├── partnerController.js
+│   ├── mobileController.js
 │   ├── projectController.js
 │   ├── messageController.js
 │   ├── notificationController.js
@@ -116,6 +118,8 @@ energoatlant/
 │   ├── projectCode.js         # generateProjectCode() → PRJ-2026-XXXX
 │   ├── notifications.js       # sendNotification()
 │   ├── signedUrl.js           # getSignedUrl() для YOS, TTL 1 час
+│   ├── mobileToken.js         # Bearer-токены мобильного API
+│   ├── calendarPlan.js        # Календарный план проекта
 │   └── validate.js            # Zod-схемы валидации
 │
 ├── db/
@@ -138,6 +142,10 @@ energoatlant/
     ├── dashboard_pto.html
     ├── dashboard_customer.html
     ├── dashboard_partner.html
+    ├── manager_project.html
+    ├── foreman_project.html
+    ├── customer_project.html
+    ├── profile.html
     ├── css/
     │   └── style.css
     └── js/
@@ -149,6 +157,7 @@ energoatlant/
         ├── supplier.js
         ├── pto.js
         ├── customer.js
+        ├── customer_status.js
         └── partner.js
 ```
 
@@ -458,9 +467,20 @@ other                — Прочее
 ### /api/auth
 ```
 POST   /api/auth/register
+POST   /api/auth/register/verify
+POST   /api/auth/register/resend
 POST   /api/auth/login             rate limit 5/15мин
+POST   /api/auth/mobile/login      Bearer-токен для мобильного клиента
+GET    /api/auth/mobile/me
+POST   /api/auth/mobile/logout
 POST   /api/auth/logout
 GET    /api/auth/me
+PUT    /api/auth/profile
+PUT    /api/auth/password
+POST   /api/auth/avatar
+POST   /api/auth/forgot-password
+POST   /api/auth/verify-code
+POST   /api/auth/reset-password
 ```
 
 ### /api/public
@@ -568,6 +588,12 @@ GET    /api/partner/refs
 POST   /api/partner/payout-request
 ```
 
+### /api/mobile
+```
+POST   /api/mobile/push-token       сохранить push-токен устройства
+DELETE /api/mobile/push-token       отключить push-токен устройства
+```
+
 ### Общие
 ```
 GET    /api/messages
@@ -642,6 +668,13 @@ GET    /api/documents/serve/:key   signed URL, TTL 1 час
 **dashboard_customer.html** — объекты, ход СМР, документы, почта, "Создать заявку", "Присоединиться"
 **dashboard_admin.html** — метрики, пользователи, проекты, выплаты партнёров
 **dashboard_partner.html** — реф. код, уровень, статистика, "Запросить выплату"
+
+### Отдельные страницы личного кабинета
+
+**manager_project.html** — подробная карточка проекта менеджера: основное, команда, этапы, смета, склад, документы, КП
+**foreman_project.html** — подробная карточка проекта прораба: этапы, календарный план, фото, МТР, склад, ведомости
+**customer_project.html** — подробная карточка проекта заказчика: статус работ, календарный план, документы, склад, согласования
+**profile.html** — профиль пользователя, смена данных, пароль и аватар
 
 ---
 

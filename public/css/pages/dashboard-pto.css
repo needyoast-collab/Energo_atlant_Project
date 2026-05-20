@@ -1,0 +1,79 @@
+/* PТО dashboard page-specific classes. */
+.pto-project-empty {
+  color: var(--muted);
+  padding: 2rem;
+  text-align: center;
+}
+.pto-project-card {
+  cursor: pointer;
+}
+.pto-project-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+.pto-project-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.pto-project-muted {
+  color: var(--muted);
+  font-size: .82rem;
+}
+.pto-project-manager {
+  margin-top: .5rem;
+}
+.pto-project-open {
+  color: var(--accent);
+  font-size: .82rem;
+  margin-top: .75rem;
+}
+.pto-code-offset {
+  margin-left: .5rem;
+}
+.pto-stage-content {
+  flex: 1;
+}
+.pto-doc-group {
+  margin-bottom: 1.25rem;
+}
+.pto-doc-group-title {
+  color: var(--accent);
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  margin-bottom: .5rem;
+  text-transform: uppercase;
+}
+.pto-doc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.pto-doc-file {
+  font-size: .9rem;
+  font-weight: 500;
+}
+.pto-doc-meta {
+  color: var(--muted);
+  font-size: .78rem;
+}
+.pto-doc-actions {
+  display: flex;
+  gap: .4rem;
+  flex-shrink: 0;
+  margin-left: .75rem;
+}
+.pto-doc-btn {
+  font-size: .78rem;
+}
+.pto-delete-doc-btn {
+  color: var(--muted);
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 9999px;
+  font-size: .78rem;
+}

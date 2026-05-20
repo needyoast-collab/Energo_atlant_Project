@@ -31,8 +31,7 @@ function showToast(message, type = 'info') {
   container.appendChild(toast);
 
   setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity .3s';
+    toast.classList.add('is-hiding');
     setTimeout(() => toast.remove(), 300);
   }, 3500);
 }

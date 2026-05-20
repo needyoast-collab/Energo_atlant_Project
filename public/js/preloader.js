@@ -10,9 +10,6 @@
     if (isHidden) return;
     isHidden = true;
     preloader.classList.add('hidden');
-    window.setTimeout(() => {
-      preloader.style.display = 'none';
-    }, 180);
   }
 
   window.hidePreloader = hidePreloader;

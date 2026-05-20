@@ -4,6 +4,17 @@ const SPEC_STATUS_LABELS = {
   approved: 'Согласовано', rejected: 'Отклонено',
 };
 
+function qtyStateClass(value) {
+  const num = Number(value);
+  if (num > 0) return 'text-success';
+  if (num < 0) return 'text-danger';
+  return 'text-muted';
+}
+
+function isVisible(el) {
+  return !!el && !el.classList.contains('is-hidden');
+}
+
 let currentUser    = null;
 let projectsList   = [];
 let activeMtrId    = null;
@@ -19,7 +30,7 @@ let currentSupSpecs = [];
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
   try {
-    currentUser = await requireAuth('supplier');
+    currentUser = await requireAuth(window.APP_ROLES.SUPPLIER);
     if (!currentUser) return;
     document.getElementById('user-name').textContent = currentUser.name;
     renderUserAvatar(currentUser);
@@ -58,19 +69,19 @@ function renderProjectCards() {
   const container = document.getElementById('projects-list');
   if (!container) return;
   if (!projectsList.length) {
-    container.innerHTML = `<div class="card" style="color:var(--muted);text-align:center;padding:2rem">
+    container.innerHTML = `<div class="card empty-card">
       Нет проектов. Войдите по коду от менеджера.</div>`;
     return;
   }
   container.innerHTML = projectsList.map(p => `
-    <div class="card" style="cursor:pointer" data-action="open-project" data-id="${p.id}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
-        <div class="card-title" style="margin:0;font-size:1.1rem">${escHtml(p.name)}</div>
+    <div class="card supplier-project-card" data-action="open-project" data-id="${p.id}">
+      <div class="supplier-card-head">
+        <div class="card-title supplier-card-title">${escHtml(p.name)}</div>
         ${badge(p.status)}
       </div>
-      <div style="color:var(--muted);font-size:.82rem;margin-bottom:.25rem">${escHtml(p.code)}</div>
-      ${p.address ? `<div style="color:var(--muted);font-size:.82rem">📍 ${escHtml(p.address)}</div>` : ''}
-      ${p.manager_name ? `<div style="color:var(--muted);font-size:.82rem;margin-top:.5rem">Менеджер: ${escHtml(p.manager_name)}</div>` : ''}
+      <div class="supplier-card-meta">${escHtml(p.code)}</div>
+      ${p.address ? `<div class="supplier-card-meta">📍 ${escHtml(p.address)}</div>` : ''}
+      ${p.manager_name ? `<div class="supplier-card-meta">Менеджер: ${escHtml(p.manager_name)}</div>` : ''}
     </div>
   `).join('');
 }
@@ -79,17 +90,17 @@ function renderStockProjectsTable() {
   const tbody = document.querySelector('#stock-projects-table tbody');
   if (!tbody) return;
   if (!projectsList.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">Нет проектов, привязанных к снабженцу.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Нет проектов, привязанных к снабженцу.</td></tr>';
     return;
   }
 
   tbody.innerHTML = projectsList.map(p => `
     <tr>
-      <td style="color:var(--muted);font-size:.82rem">${escHtml(p.code)}</td>
-      <td style="font-weight:600">${escHtml(p.name)}</td>
+      <td class="table-cell-muted-sm">${escHtml(p.code)}</td>
+      <td class="table-cell-strong">${escHtml(p.name)}</td>
       <td>${badge(p.status)}</td>
-      <td style="color:var(--muted);font-size:.82rem">${escHtml(p.address || '—')}</td>
-      <td style="text-align:right">
+      <td class="table-cell-muted-sm">${escHtml(p.address || '—')}</td>
+      <td class="table-cell-right">
         <button class="btn btn-outline btn-sm" data-action="open-project-stock" data-id="${p.id}">
           Открыть склад
         </button>
@@ -118,8 +129,8 @@ function switchStockTab(tab) {
   });
   const general = document.getElementById('stock-tab-general');
   const projects = document.getElementById('stock-tab-projects');
-  if (general) general.style.display = tab === 'general' ? '' : 'none';
-  if (projects) projects.style.display = tab === 'projects' ? '' : 'none';
+  if (general) general.classList.toggle('is-hidden', tab !== 'general');
+  if (projects) projects.classList.toggle('is-hidden', tab !== 'projects');
   if (tab === 'general') loadGeneralWarehouse();
   if (tab === 'projects') renderStockProjectsTable();
 }
@@ -136,14 +147,14 @@ async function openProjectModal(id, options = {}) {
 
   document.getElementById('modal-project-title').textContent = project.name;
   document.getElementById('modal-project-meta').innerHTML =
-    `${badge(project.status)} <span style="margin-left:.5rem">${escHtml(project.code)}</span>` +
+    `${badge(project.status)} <span class="supplier-modal-meta-code">${escHtml(project.code)}</span>` +
     (project.address ? ` · 📍 ${escHtml(project.address)}` : '');
 
   document.getElementById('sup-warehouse-export').href =
     `/api/supplier/projects/${id}/warehouse/export`;
 
   const tabs = document.getElementById('sup-project-tabs');
-  if (tabs) tabs.style.display = warehouseOnly ? 'none' : 'flex';
+  if (tabs) tabs.classList.toggle('is-hidden', warehouseOnly);
 
   openModal('modal-project');
 
@@ -152,9 +163,9 @@ async function openProjectModal(id, options = {}) {
   } catch(err) { /* tab уже активен */ }
 
   if (warehouseOnly) {
-    document.getElementById('sup-tab-warehouse').style.display = '';
-    document.getElementById('sup-tab-specs').style.display = 'none';
-    document.getElementById('sup-tab-docs').style.display = 'none';
+    document.getElementById('sup-tab-warehouse').classList.remove('is-hidden');
+    document.getElementById('sup-tab-specs').classList.add('is-hidden');
+    document.getElementById('sup-tab-docs').classList.add('is-hidden');
   }
 }
 
@@ -163,7 +174,7 @@ const SUP_TABS = ['warehouse', 'specs', 'docs'];
 
 function switchSupTab(tab) {
   SUP_TABS.forEach(t => {
-    document.getElementById(`sup-tab-${t}`).style.display = t === tab ? '' : 'none';
+    document.getElementById(`sup-tab-${t}`).classList.toggle('is-hidden', t !== tab);
     document.getElementById(`sup-tab-btn-${t}`).className =
       t === tab ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
   });
@@ -179,10 +190,10 @@ document.querySelectorAll('[data-suptab]').forEach(btn => {
 // ─── Склад объекта (в модалке) ────────────────────────────────
 async function loadSupWarehouse(id) {
   const tbody = document.querySelector('#sup-warehouse-table tbody');
-  tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">Загрузка...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Загрузка...</td></tr>';
   const { ok, data } = await apiRequest('GET', `/api/supplier/projects/${id}/warehouse`);
-  if (!ok) { tbody.innerHTML = '<tr><td colspan="6" style="color:var(--danger)">Ошибка загрузки</td></tr>'; return; }
-  if (!data.data.length) { tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">Склад пуст</td></tr>'; return; }
+  if (!ok) { tbody.innerHTML = '<tr><td colspan="6" class="table-error">Ошибка загрузки</td></tr>'; return; }
+  if (!data.data.length) { tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Склад пуст</td></tr>'; return; }
 
   tbody.innerHTML = data.data.map(r => `
     <tr>
@@ -190,10 +201,10 @@ async function loadSupWarehouse(id) {
       <td>${escHtml(r.unit || '—')}</td>
       <td>${r.qty_total}</td>
       <td>${r.qty_used}</td>
-      <td style="font-weight:600;color:${Number(r.qty_balance) > 0 ? 'var(--success)' : Number(r.qty_balance) < 0 ? 'var(--danger)' : 'var(--muted)'}">
+      <td class="table-cell-strong ${qtyStateClass(r.qty_balance)}">
         ${r.qty_balance}
       </td>
-      <td style="color:var(--muted);font-size:.8rem">${escHtml(SOURCE_LABELS[r.source] || r.source)}</td>
+      <td class="table-cell-muted-xs">${escHtml(SOURCE_LABELS[r.source] || r.source)}</td>
     </tr>
   `).join('');
 }
@@ -228,59 +239,58 @@ document.getElementById('add-warehouse-form').addEventListener('submit', async (
 // ─── Ведомость (в модалке) ────────────────────────────────────
 async function loadSupSpecs(id) {
   const container = document.getElementById('sup-specs-list');
-  container.innerHTML = '<div style="color:var(--muted)">Загрузка...</div>';
+  container.innerHTML = '<div class="text-muted">Загрузка...</div>';
   const { ok, data } = await apiRequest('GET', `/api/supplier/projects/${id}/specs`);
-  if (!ok) { container.innerHTML = '<div style="color:var(--danger)">Ошибка загрузки</div>'; return; }
+  if (!ok) { container.innerHTML = '<div class="text-danger">Ошибка загрузки</div>'; return; }
 
   const specs = data.data;
   currentSupSpecs = specs;
   const hasDraft = specs.some(s => s.status === 'draft');
   document.getElementById('btn-submit-specs').disabled = !hasDraft;
-  document.getElementById('btn-submit-specs').style.opacity = hasDraft ? '1' : '.4';
   updateFulfillSelectedButton();
 
   if (!specs.length) {
-    container.innerHTML = '<div style="color:var(--muted)">Позиций нет. Добавьте материалы.</div>';
+    container.innerHTML = '<div class="text-muted">Позиций нет. Добавьте материалы.</div>';
     return;
   }
 
   const getSupplyState = (spec) => {
     const supplied = Number(spec.supplied_qty || 0);
     const remaining = Number(spec.remaining_qty || 0);
-    if (remaining <= 0 && supplied > 0) return { label: 'Обеспечено', color: 'var(--success)' };
-    if (supplied > 0) return { label: 'Частично обеспечено', color: 'var(--accent)' };
-    return { label: 'Не обеспечено', color: 'var(--muted)' };
+    if (remaining <= 0 && supplied > 0) return { label: 'Обеспечено', cls: 'text-success' };
+    if (supplied > 0) return { label: 'Частично обеспечено', cls: 'text-accent' };
+    return { label: 'Не обеспечено', cls: 'text-muted' };
   };
 
   container.innerHTML = specs.map(s => `
-    <div style="padding:.7rem 0;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem">
+    <div class="supplier-spec-row">
+      <div class="supplier-spec-head">
         ${s.status === 'approved' && Number(s.remaining_qty || 0) > 0 ? `
-          <label style="padding-top:.1rem">
+          <label class="supplier-spec-check">
             <input type="checkbox" class="fulfill-spec-checkbox" value="${s.id}" aria-label="Выбрать ${escHtml(s.material_name)}">
           </label>
-        ` : '<div style="width:18px;flex-shrink:0"></div>'}
-        <div style="min-width:0;flex:1">
-          <div style="font-weight:500;font-size:.9rem">${escHtml(s.material_name)}</div>
-          <div style="display:flex;gap:.6rem;flex-wrap:wrap;color:var(--muted);font-size:.78rem;margin-top:.1rem">
-            <span>Нужно: <strong style="color:var(--text)">${s.quantity} ${escHtml(s.unit || '')}</strong></span>
-            <span>Цена: <strong style="color:var(--text)">${formatMoney(Number(s.unit_price || 0))}</strong></span>
-            <span>Обеспечено: <strong style="color:var(--text)">${s.supplied_qty || 0}</strong></span>
-            <span>Осталось: <strong style="color:var(--text)">${s.remaining_qty || 0}</strong></span>
+        ` : '<div class="supplier-spec-check-placeholder"></div>'}
+        <div class="supplier-spec-body">
+          <div class="supplier-spec-title">${escHtml(s.material_name)}</div>
+          <div class="supplier-spec-meta">
+            <span>Нужно: <strong>${s.quantity} ${escHtml(s.unit || '')}</strong></span>
+            <span>Цена: <strong>${formatMoney(Number(s.unit_price || 0))}</strong></span>
+            <span>Обеспечено: <strong>${s.supplied_qty || 0}</strong></span>
+            <span>Осталось: <strong>${s.remaining_qty || 0}</strong></span>
           </div>
           ${s.status === 'approved' ? `
-            <div style="font-size:.78rem;margin-top:.2rem;color:${getSupplyState(s).color}">
+            <div class="supplier-spec-supply ${getSupplyState(s).cls}">
               ${getSupplyState(s).label}
             </div>
           ` : ''}
-          <div style="color:var(--muted);font-size:.78rem;margin-top:.2rem">
+          <div class="supplier-spec-status">
             ${escHtml(SPEC_STATUS_LABELS[s.status] || s.status)}
-            ${s.rejection_note ? ` · <span style="color:var(--danger)">${escHtml(s.rejection_note)}</span>` : ''}
+            ${s.rejection_note ? ` · <span class="text-danger">${escHtml(s.rejection_note)}</span>` : ''}
           </div>
         </div>
-        <div style="display:flex;gap:.35rem;flex-shrink:0;margin-left:.5rem">
+        <div class="supplier-spec-actions">
           ${s.status === 'approved' && Number(s.remaining_qty || 0) > 0 ? `
-            <button class="btn btn-outline btn-sm" style="font-size:.75rem"
+            <button class="btn btn-outline btn-sm supplier-action-btn-sm"
               data-action="fulfill-spec" data-id="${s.id}"
               data-name="${escHtml(s.material_name)}" data-unit="${escHtml(s.unit || '')}"
               data-remaining="${s.remaining_qty}">
@@ -288,12 +298,12 @@ async function loadSupSpecs(id) {
             </button>
           ` : ''}
           ${s.status === 'draft' ? `
-            <button class="btn btn-outline btn-sm" style="font-size:.75rem;min-width:120px"
+            <button class="btn btn-outline btn-sm supplier-action-btn-sm supplier-action-btn-wide"
               data-action="edit-spec" data-id="${s.id}"
               data-name="${escHtml(s.material_name)}" data-unit="${escHtml(s.unit||'')}" data-qty="${s.quantity}" data-price="${s.unit_price}">
               Изм.
             </button>
-            <button class="btn btn-outline btn-sm" style="font-size:.75rem;min-width:120px;color:var(--danger);border-color:rgba(239,68,68,.35)"
+            <button class="btn btn-outline btn-sm supplier-action-btn-sm supplier-action-btn-wide supplier-danger-btn"
               data-action="delete-spec" data-id="${s.id}">
               Удалить
             </button>
@@ -316,10 +326,9 @@ function updateFulfillSelectedButton() {
   if (!btn) return;
   const count = document.querySelectorAll('.fulfill-spec-checkbox:checked').length;
   const hasFulfillable = currentSupSpecs.some((spec) => spec.status === 'approved' && Number(spec.remaining_qty || 0) > 0);
-  btn.style.display = hasFulfillable ? '' : 'none';
+  btn.classList.toggle('is-hidden', !hasFulfillable);
   btn.disabled = count === 0;
   btn.textContent = count ? `Обеспечить выбранные (${count})` : 'Обеспечить выбранные';
-  btn.style.opacity = count ? '1' : '.45';
 }
 
 document.getElementById('sup-specs-list').addEventListener('click', async (e) => {
@@ -379,15 +388,15 @@ function renderFulfillSelectedRows(specs) {
     return `
       <tr data-spec-id="${spec.id}">
         <td>
-          <div style="font-weight:600">${escHtml(spec.material_name)}</div>
-          <div style="color:var(--muted);font-size:.78rem;margin-top:.15rem">Нужно: ${spec.quantity} ${escHtml(spec.unit || '')}</div>
+          <div class="supplier-fulfill-material">${escHtml(spec.material_name)}</div>
+          <div class="supplier-fulfill-needed">Нужно: ${spec.quantity} ${escHtml(spec.unit || '')}</div>
         </td>
-        <td style="text-align:right">${remaining} ${escHtml(spec.unit || '')}</td>
+        <td class="table-cell-right">${remaining} ${escHtml(spec.unit || '')}</td>
         <td>
-          <input type="number" class="form-control fulfill-selected-qty" min="0.001" step="0.001" value="${remaining}" max="${remaining}" style="padding:.45rem .55rem">
+          <input type="number" class="form-control form-control-sm fulfill-selected-qty" min="0.001" step="0.001" value="${remaining}" max="${remaining}">
         </td>
         <td data-purchase-price-cell>
-          <input type="number" class="form-control fulfill-selected-price" min="0" step="0.01" value="${price}" style="padding:.45rem .55rem">
+          <input type="number" class="form-control form-control-sm fulfill-selected-price" min="0" step="0.01" value="${price}">
         </td>
       </tr>
     `;
@@ -397,7 +406,7 @@ function renderFulfillSelectedRows(specs) {
 function toggleFulfillSelectedPriceColumn() {
   const isPurchase = document.getElementById('fulfill-selected-source').value === 'purchase';
   document.querySelectorAll('[data-purchase-price-head], [data-purchase-price-cell]').forEach((el) => {
-    el.style.display = isPurchase ? '' : 'none';
+    el.classList.toggle('is-hidden', !isPurchase);
   });
 }
 
@@ -470,7 +479,7 @@ document.getElementById('fulfill-selected-form').addEventListener('submit', asyn
     showToast(`Обеспечено позиций: ${data.data.inserted}`, 'success');
     closeModal('modal-fulfill-selected');
     loadSupSpecs(activeModalProjectId);
-    if (document.getElementById('sup-tab-warehouse').style.display !== 'none') {
+    if (isVisible(document.getElementById('sup-tab-warehouse'))) {
       loadSupWarehouse(activeModalProjectId);
     }
   } else {
@@ -555,8 +564,8 @@ function toggleFulfillGeneralWrap() {
   const purchaseWrap = document.getElementById('fulfill-purchase-price-wrap');
   const select = document.getElementById('fulfill-general-item');
   const priceInput = document.querySelector('#fulfill-spec-form [name=purchase_price]');
-  wrap.style.display = source === 'company' ? '' : 'none';
-  purchaseWrap.style.display = source === 'purchase' ? '' : 'none';
+  wrap.classList.toggle('is-hidden', source !== 'company');
+  purchaseWrap.classList.toggle('is-hidden', source !== 'purchase');
   select.required = source === 'company';
   priceInput.required = source === 'purchase';
 }
@@ -585,7 +594,7 @@ document.getElementById('fulfill-spec-form').addEventListener('submit', async (e
     showToast('Материал поступил на склад объекта', 'success');
     closeModal('modal-fulfill-spec');
     loadSupSpecs(activeModalProjectId);
-    if (document.getElementById('sup-tab-warehouse').style.display !== 'none') {
+    if (isVisible(document.getElementById('sup-tab-warehouse'))) {
       loadSupWarehouse(activeModalProjectId);
     }
     loadGeneralWarehouse();
@@ -608,28 +617,20 @@ function addBatchRow() {
   const rowNum = tbody.querySelectorAll('tr').length + 1;
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td style="padding:.3rem .5rem;color:var(--muted);font-size:.8rem;text-align:center">${rowNum}</td>
-    <td style="padding:.2rem .3rem">
-      <input type="text" class="batch-cell batch-name" placeholder="Наименование материала"
-        style="width:100%;min-width:200px;background:var(--bg2);color:var(--text);
-               border:1px solid var(--border);border-radius:4px;padding:.35rem .55rem;font-size:.84rem;font-family:inherit;box-sizing:border-box">
+    <td class="batch-cell-index">${rowNum}</td>
+    <td class="batch-cell-wrap">
+      <input type="text" class="batch-cell batch-name" placeholder="Наименование материала">
     </td>
-    <td style="padding:.2rem .3rem">
-      <select class="batch-cell batch-unit"
-        style="width:100%;background:var(--bg2);color:var(--text);
-               border:1px solid var(--border);border-radius:4px;padding:.35rem .4rem;font-size:.84rem;font-family:inherit">
+    <td class="batch-cell-wrap">
+      <select class="batch-cell batch-unit">
         ${batchUnitOptions()}
       </select>
     </td>
-    <td style="padding:.2rem .3rem">
-      <input type="number" class="batch-cell batch-qty" placeholder="0" min="0.001" step="any"
-        style="width:100%;min-width:80px;background:var(--bg2);color:var(--text);
-               border:1px solid var(--border);border-radius:4px;padding:.35rem .55rem;font-size:.84rem;font-family:inherit;box-sizing:border-box">
+    <td class="batch-cell-wrap">
+      <input type="number" class="batch-cell batch-qty" placeholder="0" min="0.001" step="any">
     </td>
-    <td style="padding:.2rem .3rem">
-      <input type="number" class="batch-cell batch-price" placeholder="0.00" min="0" step="0.01"
-        style="width:100%;min-width:90px;background:var(--bg2);color:var(--text);
-               border:1px solid var(--border);border-radius:4px;padding:.35rem .55rem;font-size:.84rem;font-family:inherit;box-sizing:border-box">
+    <td class="batch-cell-wrap">
+      <input type="number" class="batch-cell batch-price" placeholder="0.00" min="0" step="0.01">
     </td>
   `;
   tbody.appendChild(tr);
@@ -678,14 +679,6 @@ document.getElementById('modal-batch').addEventListener('keydown', e => {
   } else {
     cells[idx + 1].focus();
   }
-});
-
-// Подсветка активной ячейки янтарём
-document.getElementById('modal-batch').addEventListener('focusin', e => {
-  if (e.target.classList.contains('batch-cell')) e.target.style.borderColor = '#F5A623';
-});
-document.getElementById('modal-batch').addEventListener('focusout', e => {
-  if (e.target.classList.contains('batch-cell')) e.target.style.borderColor = 'var(--border)';
 });
 
 // Счётчик
@@ -774,20 +767,20 @@ document.getElementById('btn-batch-save').addEventListener('click', async () => 
 // ─── Документы (в модалке) ────────────────────────────────────
 async function loadSupModalDocs(id) {
   const container = document.getElementById('sup-modal-docs-list');
-  container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
+  container.innerHTML = '<span class="text-muted">Загрузка...</span>';
   const { ok, data } = await apiRequest('GET', `/api/supplier/projects/${id}/documents`);
-  if (!ok) { container.innerHTML = '<span style="color:var(--danger)">Ошибка загрузки</span>'; return; }
+  if (!ok) { container.innerHTML = '<span class="text-danger">Ошибка загрузки</span>'; return; }
   renderTechDocs(container, data.data);
 }
 
 // ─── Общий склад ─────────────────────────────────────────────
 async function loadGeneralWarehouse() {
   const tbody = document.querySelector('#general-warehouse-table tbody');
-  tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Загрузка...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Загрузка...</td></tr>';
   const { ok, data } = await apiRequest('GET', '/api/supplier/general-warehouse');
-  if (!ok) { tbody.innerHTML = '<tr><td colspan="7" style="color:var(--danger)">Ошибка загрузки</td></tr>'; return; }
+  if (!ok) { tbody.innerHTML = '<tr><td colspan="7" class="table-error">Ошибка загрузки</td></tr>'; return; }
   generalWarehouseCache = data.data || [];
-  if (!generalWarehouseCache.length) { tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Склад пуст</td></tr>'; return; }
+  if (!generalWarehouseCache.length) { tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Склад пуст</td></tr>'; return; }
 
   tbody.innerHTML = generalWarehouseCache.map(r => {
     const available = Number(r.qty_total) - Number(r.qty_reserved);
@@ -797,16 +790,16 @@ async function loadGeneralWarehouse() {
         <td>${escHtml(r.unit || '—')}</td>
         <td>${r.qty_total}</td>
         <td>${r.qty_reserved}</td>
-        <td style="font-weight:600;color:${available > 0 ? 'var(--success)' : 'var(--muted)'}">${available}</td>
-        <td style="color:var(--muted);font-size:.8rem">${escHtml(r.notes || '—')}</td>
-        <td style="white-space:nowrap">
-          <button class="btn btn-outline btn-sm" style="font-size:.78rem"
+        <td class="table-cell-strong ${qtyStateClass(available)}">${available}</td>
+        <td class="table-cell-muted-xs">${escHtml(r.notes || '—')}</td>
+        <td class="table-cell-nowrap">
+          <button class="btn btn-outline btn-sm supplier-small-btn"
             data-action="edit-general" data-id="${r.id}"
             data-name="${escHtml(r.material_name)}" data-unit="${escHtml(r.unit || '')}"
             data-qty="${r.qty_total}" data-notes="${escHtml(r.notes || '')}">
             Ред.
           </button>
-          <button class="btn btn-outline btn-sm" style="font-size:.78rem"
+          <button class="btn btn-outline btn-sm supplier-small-btn"
             data-action="transfer" data-id="${r.id}"
             data-name="${escHtml(r.material_name)}" data-unit="${escHtml(r.unit||'')}"
             data-available="${available}">
@@ -921,7 +914,7 @@ document.getElementById('edit-general-form').addEventListener('submit', async (e
 // ─── Заявки МТР ──────────────────────────────────────────────
 async function loadMtrAll(filterProjectId = '') {
   const tbody = document.querySelector('#mtr-table tbody');
-  tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Загрузка...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Загрузка...</td></tr>';
 
   const projects = filterProjectId
     ? projectsList.filter(p => p.id == filterProjectId)
@@ -937,7 +930,7 @@ async function loadMtrAll(filterProjectId = '') {
   const allRows = responses.flat();
 
   if (!allRows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Заявок нет</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Заявок нет</td></tr>';
     return;
   }
 
@@ -951,14 +944,14 @@ async function loadMtrAll(filterProjectId = '') {
     <tr>
       <td>
         <strong>${escHtml(r.material_name)}</strong>
-        <div style="color:var(--muted);font-size:.78rem">${escHtml(r.project_name)}</div>
-        ${r.notes ? `<div style="color:var(--muted);font-size:.78rem">${escHtml(r.notes)}</div>` : ''}
+        <div class="table-cell-muted-xs">${escHtml(r.project_name)}</div>
+        ${r.notes ? `<div class="table-cell-muted-xs">${escHtml(r.notes)}</div>` : ''}
       </td>
       <td>${r.quantity} ${escHtml(r.unit || '')}</td>
-      <td style="color:var(--muted);font-size:.85rem">${escHtml(r.foreman_name || '—')}</td>
-      <td style="color:var(--muted);font-size:.85rem">${escHtml(r.stage_name || '—')}</td>
+      <td class="table-cell-muted-md">${escHtml(r.foreman_name || '—')}</td>
+      <td class="table-cell-muted-md">${escHtml(r.stage_name || '—')}</td>
       <td>${badge(r.status)}</td>
-      <td style="color:var(--muted);font-size:.85rem">${formatDate(r.created_at)}</td>
+      <td class="table-cell-muted-md">${formatDate(r.created_at)}</td>
       <td>
         <button class="btn btn-outline btn-sm" data-action="open-mtr"
           data-id="${r.id}" data-status="${r.status}"
@@ -981,8 +974,8 @@ document.getElementById('mtr-table').addEventListener('click', (e) => {
   activeMtrId = btn.dataset.id;
   document.getElementById('mtr-info').innerHTML = `
     <p><strong>${escHtml(btn.dataset.name)}</strong></p>
-    <p style="color:var(--muted);font-size:.9rem">Количество: ${btn.dataset.qty} ${escHtml(btn.dataset.unit)}</p>
-    ${btn.dataset.notes ? `<p style="color:var(--muted);font-size:.85rem">${escHtml(btn.dataset.notes)}</p>` : ''}
+    <p class="supplier-modal-meta">Количество: ${btn.dataset.qty} ${escHtml(btn.dataset.unit)}</p>
+    ${btn.dataset.notes ? `<p class="table-cell-muted-md">${escHtml(btn.dataset.notes)}</p>` : ''}
   `;
   document.querySelector('#mtr-form [name=status]').value =
     btn.dataset.status !== 'pending' ? btn.dataset.status : 'approved';

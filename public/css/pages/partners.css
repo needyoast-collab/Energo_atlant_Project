@@ -1,0 +1,150 @@
+/* Extracted from /partners.html. */
+    .page-hero {
+      padding: 140px 2rem 5rem;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-hero .section-label { margin-bottom: .75rem; }
+    .page-hero h1 { margin-bottom: 1rem; }
+    .page-hero p { color: var(--muted); max-width: 580px; margin: 0 auto; }
+    .page-hero .accent { color: var(--accent); }
+
+    /* Шаги */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+    .step-card {
+      background: var(--bg2);
+      padding: 2.5rem;
+      position: relative;
+    }
+    .step-num {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 5rem;
+      color: var(--border);
+      line-height: 1;
+      margin-bottom: .5rem;
+    }
+    .step-title {
+      font-weight: 700;
+      font-size: 1.05rem;
+      margin-bottom: .75rem;
+    }
+    .step-desc { color: var(--muted); font-size: .9rem; line-height: 1.7; }
+    .step-icon {
+      width: 48px; height: 48px;
+      background: rgba(245,166,35,.1);
+      border: 1px solid rgba(245,166,35,.2);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      margin-bottom: 1.25rem;
+    }
+    .step-icon svg { width: 22px; height: 22px; stroke: var(--accent); }
+
+    /* Таблица уровней */
+    .levels-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .95rem;
+    }
+    .levels-table th {
+      background: var(--bg);
+      color: var(--muted);
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      padding: 1rem 1.25rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .levels-table td {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .levels-table tr:hover td { background: rgba(245,166,35,.03); }
+    .level-name {
+      font-weight: 700;
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: .06em;
+    }
+    .level-commission {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.8rem;
+      color: var(--accent);
+      letter-spacing: .04em;
+    }
+    .level-star { color: var(--accent); letter-spacing: -.05em; }
+
+    /* Кто может */
+    .who-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+    .who-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .who-icon {
+      font-size: 2rem;
+      margin-bottom: .75rem;
+    }
+    .who-title {
+      font-weight: 700;
+      font-size: .95rem;
+      margin-bottom: .5rem;
+    }
+    .who-desc { color: var(--muted); font-size: .82rem; line-height: 1.6; }
+
+    /* CTA финальный */
+    .final-cta {
+      background: linear-gradient(135deg, #0f1e36 0%, #0a1526 100%);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      padding: 4rem 3rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2rem;
+      align-items: center;
+    }
+    .final-cta-title {
+      font-family: 'Stolzl', sans-serif;
+      font-size: clamp(1.8rem, 3vw, 2.5rem);
+      margin-bottom: .5rem;
+    }
+    .final-cta-desc { color: var(--muted); font-size: .95rem; }
+
+    @media (max-width: 900px) {
+      .steps-grid { grid-template-columns: 1fr; }
+      .who-grid { grid-template-columns: repeat(2, 1fr); }
+      .final-cta { grid-template-columns: 1fr; text-align: center; }
+    }
+    @media (max-width: 600px) {
+      .who-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+/* Extracted static style attributes from /partners.html. */
+.u-partners-01 { height:36px;width:auto; }
+.u-partners-02 { color:var(--text); }
+.u-partners-03 { margin-top:2rem; }
+.u-partners-04 { padding-top:0; }
+.u-partners-05 { padding:0;overflow:hidden; }
+.u-partners-06 { color:var(--muted); }
+.u-partners-07 { color:var(--muted);font-size:.88rem; }
+.u-partners-08 { color:var(--warning); }
+.u-partners-09 { color:var(--accent); }
+.u-partners-10 { background:rgba(245,166,35,.04); }
+.u-partners-11 { display:flex;gap:1rem;flex-wrap:wrap; }
+.u-partners-12 { color:var(--muted);font-size:.9rem; }
+.u-partners-13 { color:var(--muted);font-size:.85rem; }
+.u-partners-14 { color:var(--muted);opacity:0.5;cursor:not-allowed; }

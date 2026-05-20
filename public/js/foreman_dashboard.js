@@ -2,6 +2,13 @@ window.FOREMAN_PAGE_MODE = 'dashboard';
 
 let foremanDashboard = null;
 
+function getBalanceClass(value) {
+  const num = Number(value);
+  if (num > 0) return 'text-success';
+  if (num < 0) return 'text-danger';
+  return 'text-muted';
+}
+
 window.initForemanModeNavigation = (context) => {
   foremanDashboard = context;
   initNav((section) => {
@@ -52,7 +59,7 @@ async function loadMtrAll() {
   if (!sel || !tbody) return;
 
   sel.innerHTML = projects.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
-  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">Загрузка...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Загрузка...</td></tr>';
 
   const responses = await Promise.all(
     projects.map(async (p) => {
@@ -64,7 +71,7 @@ async function loadMtrAll() {
   const allRows = responses.flat();
 
   if (!allRows.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">Заявок нет</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Заявок нет</td></tr>';
     return;
   }
 
@@ -72,13 +79,13 @@ async function loadMtrAll() {
     <tr>
       <td>
         <strong>${escHtml(r.material_name)}</strong>
-        <div style="color:var(--muted);font-size:.78rem">${escHtml(r.project_name)}</div>
-        ${r.notes ? `<div style="color:var(--muted);font-size:.8rem">${escHtml(r.notes)}</div>` : ''}
+        <div class="table-cell-muted-xs">${escHtml(r.project_name)}</div>
+        ${r.notes ? `<div class="table-cell-muted-sm">${escHtml(r.notes)}</div>` : ''}
       </td>
       <td>${r.quantity} ${escHtml(r.unit || '')}</td>
-      <td style="color:var(--muted);font-size:.85rem">${escHtml(r.stage_name || '—')}</td>
+      <td class="table-cell-muted-md">${escHtml(r.stage_name || '—')}</td>
       <td>${badge(r.status)}</td>
-      <td style="color:var(--muted);font-size:.85rem">${formatDate(r.created_at)}</td>
+      <td class="table-cell-muted-md">${formatDate(r.created_at)}</td>
     </tr>
   `).join('');
 }
@@ -88,7 +95,7 @@ async function loadWarehouseAll() {
   const tbody = document.querySelector('#warehouse-table tbody');
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Загрузка...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Загрузка...</td></tr>';
 
   const responses = await Promise.all(
     projects.map(async (p) => {
@@ -100,7 +107,7 @@ async function loadWarehouseAll() {
   const allRows = responses.flat();
 
   if (!allRows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">Склад пуст</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Склад пуст</td></tr>';
     return;
   }
 
@@ -108,15 +115,15 @@ async function loadWarehouseAll() {
     <tr>
       <td>
         <strong>${escHtml(r.material_name)}</strong>
-        <div style="color:var(--muted);font-size:.78rem">${escHtml(r.project_name)}</div>
+        <div class="table-cell-muted-xs">${escHtml(r.project_name)}</div>
       </td>
       <td>${escHtml(r.unit || '—')}</td>
       <td>${r.qty_total}</td>
       <td>${r.qty_used}</td>
-      <td style="font-weight:600;color:${Number(r.qty_balance) > 0 ? 'var(--success)' : Number(r.qty_balance) < 0 ? 'var(--danger)' : 'var(--muted)'}">
+      <td class="table-cell-strong ${getBalanceClass(r.qty_balance)}">
         ${r.qty_balance}
       </td>
-      <td style="color:var(--muted);font-size:.8rem">${escHtml(foremanDashboard.sourceLabels[r.source] || r.source)}</td>
+      <td class="table-cell-muted-xs">${escHtml(foremanDashboard.sourceLabels[r.source] || r.source)}</td>
       <td>
         <button class="btn btn-outline btn-sm" data-action="writeoff"
           data-id="${r.id}" data-name="${escHtml(r.material_name)}"

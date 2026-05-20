@@ -7,7 +7,7 @@ let docTypes = {};
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
   try {
-    currentUser = await requireAuth('pto');
+    currentUser = await requireAuth(window.APP_ROLES.PTO);
     if (!currentUser) return;
     document.getElementById('user-name').textContent = currentUser.name;
     renderUserAvatar(currentUser);
@@ -41,22 +41,22 @@ async function loadProjects() {
 
   const container = document.getElementById('projects-list');
   if (!projectsList.length) {
-    container.innerHTML = `<div class="card" style="color:var(--muted);text-align:center;padding:2rem">
+    container.innerHTML = `<div class="card pto-project-empty">
       Нет проектов. Войдите по коду от менеджера.
     </div>`;
     return;
   }
 
   container.innerHTML = projectsList.map(p => `
-    <div class="card" style="cursor:pointer" data-action="open-project" data-id="${p.id}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
-        <div class="card-title" style="margin:0;font-size:1.1rem">${escHtml(p.name)}</div>
+    <div class="card pto-project-card" data-action="open-project" data-id="${p.id}">
+      <div class="pto-project-card-head">
+        <div class="card-title pto-project-title">${escHtml(p.name)}</div>
         ${badge(p.status)}
       </div>
-      <div style="color:var(--muted);font-size:.82rem;margin-bottom:.25rem">${escHtml(p.code)}</div>
-      ${p.address ? `<div style="color:var(--muted);font-size:.82rem">📍 ${escHtml(p.address)}</div>` : ''}
-      ${p.manager_name ? `<div style="color:var(--muted);font-size:.82rem;margin-top:.5rem">Менеджер: ${escHtml(p.manager_name)}</div>` : ''}
-      <div style="margin-top:.75rem;font-size:.82rem;color:var(--accent)">Нажмите чтобы посмотреть этапы →</div>
+      <div class="pto-project-muted mb-1">${escHtml(p.code)}</div>
+      ${p.address ? `<div class="pto-project-muted">📍 ${escHtml(p.address)}</div>` : ''}
+      ${p.manager_name ? `<div class="pto-project-muted pto-project-manager">Менеджер: ${escHtml(p.manager_name)}</div>` : ''}
+      <div class="pto-project-open">Нажмите чтобы посмотреть этапы →</div>
     </div>
   `).join('');
 }
@@ -71,7 +71,7 @@ document.getElementById('projects-list').addEventListener('click', async (e) => 
   activeModalProjectId = id;
   document.getElementById('modal-project-title').textContent = project.name;
   document.getElementById('modal-project-meta').innerHTML =
-    `${badge(project.status)} <span style="margin-left:.5rem">${escHtml(project.code)}</span>
+    `${badge(project.status)} <span class="pto-code-offset">${escHtml(project.code)}</span>
      ${project.address ? ` · 📍 ${escHtml(project.address)}` : ''}`;
 
   switchPtoTab('stages');
@@ -80,8 +80,8 @@ document.getElementById('projects-list').addEventListener('click', async (e) => 
 });
 
 function switchPtoTab(tab) {
-  document.getElementById('pto-tab-stages').style.display = tab === 'stages' ? '' : 'none';
-  document.getElementById('pto-tab-docs').style.display   = tab === 'docs'   ? '' : 'none';
+  document.getElementById('pto-tab-stages').classList.toggle('is-hidden', tab !== 'stages');
+  document.getElementById('pto-tab-docs').classList.toggle('is-hidden', tab !== 'docs');
   document.getElementById('pto-tab-btn-stages').className = tab === 'stages' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
   document.getElementById('pto-tab-btn-docs').className   = tab === 'docs'   ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
   if (tab === 'docs') loadModalDocs(activeModalProjectId);
@@ -93,28 +93,28 @@ document.querySelectorAll('[data-ptotab]').forEach(btn => {
 
 async function loadModalDocs(id) {
   const container = document.getElementById('pto-modal-docs-list');
-  container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
+  container.innerHTML = '<span class="text-muted">Загрузка...</span>';
   const { ok, data } = await apiRequest('GET', `/api/pto/projects/${id}/documents`);
-  if (!ok) { container.innerHTML = '<span style="color:var(--danger)">Ошибка загрузки</span>'; return; }
+  if (!ok) { container.innerHTML = '<span class="text-danger">Ошибка загрузки</span>'; return; }
   renderTechDocs(container, data.data);
 }
 
 async function loadStages(id) {
   const list = document.getElementById('modal-stages-list');
-  list.innerHTML = '<div style="color:var(--muted)">Загрузка...</div>';
+  list.innerHTML = '<div class="text-muted">Загрузка...</div>';
 
   const { ok, data } = await apiRequest('GET', `/api/pto/projects/${id}/stages`);
-  if (!ok) { list.innerHTML = '<div style="color:var(--danger)">Ошибка загрузки</div>'; return; }
+  if (!ok) { list.innerHTML = '<div class="text-danger">Ошибка загрузки</div>'; return; }
 
   if (!data.data.length) {
-    list.innerHTML = '<div style="color:var(--muted)">Этапов нет</div>';
+    list.innerHTML = '<div class="text-muted">Этапов нет</div>';
     return;
   }
 
   list.innerHTML = data.data.map(s => `
     <div class="stage-item">
       <div class="stage-status-dot dot-${s.status}"></div>
-      <div style="flex:1">
+      <div class="pto-stage-content">
         <div class="stage-name">${escHtml(s.name)}</div>
         <div class="stage-dates">
           ${s.planned_start ? `${formatDate(s.planned_start)} — ${formatDate(s.planned_end)}` : 'Даты не указаны'}
@@ -130,50 +130,50 @@ async function loadStages(id) {
 document.getElementById('docs-project-select').addEventListener('change', (e) => {
   activeProjectId = e.target.value;
   if (activeProjectId) {
-    document.getElementById('upload-section').style.display = '';
+    document.getElementById('upload-section').classList.remove('is-hidden');
     loadDocs(activeProjectId);
   } else {
-    document.getElementById('upload-section').style.display = 'none';
-    document.getElementById('docs-list').innerHTML = '<span style="color:var(--muted)">Выберите проект</span>';
+    document.getElementById('upload-section').classList.add('is-hidden');
+    document.getElementById('docs-list').innerHTML = '<span class="text-muted">Выберите проект</span>';
   }
 });
 
 async function loadDocs(id) {
   const container = document.getElementById('docs-list');
-  container.innerHTML = '<span style="color:var(--muted)">Загрузка...</span>';
+  container.innerHTML = '<span class="text-muted">Загрузка...</span>';
 
   const { ok, data } = await apiRequest('GET', `/api/pto/projects/${id}/documents`);
-  if (!ok) { container.innerHTML = '<span style="color:var(--danger)">Ошибка загрузки</span>'; return; }
+  if (!ok) { container.innerHTML = '<span class="text-danger">Ошибка загрузки</span>'; return; }
 
   if (!data.data.length) {
-    container.innerHTML = '<span style="color:var(--muted)">Документов нет</span>';
+    container.innerHTML = '<span class="text-muted">Документов нет</span>';
     return;
   }
 
   // Группируем по типу
   const grouped = {};
   data.data.forEach(doc => {
-    const label = docTypes[doc.doc_type] || doc.doc_type;
+    const label = doc.doc_label || docTypes[doc.doc_type] || doc.doc_type;
     if (!grouped[label]) grouped[label] = [];
     grouped[label].push(doc);
   });
 
   container.innerHTML = Object.entries(grouped).map(([label, docs]) => `
-    <div style="margin-bottom:1.25rem">
-      <div style="font-weight:700;font-size:.85rem;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem">${escHtml(label)}</div>
+    <div class="pto-doc-group">
+      <div class="pto-doc-group-title">${escHtml(label)}</div>
       ${docs.map(doc => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border)">
+        <div class="pto-doc-row">
           <div>
-            <div style="font-size:.9rem;font-weight:500">${escHtml(doc.file_name)}</div>
-            <div style="color:var(--muted);font-size:.78rem">
+            <div class="pto-doc-file">${escHtml(doc.file_name)}</div>
+            <div class="pto-doc-meta">
               ${escHtml(doc.uploaded_by_name)} · ${formatDate(doc.uploaded_at)}
               ${doc.description ? ' · ' + escHtml(doc.description) : ''}
             </div>
           </div>
-          <div style="display:flex;gap:.4rem;flex-shrink:0;margin-left:.75rem">
-            <a href="${doc.url}" target="_blank" class="btn btn-outline btn-sm" style="font-size:.78rem">Скачать</a>
+          <div class="pto-doc-actions">
+            <a href="${doc.url}" target="_blank" class="btn btn-outline btn-sm pto-doc-btn">Скачать</a>
             ${doc.uploaded_by_id === currentUser.id ? `
-              <button class="btn btn-sm" style="font-size:.78rem;color:var(--muted);border:1px solid var(--border);background:transparent;border-radius:9999px"
+              <button class="btn btn-sm pto-delete-doc-btn"
                 data-action="delete-doc" data-id="${doc.id}">✕</button>` : ''}
           </div>
         </div>

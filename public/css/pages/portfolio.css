@@ -1,0 +1,268 @@
+/* Extracted from /portfolio.html. */
+    .page-hero {
+      padding: 140px 2rem 5rem;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-hero .section-label { margin-bottom: .75rem; }
+    .page-hero h1 { margin-bottom: 1rem; }
+    .page-hero p { color: var(--muted); max-width: 540px; margin: 0 auto; }
+
+    /* Фильтры */
+    .filter-bar {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: .5rem 1.25rem;
+      border-radius: 9999px;
+      font-family: 'Geometria', sans-serif;
+      font-size: .82rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+    /* Сетка проектов */
+    .portfolio-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+    }
+    .portfolio-card {
+      background: var(--bg2);
+      cursor: pointer;
+      transition: background .2s;
+      overflow: hidden;
+    }
+    .portfolio-card:hover { background: var(--bg3); }
+    .portfolio-card.hidden { display: none; }
+
+    .portfolio-photo {
+      height: 200px;
+      position: relative;
+      overflow: hidden;
+    }
+    .portfolio-card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .portfolio-photo-placeholder-inline {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: #1a1a1a;
+      color: #F5A623;
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.6rem;
+      letter-spacing: .1em;
+    }
+    .portfolio-empty-state {
+      padding: 3rem;
+      color: var(--muted);
+      text-align: center;
+      grid-column: 1 / -1;
+    }
+    .portfolio-photo-bg {
+      width: 100%;
+      height: 100%;
+      filter: grayscale(100%);
+      transition: filter .4s ease, transform .4s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .portfolio-card:hover .portfolio-photo-bg {
+      filter: grayscale(0%);
+      transform: scale(1.04);
+    }
+    .portfolio-photo-type {
+      position: absolute;
+      top: .75rem;
+      left: .75rem;
+      background: rgba(6,10,16,.8);
+      border: 1px solid var(--border);
+      padding: .2rem .65rem;
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .portfolio-info {
+      padding: 1.5rem;
+    }
+    .portfolio-name {
+      font-weight: 700;
+      font-size: .95rem;
+      margin-bottom: .5rem;
+      line-height: 1.4;
+    }
+    .portfolio-meta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .portfolio-meta span {
+      color: var(--muted);
+      font-size: .8rem;
+    }
+    .portfolio-meta span strong {
+      color: var(--text);
+    }
+
+    /* Модалка проекта */
+    .modal-wide { max-width: 720px; }
+    .modal-project-tags {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .tag {
+      background: rgba(245,166,35,.12);
+      color: var(--accent);
+      padding: .2rem .65rem;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .modal-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .modal-detail-item label {
+      display: block;
+      font-size: .75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: .25rem;
+    }
+    .modal-detail-item span {
+      font-weight: 600;
+      font-size: .95rem;
+    }
+    .modal-photo-placeholder {
+      width: 100%;
+      height: 220px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Stolzl', sans-serif;
+      font-size: 3rem;
+      color: rgba(245,166,35,.2);
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .portfolio-gallery-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+    .modal-title-spaced { margin-top: 1.5rem; }
+    .modal-project-desc {
+      color: var(--muted);
+      font-size: .95rem;
+      line-height: 1.7;
+      margin-bottom: 1.5rem;
+    }
+    .modal-photo-placeholder::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(rgba(245,166,35,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(245,166,35,.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    /* Плейсхолдер фото с цветным акцентом */
+    .ph-1 { background: linear-gradient(135deg, #0a1628 0%, #0d1f3a 100%); }
+    .ph-2 { background: linear-gradient(135deg, #0a1428 0%, #101e34 100%); }
+    .ph-3 { background: linear-gradient(135deg, #0c1620 0%, #111e2c 100%); }
+    .ph-4 { background: linear-gradient(135deg, #0a1830 0%, #0e1f3c 100%); }
+    .ph-5 { background: linear-gradient(135deg, #081424 0%, #0c1a30 100%); }
+    .ph-6 { background: linear-gradient(135deg, #0a1826 0%, #101e30 100%); }
+    .ph-7 { background: linear-gradient(135deg, #0c1a2c 0%, #111e36 100%); }
+    .ph-8 { background: linear-gradient(135deg, #081520 0%, #0d1d2e 100%); }
+
+    .ph-label {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 4rem;
+      color: rgba(245,166,35,.15);
+      position: relative;
+      z-index: 1;
+    }
+
+    @media (max-width: 900px) {
+      .portfolio-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .portfolio-grid { grid-template-columns: 1fr; }
+      .modal-detail-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Галерея */
+    .gallery-slider {
+      position: relative; width: 100%; height: 280px;
+      background: var(--bg3); margin-bottom: 1.5rem; overflow: hidden;
+    }
+    .gallery-slide { position: absolute; inset: 0; opacity: 0; transition: opacity .3s ease; }
+    .gallery-slide.active { opacity: 1; }
+    .gallery-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .gallery-btn {
+      position: absolute; top: 50%; transform: translateY(-50%); z-index: 10;
+      background: rgba(6,10,16,.75); border: 1px solid var(--border); color: var(--text);
+      width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+      transition: background .2s, border-color .2s; line-height: 1;
+    }
+    .gallery-btn:hover { background: rgba(245,166,35,.25); border-color: var(--accent); color: var(--accent); }
+    .gallery-prev { left: .75rem; }
+    .gallery-next { right: .75rem; }
+    .gallery-counter {
+      position: absolute; bottom: .6rem; right: .75rem;
+      background: rgba(6,10,16,.7); color: var(--muted);
+      font-size: .75rem; padding: .15rem .5rem; border-radius: 4px; pointer-events: none;
+    }
+    .gallery-dots {
+      position: absolute; bottom: .65rem; left: 50%; transform: translateX(-50%);
+      display: flex; gap: .4rem; pointer-events: none;
+    }
+    .gallery-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(255,255,255,.3); pointer-events: all; cursor: pointer;
+      transition: background .2s;
+    }
+    .gallery-dot.active { background: var(--accent); }
+
+/* Extracted static style attributes from /portfolio.html. */
+.u-portfolio-01 { height:36px;width:auto; }
+.u-portfolio-02 { margin-bottom:2.5rem; }
+.u-portfolio-03 { text-align:center; }
+.u-portfolio-04 { margin-bottom:1rem; }
+.u-portfolio-05 { margin-bottom:2rem; }
+.u-portfolio-06 { color:var(--muted);font-size:.9rem; }
+.u-portfolio-07 { color:var(--muted);font-size:.85rem; }
+.u-portfolio-08 { color:var(--muted);opacity:0.5;cursor:not-allowed; }

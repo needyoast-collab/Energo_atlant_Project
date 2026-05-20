@@ -50,11 +50,11 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Статика должна отдаваться до сессий, иначе CSS/JS/картинки трогают session store.
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Сессии
 app.use(session(sessionConfig));
-
-// Статика (публичная папка)
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Роуты (подключаются по мере готовности)
 app.use('/api/auth', require('./routes/auth'));

@@ -1,15 +1,28 @@
 const { pool } = require('../config/database');
+const { ROLES } = require('./constants');
 
 /**
- * Проверяет, является ли пользователь членом проекта.
+ * Проверяет доступ пользователя к проекту: участник проекта или админ.
  * @param {number|string} projectId
  * @param {number} userId
  * @returns {Promise<boolean>}
  */
 async function checkMembership(projectId, userId) {
   const result = await pool.query(
-    `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2`,
-    [projectId, userId]
+    `SELECT 1
+     FROM users u
+     WHERE u.id = $2
+       AND u.is_deleted = FALSE
+       AND (
+         u.role = $3
+         OR EXISTS (
+           SELECT 1
+           FROM project_members pm
+           WHERE pm.project_id = $1
+             AND pm.user_id = u.id
+         )
+       )`,
+    [projectId, userId, ROLES.ADMIN]
   );
   return result.rows.length > 0;
 }

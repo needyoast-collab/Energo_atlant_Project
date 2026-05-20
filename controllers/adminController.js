@@ -10,6 +10,7 @@ const {
   createCoefficientSchema,
   updateCoefficientSchema,
 } = require('../utils/validate');
+const { ROLES } = require('../utils/constants');
 
 // GET /api/admin/users
 async function getUsers(req, res, next) {
@@ -108,10 +109,10 @@ async function deleteUser(req, res, next) {
     const result = await pool.query(
       `UPDATE users SET is_deleted = TRUE
        WHERE id = $1
-         AND role <> 'admin'
+         AND role <> $2
          AND is_deleted = FALSE
        RETURNING id`,
-      [id]
+      [id, ROLES.ADMIN]
     );
 
     if (!result.rows[0]) {
@@ -122,7 +123,7 @@ async function deleteUser(req, res, next) {
         [id]
       );
 
-      if (user.rows[0]?.role === 'admin') {
+      if (user.rows[0]?.role === ROLES.ADMIN) {
         return res.status(400).json({ success: false, error: 'Администратора нельзя удалить' });
       }
 

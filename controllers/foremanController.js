@@ -4,9 +4,14 @@ const { getSignedDownloadUrl } = require('../utils/signedUrl');
 const { DeleteObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { s3, BUCKET } = require('../config/storage');
 const { randomUUID } = require('crypto');
-const { ROLES } = require('../middleware/auth');
 const { checkMembership, makeJoinProject } = require('../utils/project');
+const { getCalendarPlanPayload } = require('../utils/calendarPlan');
 const { getUploadFileExtension, normalizeStoredFileName } = require('../utils/fileNames');
+const {
+  ROLES,
+  getReadableProjectDocumentTypes,
+  decorateProjectDocument,
+} = require('../utils/constants');
 const {
   createStageSchema,
   updateStageSchema,
@@ -41,15 +46,20 @@ async function notifyManagerAboutWorkSpecs(projectId) {
 // GET /api/foreman/projects
 async function getProjects(req, res, next) {
   try {
+    const isAdmin = req.session.userRole === ROLES.ADMIN;
+    const accessJoin = isAdmin ? '' : 'JOIN project_members pm ON pm.project_id = p.id';
+    const accessWhere = isAdmin ? '' : 'AND pm.user_id = $1 AND pm.role = $2';
+    const values = isAdmin ? [] : [req.session.userId, ROLES.FOREMAN];
     const result = await pool.query(
       `SELECT p.id, p.code, p.name, p.status, p.address, p.stages_generated, p.kp_sent_at, p.created_at,
               u.name as manager_name
        FROM projects p
-       JOIN project_members pm ON pm.project_id = p.id
        LEFT JOIN users u ON u.id = p.manager_id
-       WHERE pm.user_id = $1 AND pm.role = 'foreman' AND p.is_deleted = FALSE
+       ${accessJoin}
+       WHERE p.is_deleted = FALSE
+       ${accessWhere}
        ORDER BY p.created_at DESC`,
-      [req.session.userId]
+      values
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -94,95 +104,6 @@ function toDateOnly(value) {
     return `${year}-${month}-${day}`;
   }
   return String(value).slice(0, 10);
-}
-
-function currentDateOnly() {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function addDays(dateOnly, days) {
-  const [year, month, day] = String(dateOnly).slice(0, 10).split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + days);
-  const nextYear = date.getFullYear();
-  const nextMonth = String(date.getMonth() + 1).padStart(2, '0');
-  const nextDay = String(date.getDate()).padStart(2, '0');
-  return `${nextYear}-${nextMonth}-${nextDay}`;
-}
-
-function diffDaysInclusive(start, end) {
-  const [fromYear, fromMonth, fromDay] = String(start).slice(0, 10).split('-').map(Number);
-  const [toYear, toMonth, toDay] = String(end).slice(0, 10).split('-').map(Number);
-  const from = new Date(fromYear, fromMonth - 1, fromDay);
-  const to = new Date(toYear, toMonth - 1, toDay);
-  return Math.max(1, Math.round((to - from) / 86400000) + 1);
-}
-
-async function getCalendarPlanPayload(projectId) {
-  const project = await pool.query(
-    `SELECT id, contract_signed_at, planned_start, planned_end
-     FROM projects
-     WHERE id = $1 AND is_deleted = FALSE`,
-    [projectId]
-  );
-  if (!project.rows[0]) return null;
-
-  const contractSignedAt = toDateOnly(project.rows[0].contract_signed_at);
-  let plannedStart = contractSignedAt || toDateOnly(project.rows[0].planned_start);
-  const plannedEnd = toDateOnly(project.rows[0].planned_end);
-
-  const stages = await pool.query(
-    `SELECT id, name, status, order_num, planned_start, planned_end, actual_end,
-            is_from_vor, is_calendar_mobilization, unit, planned_value, actual_value,
-            planned_date, actual_date, note
-     FROM project_stages
-     WHERE project_id = $1
-       AND is_deleted = FALSE
-       AND (is_calendar_mobilization = TRUE OR is_from_vor = TRUE)
-     ORDER BY CASE WHEN is_calendar_mobilization = TRUE THEN 0 ELSE 1 END, order_num, created_at`,
-    [projectId]
-  );
-
-  if (!plannedStart) {
-    const firstPlannedStage = stages.rows
-      .map((stage) => toDateOnly(stage.planned_start))
-      .filter(Boolean)
-      .sort()[0];
-
-    if (firstPlannedStage) {
-      plannedStart = firstPlannedStage;
-      if (!contractSignedAt) {
-        await pool.query(
-          `UPDATE projects
-           SET planned_start = $2
-           WHERE id = $1 AND planned_start IS NULL AND is_deleted = FALSE`,
-          [projectId, plannedStart]
-        );
-      }
-    }
-  }
-
-  const calendarStart = plannedStart || currentDateOnly();
-  const durationDays = plannedStart && plannedEnd ? diffDaysInclusive(plannedStart, plannedEnd) : 45;
-
-  const items = stages.rows.map((stage) => ({
-    ...stage,
-    planned_start: toDateOnly(stage.planned_start),
-    planned_end: toDateOnly(stage.planned_end),
-    actual_end: toDateOnly(stage.actual_end),
-    planned_date: toDateOnly(stage.planned_date),
-    actual_date: toDateOnly(stage.actual_date),
-  }));
-
-  return {
-    calendar_start: calendarStart,
-    duration_days: durationDays,
-    items,
-  };
 }
 
 // GET /api/foreman/projects/:id/calendar-plan
@@ -423,8 +344,8 @@ async function updateStage(req, res, next) {
 
     if (statusChanged && parsed.data.status === 'not_done') {
       const customers = await pool.query(
-        `SELECT user_id FROM project_members WHERE project_id = $1 AND role = 'customer'`,
-        [stage.rows[0].project_id]
+        `SELECT user_id FROM project_members WHERE project_id = $1 AND role = $2`,
+        [stage.rows[0].project_id, ROLES.CUSTOMER]
       );
       await Promise.all(customers.rows.map(c =>
         sendNotification({
@@ -807,8 +728,8 @@ async function createMtrRequest(req, res, next) {
     );
 
     const suppliers = await pool.query(
-      `SELECT user_id FROM project_members WHERE project_id = $1 AND role = 'supplier'`,
-      [id]
+      `SELECT user_id FROM project_members WHERE project_id = $1 AND role = $2`,
+      [id, ROLES.SUPPLIER]
     );
     await Promise.all(suppliers.rows.map(s =>
       sendNotification({
@@ -1068,17 +989,19 @@ async function getProjectDocuments(req, res, next) {
     const isMember = await checkMembership(id, req.session.userId);
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
+    const readableDocTypes = getReadableProjectDocumentTypes(req.session.userRole);
     const result = await pool.query(
       `SELECT pd.id, pd.doc_type, pd.file_key, pd.file_name, pd.description, pd.uploaded_at,
               u.name AS uploaded_by_name
        FROM project_documents pd
        JOIN users u ON u.id = pd.uploaded_by
        WHERE pd.project_id = $1
+         AND pd.doc_type = ANY($2::text[])
        ORDER BY pd.uploaded_at DESC`,
-      [id]
+      [id, readableDocTypes]
     );
     const docs = result.rows.map((doc) => ({
-      ...doc,
+      ...decorateProjectDocument(doc),
       file_name: normalizeStoredFileName(doc.file_name),
     }));
     return res.json({ success: true, data: docs });

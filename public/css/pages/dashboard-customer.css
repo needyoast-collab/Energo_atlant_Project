@@ -1,0 +1,462 @@
+/* Extracted from /dashboard_customer.html. */
+    /* ── Карточки объектов заказчика ── */
+    .project-card-customer {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color .2s, transform .15s;
+    }
+
+    .project-card-customer:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .pcc-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: .75rem;
+      padding: 1.25rem 1.25rem .75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pcc-title {
+      font-weight: 700;
+      font-size: .95rem;
+      line-height: 1.3;
+    }
+
+    .pcc-meta {
+      padding: .75rem 1.25rem .5rem;
+      color: var(--muted);
+      font-size: .8rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .3rem;
+    }
+
+    .pcc-progress-wrap {
+      padding: .25rem 1.25rem .75rem;
+    }
+
+    .pcc-progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: .35rem;
+    }
+
+    .pcc-progress-bar {
+      height: 6px;
+      width: 100%;
+      background: var(--border);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+    progress.pcc-progress-bar,
+    progress.customer-stage-progress-bar {
+      display: block;
+      appearance: none;
+      border: 0;
+    }
+    progress.pcc-progress-bar::-webkit-progress-bar,
+    progress.customer-stage-progress-bar::-webkit-progress-bar {
+      background: var(--border);
+      border-radius: 9999px;
+    }
+    progress.pcc-progress-bar::-webkit-progress-value,
+    progress.customer-stage-progress-bar::-webkit-progress-value {
+      background: var(--accent);
+      border-radius: 9999px;
+    }
+    progress.pcc-progress-bar::-moz-progress-bar,
+    progress.customer-stage-progress-bar::-moz-progress-bar {
+      background: var(--accent);
+      border-radius: 9999px;
+    }
+
+    .pcc-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 9999px;
+      transition: width .5s;
+    }
+
+    .pcc-stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+    }
+
+    .pcc-stat {
+      background: var(--bg3);
+      padding: .75rem;
+      text-align: center;
+    }
+
+    .pcc-stat-val {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.5rem;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .pcc-stat-lbl {
+      color: var(--muted);
+      font-size: .7rem;
+      margin-top: .15rem;
+    }
+
+    .stage-photo-thumb {
+      display: block;
+      border-radius: 6px;
+      overflow: hidden;
+      aspect-ratio: 1;
+      background: var(--bg3);
+    }
+
+    .stage-photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: grayscale(60%);
+      transition: filter .3s;
+    }
+
+    .stage-photo-thumb:hover img {
+      filter: grayscale(0%);
+    }
+
+    .pcc-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: .75rem 1.25rem;
+      font-size: .8rem;
+      border-top: 1px solid var(--border);
+    }
+.customer-dashboard-actions {
+  display: flex;
+  gap: .5rem;
+}
+.customer-projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+.customer-empty-projects {
+  color: var(--muted);
+  text-align: center;
+  padding: 2.5rem;
+  grid-column: 1 / -1;
+}
+.customer-empty-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+.customer-empty-title {
+  margin-bottom: .5rem;
+}
+.customer-empty-text {
+  font-size: .85rem;
+}
+.customer-stage-badge {
+  font-size: .72rem;
+}
+.pcc-progress-value {
+  color: var(--accent);
+  font-weight: 700;
+}
+.pcc-stat-docs {
+  position: relative;
+  display: inline-block;
+}
+.pcc-stat-total {
+  color: var(--muted);
+  font-size: .9rem;
+}
+.pcc-manager {
+  color: var(--muted);
+}
+.pcc-manager strong {
+  color: var(--text);
+}
+.pcc-online {
+  color: var(--success);
+}
+.pcc-offline {
+  color: var(--muted);
+}
+.customer-modal-680 {
+  max-width: 680px;
+}
+.request-account-phone-wrap {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  margin: .55rem 0 .75rem;
+  color: var(--muted);
+  font-size: .85rem;
+  cursor: pointer;
+}
+.request-optional-label {
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 400;
+}
+.request-file-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.request-doc-type {
+  flex: 1;
+  min-width: 160px;
+}
+.request-file-label {
+  cursor: pointer;
+  margin: 0;
+  white-space: nowrap;
+}
+.request-file-status {
+  color: var(--muted);
+  font-size: .8rem;
+  margin-top: .3rem;
+}
+.request-file-error {
+  color: var(--danger);
+  font-size: .8rem;
+  margin-top: .3rem;
+}
+.request-files-list {
+  margin-top: .5rem;
+}
+.request-file-item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .6rem;
+  margin-top: .3rem;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: .82rem;
+}
+.request-file-type {
+  color: var(--muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.request-file-divider {
+  color: var(--muted);
+}
+.request-file-name {
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.request-file-remove {
+  flex-shrink: 0;
+  padding: 0 .2rem;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.customer-stage-progress {
+  margin-bottom: 1.25rem;
+}
+.customer-stage-progress-wrap {
+  margin-bottom: 1rem;
+}
+.customer-stage-progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: .4rem;
+  color: var(--muted);
+  font-size: .85rem;
+}
+.customer-stage-progress-value {
+  color: var(--accent);
+  font-weight: 700;
+}
+.customer-stage-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.customer-stage-item {
+  cursor: pointer;
+}
+.customer-stage-item.needs-attention {
+  border-left: 2px solid var(--danger);
+  padding-left: .5rem;
+}
+.customer-stage-content {
+  flex: 1;
+}
+.customer-stage-detail-body {
+  padding-top: 2rem;
+}
+.customer-stage-detail-head {
+  margin-bottom: .75rem;
+}
+.customer-stage-project-name {
+  color: var(--accent);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.customer-stage-name-muted {
+  color: var(--muted);
+  font-size: .95rem;
+  margin-top: .2rem;
+}
+.customer-stage-badge-row {
+  margin-bottom: 1rem;
+}
+.customer-stage-detail-grid {
+  display: grid;
+  gap: .4rem;
+}
+.customer-stage-detail-row {
+  display: flex;
+  gap: .5rem;
+  font-size: .88rem;
+}
+.customer-stage-detail-label {
+  min-width: 130px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.customer-note-block {
+  margin-top: 1rem;
+}
+.customer-note-label,
+.customer-photos-title,
+.customer-approval-note-label {
+  color: var(--muted);
+  font-size: .8rem;
+  margin-bottom: .35rem;
+}
+.customer-note-text {
+  padding: .75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg3);
+  font-size: .88rem;
+  line-height: 1.5;
+}
+.customer-note-text.is-danger {
+  border-color: var(--danger);
+}
+.customer-approval-card {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  background: rgba(239,68,68,.08);
+}
+.customer-approval-title {
+  color: var(--danger);
+  font-size: .88rem;
+  font-weight: 600;
+  margin-bottom: .5rem;
+}
+.customer-approval-text {
+  color: var(--muted);
+  font-size: .82rem;
+  margin-bottom: .75rem;
+}
+.customer-stage-approved {
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: .85rem;
+}
+.customer-photos-block {
+  margin-top: 1.25rem;
+}
+.customer-photos-title {
+  margin-bottom: .5rem;
+}
+.customer-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: .5rem;
+}
+.customer-doc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .6rem;
+  border: 1px solid transparent;
+  border-bottom-color: var(--border);
+  border-radius: 8px;
+}
+.customer-doc-title {
+  font-size: .9rem;
+  font-weight: 600;
+}
+.customer-doc-file {
+  color: var(--muted);
+  font-size: .8rem;
+}
+.customer-doc-meta {
+  color: var(--muted);
+  font-size: .78rem;
+}
+.customer-doc-download {
+  flex-shrink: 0;
+  margin-left: .75rem;
+  font-size: .78rem;
+}
+.customer-warehouse-note {
+  color: var(--muted);
+  font-size: .82rem;
+  margin-bottom: .75rem;
+}
+.customer-warehouse-balance {
+  font-weight: 600;
+}
+.customer-message-date {
+  color: var(--muted);
+  font-size: .85rem;
+}
+.customer-approve-stage-name {
+  font-weight: 600;
+  margin-bottom: .75rem;
+}
+.customer-approve-note-wrap {
+  margin-bottom: 1rem;
+}
+.customer-approve-note-label {
+  color: var(--muted);
+  font-size: .8rem;
+  margin-bottom: .35rem;
+}
+.customer-approve-note {
+  padding: .75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg3);
+  color: var(--text);
+  font-size: .88rem;
+  line-height: 1.5;
+}
+.customer-approve-disclaimer {
+  color: var(--muted);
+  font-size: .85rem;
+  margin-bottom: 0;
+}

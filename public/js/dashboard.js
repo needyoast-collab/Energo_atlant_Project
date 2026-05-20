@@ -165,8 +165,8 @@ function initNotificationBell() {
   loadNotifications();
 }
 
-// ─── Документы: технические типы ─────────────────────────────
-const TECH_DOC_TYPES = {
+// ─── Общие справочники ───────────────────────────────────────
+window.PROJECT_DOC_LABELS = Object.freeze({
   hidden_works_act:     'Акт скрытых работ',
   exec_scheme:          'Исполнительная схема',
   geodetic_survey:      'Геодезическая исполнительная съёмка',
@@ -175,8 +175,60 @@ const TECH_DOC_TYPES = {
   interim_acceptance:   'Акт промежуточной приёмки',
   cable_test_act:       'Акт испытания кабельной линии',
   measurement_protocol: 'Протокол измерений',
+  rd:                   'Рабочая документация (РД)',
+  tu:                   'Технические условия (ТУ)',
+  pd:                   'Проектная документация (ПД)',
+  tz:                   'Техническое задание (ТЗ)',
+  construction_permit:  'Разрешение на строительство',
+  arbp:                 'Акт разграничения балансовой принадлежности',
+  kp:                   'Коммерческое предложение (КП)',
+  estimate:             'Смета / локальный сметный расчёт',
+  contract:             'Договор подряда',
+  additional_agreement: 'Дополнительное соглашение',
+  ks2:                  'Акт выполненных работ (КС-2)',
+  ks3:                  'Справка о стоимости (КС-3)',
   other:                'Прочее',
-};
+});
+
+window.TECHNICAL_DOC_TYPES = Object.freeze([
+  'rd',
+  'tu',
+  'pd',
+  'tz',
+  'construction_permit',
+  'arbp',
+  'exec_scheme',
+  'hidden_works_act',
+  'geodetic_survey',
+  'general_works_log',
+  'author_supervision',
+  'interim_acceptance',
+  'cable_test_act',
+  'measurement_protocol',
+  'other',
+]);
+
+window.FINANCIAL_DOC_TYPES = Object.freeze([
+  'kp',
+  'estimate',
+  'contract',
+  'additional_agreement',
+  'ks2',
+  'ks3',
+]);
+
+window.REQUEST_DOC_LABELS = Object.freeze({
+  tu: 'Технические условия',
+  rd: 'Рабочая документация',
+  pd: 'Проектная документация',
+  tz: 'Техническое задание',
+  situation_plan: 'Ситуационный план',
+  other: 'Прочее',
+});
+
+const TECH_DOC_TYPES = Object.fromEntries(
+  window.TECHNICAL_DOC_TYPES.map((type) => [type, window.PROJECT_DOC_LABELS[type]])
+);
 
 /** Кодирует file_key в base64url для endpoint /api/documents/serve/:key */
 function serveDocUrl(fileKey) {
@@ -187,20 +239,20 @@ function serveDocUrl(fileKey) {
 function renderTechDocs(container, docs) {
   const tech = docs.filter(d => d.doc_type in TECH_DOC_TYPES);
   if (!tech.length) {
-    container.innerHTML = '<span style="color:var(--muted)">Документов нет</span>';
+    container.innerHTML = '<span class="text-muted">Документов нет</span>';
     return;
   }
   container.innerHTML = tech.map(doc => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border)">
+    <div class="tech-doc-row">
       <div>
-        <div style="font-size:.9rem;font-weight:500">${escHtml(doc.file_name)}</div>
-        <div style="color:var(--muted);font-size:.78rem">
-          ${escHtml(TECH_DOC_TYPES[doc.doc_type] || doc.doc_type)} · ${escHtml(doc.uploaded_by_name)} · ${formatDate(doc.uploaded_at)}
+        <div class="tech-doc-title">${escHtml(doc.file_name)}</div>
+        <div class="tech-doc-meta">
+          ${escHtml(doc.doc_label || TECH_DOC_TYPES[doc.doc_type] || doc.doc_type)} · ${escHtml(doc.uploaded_by_name)} · ${formatDate(doc.uploaded_at)}
           ${doc.description ? ' · ' + escHtml(doc.description) : ''}
         </div>
       </div>
       <a href="${serveDocUrl(doc.file_key)}" target="_blank"
-         class="btn btn-outline btn-sm" style="font-size:.78rem;flex-shrink:0;margin-left:.75rem">Скачать</a>
+         class="btn btn-outline btn-sm tech-doc-download">Скачать</a>
     </div>
   `).join('');
 }

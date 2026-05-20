@@ -13,7 +13,7 @@ function getStorageOrigin() {
 
 const storageOrigin = getStorageOrigin();
 const imgSrc = ["'self'", 'data:', 'storage.yandexcloud.net'];
-const connectSrc = ["'self'", 'unpkg.com'];
+const connectSrc = ["'self'"];
 
 if (storageOrigin) {
   imgSrc.push(storageOrigin);
@@ -24,8 +24,10 @@ const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", 'cdn.tailwindcss.com', 'fonts.googleapis.com', 'unpkg.com'],
-      styleSrc: ["'self'", "'unsafe-inline'", 'fonts.googleapis.com', 'unpkg.com'],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", 'fonts.googleapis.com'],
+      styleSrcElem: ["'self'", 'fonts.googleapis.com'],
+      styleSrcAttr: ["'none'"],
       fontSrc: ["'self'", 'fonts.gstatic.com'],
       imgSrc,
       connectSrc,

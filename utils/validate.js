@@ -1,4 +1,12 @@
 const { z } = require('zod');
+const {
+  ROLE_VALUES,
+  PUBLIC_REGISTRATION_ROLES,
+  PROJECT_TEAM_ROLES,
+  EXECUTIVE_DOCUMENT_TYPES,
+  PROJECT_DOCUMENT_TYPES,
+  REQUEST_DOCUMENT_TYPES,
+} = require('./constants');
 
 const registerSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -6,7 +14,7 @@ const registerSchema = z.object({
   login: z.string().min(3).max(50),
   phone: z.string().trim().optional().or(z.literal('')),
   password: z.string().min(8).max(100),
-  role: z.enum(['customer', 'partner']),
+  role: z.enum(PUBLIC_REGISTRATION_ROLES),
 }).superRefine((data, ctx) => {
   const hasEmail = Boolean(String(data.email || '').trim());
   const hasPhone = Boolean(String(data.phone || '').trim());
@@ -242,39 +250,32 @@ const batchWorkSpecSchema = z.object({
 
 // --- pto ---
 
-const DOC_TYPES = ['hidden_works_act', 'exec_scheme', 'geodetic_survey', 'general_works_log',
-  'author_supervision', 'interim_acceptance', 'cable_test_act', 'measurement_protocol', 'other'];
-
 const uploadDocSchema = z.object({
-  doc_type: z.enum(DOC_TYPES),
+  doc_type: z.enum(EXECUTIVE_DOCUMENT_TYPES),
   description: z.string().max(1000).optional(),
 });
 
 // --- customer ---
 
-const REQUEST_DOC_TYPES = ['tu', 'rd', 'pd', 'tz', 'situation_plan', 'other'];
-
 const createRequestSchema = z.object({
   message: z.string().max(2000).optional(),
   phone: z.string().max(20).optional(),
-  doc_type: z.enum(REQUEST_DOC_TYPES).optional(),
+  doc_type: z.enum(REQUEST_DOCUMENT_TYPES).optional(),
 });
 
 // --- admin ---
-
-const ALL_ROLES = ['admin', 'manager', 'foreman', 'supplier', 'pto', 'customer', 'partner'];
 
 const createUserSchema = z.object({
   name: z.string().min(2).max(100),
   email: z.string().email(),
   password: z.string().min(8).max(100),
-  role: z.enum(ALL_ROLES),
+  role: z.enum(ROLE_VALUES),
 });
 
 const updateUserSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
-  role: z.enum(ALL_ROLES).optional(),
+  role: z.enum(ROLE_VALUES).optional(),
 });
 
 const updatePayoutSchema = z.object({
@@ -283,13 +284,8 @@ const updatePayoutSchema = z.object({
 
 // --- manager ---
 
-const MANAGER_DOC_TYPES = [
-  'rd', 'pd', 'tz', 'tu', 'kp', 'estimate', 'contract',
-  'addendum', 'ks2', 'ks3', 'permit', 'boundary_act', 'other',
-];
-
 const managerUploadDocSchema = z.object({
-  doc_type: z.enum(MANAGER_DOC_TYPES),
+  doc_type: z.enum(PROJECT_DOCUMENT_TYPES),
   description: z.string().max(1000).optional(),
 });
 
@@ -344,7 +340,7 @@ const updateRequestSchema = z.object({
 
 const addTeamSchema = z.object({
   user_id: z.number().int().positive(),
-  role: z.enum(['foreman', 'supplier', 'pto', 'customer']),
+  role: z.enum(PROJECT_TEAM_ROLES),
 });
 
 const batchCatalogItemSchema = z.object({

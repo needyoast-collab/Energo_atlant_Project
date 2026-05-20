@@ -698,7 +698,7 @@ async function resetPassword(req, res, next) {
     const lookup = buildUserLookupCondition(contact, 1);
 
     const result = await pool.query(
-      `SELECT id
+      `SELECT id, email, phone, is_verified
        FROM users
        WHERE ${lookup.sql}
          AND reset_code = $${lookup.nextIndex}

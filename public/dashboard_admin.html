@@ -8,6 +8,7 @@
   <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/pages/dashboard-admin.css">
 </head>
 
 <body class="grid-bg">
@@ -16,7 +17,7 @@
 
     <!-- САЙДБАР -->
     <aside class="sidebar">
-      <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+      <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" class="sidebar-logo-img"></div>
       <nav class="sidebar-nav">
         <button class="nav-item active" data-section="metrics">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -135,7 +136,7 @@
         </div>
 
         <div class="card">
-          <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+          <div class="admin-tab-row">
             <button class="btn btn-sm btn-primary" data-users-tab="active">Действующие</button>
             <button class="btn btn-sm btn-outline" data-users-tab="deleted">Удалённые</button>
           </div>
@@ -163,7 +164,7 @@
         </div>
         <div class="card mb-3">
           <form id="projects-filter-form">
-            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:.75rem">
+            <div class="admin-filter-grid">
               <input class="form-control" name="q" placeholder="Поиск: код / название / адрес">
               <select class="form-control" name="status" id="projects-filter-status">
                 <option value="">Статус воронки</option>
@@ -193,7 +194,7 @@
               <input class="form-control" name="created_from" type="date" title="Дата создания: от">
               <input class="form-control" name="created_to" type="date" title="Дата создания: до">
             </div>
-            <div style="display:flex;gap:.5rem;margin-top:.75rem">
+            <div class="admin-filter-actions">
               <button class="btn btn-primary btn-sm" type="submit">Применить</button>
               <button class="btn btn-outline btn-sm" type="button" id="btn-projects-filter-reset">Сбросить</button>
             </div>
@@ -227,7 +228,7 @@
         </div>
         <div class="card mb-3">
           <form id="project-history-filter-form">
-            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:.75rem">
+            <div class="admin-filter-grid">
               <input class="form-control" name="q" placeholder="Поиск: проект / поле / значение / детали">
               <input class="form-control" name="project_id" type="number" min="1" placeholder="ID проекта">
               <input class="form-control" name="changed_by" type="number" min="1" placeholder="ID пользователя">
@@ -235,7 +236,7 @@
               <input class="form-control" name="date_from" type="date" title="Дата изменения: от">
               <input class="form-control" name="date_to" type="date" title="Дата изменения: до">
             </div>
-            <div style="display:flex;gap:.5rem;margin-top:.75rem">
+            <div class="admin-filter-actions">
               <button class="btn btn-primary btn-sm" type="submit">Найти</button>
               <button class="btn btn-outline btn-sm" type="button" id="btn-history-filter-reset">Сбросить</button>
             </div>
@@ -301,8 +302,8 @@
         <div id="tab-works" class="tab-content active">
           <div class="dash-header flex-between">
             <h2>База работ</h2>
-            <div style="display:flex;gap:.5rem">
-              <input type="text" class="form-control" id="catalog-search" placeholder="Поиск по названию..." style="max-width:300px">
+            <div class="admin-catalog-actions">
+              <input type="text" class="form-control admin-catalog-search" id="catalog-search" placeholder="Поиск по названию...">
               <button class="btn btn-primary btn-sm" id="btn-catalog-bulk-open">+ Добавить позицию</button>
             </div>
           </div>
@@ -353,7 +354,7 @@
 
   <!-- МОДАЛКА: создать пользователя -->
   <div class="modal-overlay" id="modal-create-user">
-    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+    <div class="modal modal-shell modal-shell-sm">
       <button class="modal-close" data-close="modal-create-user">×</button>
       <div class="modal-shell-header">
         <div class="modal-title">Создать пользователя</div>
@@ -393,7 +394,7 @@
 
   <!-- МОДАЛКА: редактировать пользователя -->
   <div class="modal-overlay" id="modal-edit-user">
-    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+    <div class="modal modal-shell modal-shell-sm">
       <button class="modal-close" data-close="modal-edit-user">×</button>
       <div class="modal-shell-header">
         <div class="modal-title">Редактировать пользователя</div>
@@ -430,7 +431,7 @@
 
   <!-- МОДАЛКА: Редактировать работу -->
   <div class="modal-overlay" id="modal-edit-catalog">
-    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+    <div class="modal modal-shell modal-shell-sm">
       <button class="modal-close" data-close="modal-edit-catalog">×</button>
       <div class="modal-shell-header">
         <div class="modal-title">Редактировать работу</div>
@@ -441,7 +442,7 @@
           <label class="form-label">Наименование</label>
           <input type="text" class="form-control" name="item_name" required>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label">Ед. изм.</label>
             <input type="text" class="form-control" name="unit" required>
@@ -464,33 +465,33 @@
 
   <!-- МОДАЛКА: добавить позиции справочника -->
   <div class="modal-overlay" id="modal-catalog-bulk">
-    <div class="modal modal-shell modal-shell-lg" id="catalog-batch-modal-box" style="max-height:72vh;transition:max-height .22s ease">
+    <div class="modal modal-shell modal-shell-lg admin-batch-modal" id="catalog-batch-modal-box">
       <button class="modal-close" data-close="modal-catalog-bulk">×</button>
       <div class="modal-shell-header">
         <div class="modal-title">Добавить позиции — Справочник работ</div>
         <div class="modal-subtitle">
-          Скопируйте 3 колонки из Excel: <strong style="color:var(--text)">Наименование</strong>, <strong style="color:var(--text)">Ед. изм.</strong>, <strong style="color:var(--text)">Цена</strong>.
+          Скопируйте 3 колонки из Excel: <strong class="admin-strong-text">Наименование</strong>, <strong class="admin-strong-text">Ед. изм.</strong>, <strong class="admin-strong-text">Цена</strong>.
           Вставка распределится по строкам автоматически. Если работа уже существует, её данные обновятся.
         </div>
       </div>
       <form id="catalog-bulk-form" class="modal-shell-body autohide-scroll">
-          <table style="width:100%;border-collapse:collapse">
+          <table class="admin-batch-table">
             <thead>
-              <tr style="border-bottom:2px solid var(--border)">
-                <th style="padding:.5rem .6rem;text-align:center;color:var(--muted);font-size:.78rem;width:36px">№</th>
-                <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem">Наименование</th>
-                <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:140px">Ед. изм.</th>
-                <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:140px">Цена</th>
+              <tr class="admin-batch-head-row">
+                <th class="admin-batch-th admin-batch-th-index">№</th>
+                <th class="admin-batch-th">Наименование</th>
+                <th class="admin-batch-th admin-batch-th-unit">Ед. изм.</th>
+                <th class="admin-batch-th admin-batch-th-price">Цена</th>
               </tr>
             </thead>
             <tbody id="catalog-batch-tbody"></tbody>
           </table>
-        <div style="margin-top:.75rem">
-          <button type="button" class="btn btn-outline btn-sm" id="btn-catalog-batch-add-row" style="font-size:.82rem">+ Добавить строку</button>
+        <div class="admin-batch-add-wrap">
+          <button type="button" class="btn btn-outline btn-sm admin-batch-add-row" id="btn-catalog-batch-add-row">+ Добавить строку</button>
         </div>
       </form>
-      <div class="modal-shell-actions" style="justify-content:space-between;align-items:center">
-        <div id="bulk-preview-count" class="text-muted" style="font-size:.85rem">0 позиций заполнено</div>
+      <div class="modal-shell-actions admin-batch-actions">
+        <div id="bulk-preview-count" class="text-muted admin-batch-preview-count">0 позиций заполнено</div>
         <div class="modal-shell-actions-main">
           <button type="button" class="btn btn-outline" data-close="modal-catalog-bulk">Отмена</button>
           <button type="submit" form="catalog-bulk-form" class="btn btn-primary" id="btn-catalog-batch-save">Импортировать в базу</button>
@@ -501,7 +502,7 @@
 
   <!-- МОДАЛКА: Редактировать коэффициент -->
   <div class="modal-overlay" id="modal-edit-coeff">
-    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+    <div class="modal modal-shell modal-shell-sm">
       <button class="modal-close" data-close="modal-edit-coeff">×</button>
       <div class="modal-shell-header">
         <div class="modal-title" id="coeff-modal-title">Редактировать коэффициент</div>

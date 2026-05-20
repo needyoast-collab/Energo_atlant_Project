@@ -1,6 +1,5 @@
 const { Router } = require('express');
 const rateLimit = require('express-rate-limit');
-const multer = require('multer');
 const {
   register,
   login,
@@ -19,16 +18,14 @@ const {
 } = require('../controllers/authController');
 const { isAuthenticated } = require('../middleware/auth');
 const { normalizeAuthContact } = require('../utils/authIdentity');
+const { createMemoryUpload, IMAGE_MIME_TYPES, MB } = require('../utils/upload');
 
 const router = Router();
 
-const avatarUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 2 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-    cb(null, allowed.includes(file.mimetype) ? true : new Error('Допустимые форматы: JPG, PNG, WEBP до 2 МБ'));
-  },
+const avatarUpload = createMemoryUpload({
+  allowedMimeTypes: IMAGE_MIME_TYPES,
+  maxFileSize: 2 * MB,
+  errorMessage: 'Допустимые форматы: JPG, PNG, WEBP до 2 МБ',
 });
 
 function getAuthRateLimitKey(req) {

@@ -1,0 +1,101 @@
+/* Extracted from /dashboard_partner.html. */
+.level-tile {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  transition: border-color .2s;
+}
+.level-tile.active {
+  border-color: var(--accent);
+  background: rgba(245,166,35,.06);
+}
+.level-name { font-family: 'Stolzl', sans-serif; font-size: 1.1rem; margin-bottom: .25rem; }
+.level-cond { color: var(--muted); font-size: .8rem; margin-bottom: .5rem; }
+.level-pct  { font-family: 'Stolzl', sans-serif; font-size: 1.8rem; color: var(--accent); line-height: 1; }
+.partner-ref-desc {
+  color: var(--muted);
+  font-size: .9rem;
+  margin-bottom: 1rem;
+}
+.partner-ref-row {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+}
+.partner-ref-input {
+  color: var(--accent);
+  font-family: monospace;
+  font-size: .85rem;
+}
+.partner-copy-btn {
+  flex-shrink: 0;
+}
+.partner-level-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-top: .5rem;
+}
+.partner-level-summary {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.partner-level-title {
+  color: var(--accent);
+  font-family: 'Stolzl', sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+.partner-level-meta {
+  color: var(--muted);
+  font-size: .85rem;
+}
+.partner-level-meta strong {
+  color: var(--text);
+}
+.partner-level-next {
+  flex: 1;
+  min-width: 200px;
+}
+.partner-level-next-label {
+  color: var(--muted);
+  font-size: .8rem;
+  margin-bottom: .35rem;
+}
+.partner-level-progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  appearance: none;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--border);
+}
+.partner-level-progress::-webkit-progress-bar {
+  background: var(--border);
+  border-radius: 9999px;
+}
+.partner-level-progress::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 9999px;
+}
+.partner-level-progress::-moz-progress-bar {
+  background: var(--accent);
+  border-radius: 9999px;
+}
+.partner-level-max {
+  color: var(--success);
+  font-size: .9rem;
+}
+.partner-table-muted {
+  color: var(--muted);
+  font-size: .85rem;
+}
+.partner-payout-details {
+  max-width: 200px;
+}

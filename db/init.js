@@ -19,18 +19,23 @@ async function runMigrations() {
   for (const file of files) {
     if (applied.has(file)) continue;
     const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+    const client = await pool.connect();
     try {
-      await pool.query(sql);
+      await client.query('BEGIN');
+      await client.query(sql);
+      await client.query('INSERT INTO _migrations (name) VALUES ($1)', [file]);
+      await client.query('COMMIT');
       console.log(`[DB] Migration applied: ${file}`);
     } catch (err) {
-      // 42P07 — relation already exists, миграция уже была применена вручную
-      if (err.code === '42P07' || err.code === '42701') {
-        console.warn(`[DB] Migration skipped (already applied): ${file}`);
-      } else {
-        throw err;
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackErr) {
+        console.warn(`[DB] Migration rollback failed for ${file}: ${rollbackErr.message}`);
       }
+      throw err;
+    } finally {
+      client.release();
     }
-    await pool.query('INSERT INTO _migrations (name) VALUES ($1)', [file]);
   }
 }
 

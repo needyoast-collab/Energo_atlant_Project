@@ -20,148 +20,15 @@
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/aos.css">
-  <style>
-    .page-hero {
-      padding: 140px 2rem 5rem;
-      text-align: center;
-      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
-      border-bottom: 1px solid var(--border);
-    }
-    .page-hero .section-label { margin-bottom: .75rem; }
-    .page-hero h1 { margin-bottom: 1rem; }
-    .page-hero p { color: var(--muted); max-width: 540px; margin: 0 auto; }
-
-    /* Быстрые карточки навигации */
-    .service-nav-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-    }
-    .service-nav-card {
-      background: var(--bg2);
-      padding: 2rem;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      gap: .75rem;
-      transition: background .2s, border-left .2s;
-      border-left: 3px solid transparent;
-    }
-    .service-nav-card:hover { background: var(--bg3); }
-    .service-nav-card.active { border-left-color: var(--accent); background: var(--bg3); }
-    .service-nav-card .svc-num { font-family: 'Stolzl', sans-serif; font-size: 2.5rem; color: var(--border); line-height: 1; }
-    .service-nav-card .svc-name { font-weight: 700; font-size: .95rem; }
-    .service-nav-card .svc-arrow { color: var(--accent); font-size: 1.2rem; align-self: flex-end; margin-top: auto; }
-
-    /* Детальные секции */
-    .service-detail {
-      padding: 5rem 2rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .service-detail:nth-child(even) { background: var(--bg2); }
-    .service-detail-inner {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4rem;
-      align-items: center;
-    }
-    .service-detail:nth-child(even) .service-detail-inner { direction: rtl; }
-    .service-detail:nth-child(even) .service-detail-inner > * { direction: ltr; }
-    .detail-num { font-family: 'Stolzl', sans-serif; font-size: 6rem; color: var(--border); line-height: 1; margin-bottom: -.5rem; }
-    .detail-title { font-size: clamp(1.6rem, 3vw, 2.5rem); margin-bottom: 1rem; }
-    .detail-desc { color: var(--muted); font-size: 1rem; line-height: 1.8; margin-bottom: 1.75rem; }
-    .detail-list { list-style: none; display: flex; flex-direction: column; gap: .75rem; margin-bottom: 2rem; }
-    .detail-list li { display: flex; align-items: center; gap: .75rem; font-size: .95rem; }
-    .detail-list li::before { content: ''; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; flex-shrink: 0; }
-    .detail-visual {
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      padding: 2.5rem;
-      min-height: 300px;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      position: relative;
-      overflow: hidden;
-    }
-    .detail-visual::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(245,166,35,.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(245,166,35,.06) 1px, transparent 1px);
-      background-size: 30px 30px;
-    }
-    .detail-visual-icon {
-      font-family: 'Stolzl', sans-serif;
-      font-size: 5rem;
-      color: rgba(245,166,35,.12);
-      line-height: 1;
-      position: relative;
-    }
-    .detail-visual-label {
-      font-family: 'Stolzl', sans-serif;
-      font-size: 1.6rem;
-      color: var(--accent);
-      letter-spacing: .1em;
-      position: relative;
-    }
-    .detail-visual-sub {
-      color: var(--muted);
-      font-size: .85rem;
-      position: relative;
-      margin-top: .25rem;
-    }
-
-    .detail-visual-img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: .22;
-      z-index: 0;
-    }
-    .detail-visual-ph {
-      position: absolute;
-      inset: 0;
-      background: #1a1a1a;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      color: #F5A623;
-      font-family: 'Stolzl', sans-serif;
-      font-size: 1.25rem;
-      letter-spacing: .12em;
-      z-index: 0;
-    }
-    .detail-visual-icon,
-    .detail-visual-label,
-    .detail-visual-sub { position: relative; z-index: 1; }
-
-    @media (max-width: 900px) {
-      .service-nav-grid { grid-template-columns: repeat(2, 1fr); }
-      .service-detail-inner { grid-template-columns: 1fr; gap: 2rem; }
-      .service-detail:nth-child(even) .service-detail-inner { direction: ltr; }
-    }
-    @media (max-width: 600px) {
-      .service-nav-grid { grid-template-columns: 1fr; }
-      .service-detail { padding: 3rem 1rem; }
-    }
-  </style>
+  <script src="/js/image_fallbacks.js"></script>
+  <link rel="stylesheet" href="/css/pages/services.css">
 </head>
 <body class="grid-bg">
 <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
 
 <!-- НАВБАР -->
 <nav class="navbar">
-  <a href="/"><img src="/img/logo.png" alt="ЭнергоАтлант" style="height:36px;width:auto"></a>
+  <a href="/"><img src="/img/logo.png" alt="ЭнергоАтлант" class="u-services-01"></a>
   <ul class="navbar-links">
     <li><a href="/">Главная</a></li>
     <li><a href="/services.html">Услуги</a></li>
@@ -188,7 +55,7 @@
 </div>
 
 <!-- НАВИГАЦИЯ ПО УСЛУГАМ -->
-<section class="section" style="padding:3rem 2rem">
+<section class="section u-services-02">
   <div class="container">
     <div class="service-nav-grid">
       <div class="service-nav-card active" data-target="svc-1" data-aos="fade-up" data-aos-delay="0">
@@ -242,8 +109,7 @@
       <a href="#request" class="btn btn-primary">Обсудить проект</a>
     </div>
     <div class="detail-visual" data-aos="fade-left">
-      <img class="detail-visual-img" src="/img/services/vl.jpg" alt=""
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <img class="detail-visual-img" src="/img/services/vl.jpg" alt="" data-image-fallback="show-next">
       <div class="detail-visual-ph">Фото скоро</div>
       <div class="detail-visual-icon">ВЛ</div>
       <div class="detail-visual-label">0.4 — 110 кВ</div>
@@ -269,8 +135,7 @@
       <a href="#request" class="btn btn-primary">Обсудить проект</a>
     </div>
     <div class="detail-visual" data-aos="fade-left">
-      <img class="detail-visual-img" src="/img/services/kl.jpg" alt=""
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <img class="detail-visual-img" src="/img/services/kl.jpg" alt="" data-image-fallback="show-next">
       <div class="detail-visual-ph">Фото скоро</div>
       <div class="detail-visual-icon">КЛ</div>
       <div class="detail-visual-label">Кабельные линии</div>
@@ -296,8 +161,7 @@
       <a href="#request" class="btn btn-primary">Обсудить проект</a>
     </div>
     <div class="detail-visual" data-aos="fade-left">
-      <img class="detail-visual-img" src="/img/services/tp.jpg" alt=""
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <img class="detail-visual-img" src="/img/services/tp.jpg" alt="" data-image-fallback="show-next">
       <div class="detail-visual-ph">Фото скоро</div>
       <div class="detail-visual-icon">ТП</div>
       <div class="detail-visual-label">10 / 0.4 кВ</div>
@@ -323,8 +187,7 @@
       <a href="#request" class="btn btn-primary">Обсудить проект</a>
     </div>
     <div class="detail-visual" data-aos="fade-left">
-      <img class="detail-visual-img" src="/img/services/pnr.jpg" alt=""
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <img class="detail-visual-img" src="/img/services/pnr.jpg" alt="" data-image-fallback="show-next">
       <div class="detail-visual-ph">Фото скоро</div>
       <div class="detail-visual-icon">ЭС</div>
       <div class="detail-visual-label">Внутренние сети</div>
@@ -350,8 +213,7 @@
       <a href="#request" class="btn btn-primary">Обсудить проект</a>
     </div>
     <div class="detail-visual" data-aos="fade-left">
-      <img class="detail-visual-img" src="/img/services/docs.jpg" alt=""
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <img class="detail-visual-img" src="/img/services/docs.jpg" alt="" data-image-fallback="show-next">
       <div class="detail-visual-ph">Фото скоро</div>
       <div class="detail-visual-icon">ИД</div>
       <div class="detail-visual-label">Исполнительная документация</div>
@@ -377,8 +239,7 @@
       <a href="#request" class="btn btn-primary">Обсудить проект</a>
     </div>
     <div class="detail-visual" data-aos="fade-left">
-      <img class="detail-visual-img" src="/img/services/project.jpg" alt=""
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <img class="detail-visual-img" src="/img/services/project.jpg" alt="" data-image-fallback="show-next">
       <div class="detail-visual-ph">Фото скоро</div>
       <div class="detail-visual-icon">ПД</div>
       <div class="detail-visual-label">Проектирование</div>
@@ -388,8 +249,8 @@
 </div>
 
 <!-- ФОРМА ЗАЯВКИ -->
-<section class="section" id="request" style="background:var(--bg2);border-top:1px solid var(--border)">
-  <div class="container" style="max-width:600px">
+<section class="section u-services-03" id="request">
+  <div class="container u-services-04">
     <div class="section-header" data-aos="fade-up">
       <p class="section-label">Свяжитесь с нами</p>
       <h2 class="section-title">Обсудим ваш проект</h2>
@@ -422,7 +283,7 @@
   <div class="footer-grid">
     <div>
       <div class="footer-col-title">ЭнергоАтлант</div>
-      <p style="color:var(--muted);font-size:.9rem">Электромонтажные работы в Москве и МО. Напряжение 0.4–110 кВ.</p>
+      <p class="u-services-05">Электромонтажные работы в Москве и МО. Напряжение 0.4–110 кВ.</p>
     </div>
     <div>
       <div class="footer-col-title">Услуги</div>
@@ -445,56 +306,24 @@
       <div class="footer-col-title">Контакты</div>
       <ul class="footer-links">
         <li><a href="mailto:energoatlant@yandex.ru">energoatlant@yandex.ru</a></li>
-        <li style="color:var(--muted);font-size:.85rem">г. Москва, ул. Новоорловская, д. 10</li>
+        <li class="u-services-06">г. Москва, ул. Новоорловская, д. 10</li>
       </ul>
     </div>
   </div>
   <div class="footer-bottom">
     <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
     <a href="/privacy.html">Политика конфиденциальности</a>
-    <span style="color:var(--muted);opacity:0.5;cursor:not-allowed">Личный кабинет</span>
+    <span class="u-services-07">Личный кабинет</span>
   </div>
 </footer>
 
 <div id="toast-container"></div>
 <script src="/js/preloader.js"></script>
-<script src="https://unpkg.com/imask"></script>
+<script src="/vendor/imask.min.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/nav.js"></script>
 <script src="/js/float-call.js"></script>
 <script src="/js/aos.js"></script>
-<script>
-AOS.init({ once: true, offset: 60 });
-
-// Навигация по услугам
-document.querySelectorAll('.service-nav-card[data-target]').forEach(card => {
-  card.addEventListener('click', () => {
-    document.querySelectorAll('.service-nav-card').forEach(c => c.classList.remove('active'));
-    card.classList.add('active');
-    const target = document.getElementById(card.dataset.target);
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-});
-
-// Форма заявки
-document.getElementById('request-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const body = { message: fd.get('message') || '' };
-  if (fd.get('name'))  body.name  = fd.get('name');
-  if (fd.get('phone')) body.phone = fd.get('phone');
-  if (fd.get('email')) body.email = fd.get('email');
-  const btn = e.target.querySelector('button[type=submit]');
-  btn.disabled = true; btn.textContent = 'Отправка...';
-  const { ok, data } = await apiRequest('POST', '/api/public/requests', body);
-  if (ok) {
-    showToast('Заявка отправлена! Перезвоним в течение 2 часов.', 'success');
-    e.target.reset();
-  } else {
-    showToast(data.error || 'Ошибка отправки', 'error');
-  }
-  btn.disabled = false; btn.textContent = 'Отправить заявку';
-});
-</script>
+<script src="/js/services_page.js"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@ const path = require('path');
 const { pool } = require('../config/database');
 const { sendNotification } = require('../utils/notifications');
 const { sendEmail } = require('../utils/email');
-const { ROLES } = require('../middleware/auth');
+const { ROLES } = require('../utils/constants');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
@@ -166,14 +166,14 @@ async function convertWordToPdf(wordBuffer, id) {
 
   try {
     await execPromise(cmd);
-    const pdfBuffer = fs.readFileSync(pdfPath);
-    fs.unlinkSync(docxPath);
-    fs.unlinkSync(pdfPath);
-    return pdfBuffer;
+    return fs.readFileSync(pdfPath);
   } catch (err) {
     console.error('Ошибка конвертации (Убедитесь что LibreOffice установлен):', err.message);
     // В случае ошибки возвращаем null, чтобы хотя бы отправить Word, как резерв.
     return null;
+  } finally {
+    fs.rmSync(docxPath, { force: true });
+    fs.rmSync(pdfPath, { force: true });
   }
 }
 
@@ -191,7 +191,9 @@ async function generateWord(req, res, next) {
     if (err.properties && err.properties.errors) {
        errorStr += ' | Детали: ' + err.properties.errors.map(e => e.message).join(', ');
     }
-    return res.status(500).json({ error: 'Ошибка генерации Word: ' + errorStr });
+    err.message = 'Ошибка генерации Word: ' + errorStr;
+    err.status = 500;
+    return next(err);
   }
 }
 

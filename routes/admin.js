@@ -5,12 +5,22 @@ const {
   createUser,
   updateUser,
   deleteUser,
+  verifyUser,
   restoreUser,
   getMetrics,
   getProjects,
   getProjectHistory,
   getPartnerPayouts,
   updatePartnerPayout,
+  getCatalog,
+  addCatalogBulk,
+  updateCatalogItem,
+  approveCatalogItem,
+  deleteCatalogItem,
+  getCoefficients,
+  createCoefficient,
+  updateCoefficient,
+  deleteCoefficient,
 } = require('../controllers/adminController');
 
 const router = Router();
@@ -21,6 +31,7 @@ router.get('/users', getUsers);
 router.post('/users', createUser);
 router.put('/users/:id', updateUser);
 router.delete('/users/:id', deleteUser);
+router.post('/users/:id/verify', verifyUser);
 router.post('/users/:id/restore', restoreUser);
 router.get('/metrics', getMetrics);
 router.get('/projects', getProjects);
@@ -29,16 +40,16 @@ router.get('/partner-payouts', getPartnerPayouts);
 router.put('/partner-payouts/:id', updatePartnerPayout);
 
 // CATALOG ENDPOINTS
-router.get('/catalog', require('../controllers/adminController').getCatalog);
-router.post('/catalog/bulk', require('../controllers/adminController').addCatalogBulk);
-router.put('/catalog/:id', require('../controllers/adminController').updateCatalogItem);
-router.post('/catalog/:id/approve', require('../controllers/adminController').approveCatalogItem);
-router.delete('/catalog/:id', require('../controllers/adminController').deleteCatalogItem);
+router.get('/catalog', getCatalog);
+router.post('/catalog/bulk', addCatalogBulk);
+router.put('/catalog/:id', updateCatalogItem);
+router.post('/catalog/:id/approve', approveCatalogItem);
+router.delete('/catalog/:id', deleteCatalogItem);
 
 // COEFFICIENTS
-router.get('/coefficients', require('../controllers/adminController').getCoefficients);
-router.post('/coefficients', require('../controllers/adminController').createCoefficient);
-router.put('/coefficients/:id', require('../controllers/adminController').updateCoefficient);
-router.delete('/coefficients/:id', require('../controllers/adminController').deleteCoefficient);
+router.get('/coefficients', getCoefficients);
+router.post('/coefficients', createCoefficient);
+router.put('/coefficients/:id', updateCoefficient);
+router.delete('/coefficients/:id', deleteCoefficient);
 
 module.exports = router;

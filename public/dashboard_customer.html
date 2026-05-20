@@ -8,127 +8,7 @@
   <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css?v=customer-project-page-1">
-  <style>
-    /* ── Карточки объектов заказчика ── */
-    .project-card-customer {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      cursor: pointer;
-      transition: border-color .2s, transform .15s;
-    }
-
-    .project-card-customer:hover {
-      border-color: var(--accent);
-      transform: translateY(-2px);
-    }
-
-    .pcc-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: .75rem;
-      padding: 1.25rem 1.25rem .75rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .pcc-title {
-      font-weight: 700;
-      font-size: .95rem;
-      line-height: 1.3;
-    }
-
-    .pcc-meta {
-      padding: .75rem 1.25rem .5rem;
-      color: var(--muted);
-      font-size: .8rem;
-      display: flex;
-      flex-wrap: wrap;
-      gap: .3rem;
-    }
-
-    .pcc-progress-wrap {
-      padding: .25rem 1.25rem .75rem;
-    }
-
-    .pcc-progress-label {
-      display: flex;
-      justify-content: space-between;
-      font-size: .78rem;
-      color: var(--muted);
-      margin-bottom: .35rem;
-    }
-
-    .pcc-progress-bar {
-      height: 6px;
-      background: var(--border);
-      border-radius: 9999px;
-      overflow: hidden;
-    }
-
-    .pcc-progress-fill {
-      height: 100%;
-      background: var(--accent);
-      border-radius: 9999px;
-      transition: width .5s;
-    }
-
-    .pcc-stats-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1px;
-      background: var(--border);
-    }
-
-    .pcc-stat {
-      background: var(--bg3);
-      padding: .75rem;
-      text-align: center;
-    }
-
-    .pcc-stat-val {
-      font-family: 'Stolzl', sans-serif;
-      font-size: 1.5rem;
-      color: var(--accent);
-      line-height: 1;
-    }
-
-    .pcc-stat-lbl {
-      color: var(--muted);
-      font-size: .7rem;
-      margin-top: .15rem;
-    }
-
-    .stage-photo-thumb {
-      display: block;
-      border-radius: 6px;
-      overflow: hidden;
-      aspect-ratio: 1;
-      background: var(--bg3);
-    }
-
-    .stage-photo-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      filter: grayscale(60%);
-      transition: filter .3s;
-    }
-
-    .stage-photo-thumb:hover img {
-      filter: grayscale(0%);
-    }
-
-    .pcc-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: .75rem 1.25rem;
-      font-size: .8rem;
-      border-top: 1px solid var(--border);
-    }
-  </style>
+  <link rel="stylesheet" href="/css/pages/dashboard-customer.css">
 </head>
 
 <body class="grid-bg">
@@ -137,7 +17,7 @@
 
     <!-- САЙДБАР -->
     <aside class="sidebar">
-      <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+      <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" class="sidebar-logo-img"></div>
       <nav class="sidebar-nav">
         <button class="nav-item active" data-section="projects">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -193,13 +73,12 @@
       <div class="dash-section active" id="section-projects">
         <div class="dash-header flex-between">
           <h1>Мои объекты</h1>
-          <div style="display:flex;gap:.5rem">
+          <div class="customer-dashboard-actions">
             <button class="btn btn-outline btn-sm" id="btn-join-project">+ Войти по коду</button>
             <button class="btn btn-primary btn-sm" id="btn-new-request">Оставить заявку</button>
           </div>
         </div>
-        <div id="projects-list"
-          style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.25rem"></div>
+        <div id="projects-list" class="customer-projects-grid"></div>
       </div>
 
       <!-- СООБЩЕНИЯ -->
@@ -230,7 +109,7 @@
 
   <!-- МОДАЛКА: оставить заявку -->
   <div class="modal-overlay" id="modal-request">
-    <div class="modal modal-shell modal-shell-md" style="max-height:90vh">
+    <div class="modal modal-shell modal-shell-md">
       <button class="modal-close" data-close="modal-request">×</button>
       <div class="modal-shell-header">
         <div class="modal-title">Новая заявка</div>
@@ -238,7 +117,7 @@
       <form id="request-form" class="modal-shell-body autohide-scroll">
         <div class="form-group">
           <label class="form-label">Телефон для связи</label>
-          <label id="request-use-account-phone-wrap" style="display:none;align-items:center;gap:.55rem;margin:.55rem 0 .75rem;color:var(--muted);font-size:.85rem;cursor:pointer">
+          <label id="request-use-account-phone-wrap" class="request-account-phone-wrap is-hidden">
             <input type="checkbox" id="request-use-account-phone">
             Использовать номер телефона аккаунта
           </label>
@@ -251,9 +130,9 @@
         </div>
         <div class="form-group">
           <label class="form-label">Документы и фото <span
-              style="color:var(--muted);font-weight:400;font-size:.8rem">(необязательно)</span></label>
-          <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-            <select class="form-control" id="req-doc-type" style="flex:1;min-width:160px">
+              class="request-optional-label">(необязательно)</span></label>
+          <div class="request-file-row">
+            <select class="form-control request-doc-type" id="req-doc-type">
               <option value="">— Тип документа —</option>
               <option value="tu">Технические условия (ТУ)</option>
               <option value="rd">Рабочая документация (РД)</option>
@@ -262,15 +141,14 @@
               <option value="situation_plan">Ситуационный план</option>
               <option value="other">Прочее</option>
             </select>
-            <label class="btn btn-outline btn-sm" for="req-file-input"
-              style="cursor:pointer;white-space:nowrap;margin:0">Выбрать файл</label>
-            <input type="file" id="req-file-input" accept=".pdf,.dwg,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" style="display:none">
+            <label class="btn btn-outline btn-sm request-file-label" for="req-file-input">Выбрать файл</label>
+            <input type="file" id="req-file-input" accept=".pdf,.dwg,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" hidden>
             <button type="button" class="btn btn-outline btn-sm" id="btn-add-file">Добавить</button>
           </div>
-          <div id="req-selected-filename" style="font-size:.8rem;color:var(--muted);margin-top:.3rem;display:none">
+          <div id="req-selected-filename" class="request-file-status is-hidden">
           </div>
-          <div id="req-file-error" style="color:var(--danger);font-size:.8rem;margin-top:.3rem;display:none"></div>
-          <div id="req-files-list" style="margin-top:.5rem"></div>
+          <div id="req-file-error" class="request-file-error is-hidden"></div>
+          <div id="req-files-list" class="request-files-list"></div>
         </div>
       </form>
       <div class="modal-shell-actions">
@@ -282,7 +160,7 @@
 
   <!-- МОДАЛКА: войти по коду -->
   <div class="modal-overlay" id="modal-join">
-    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+    <div class="modal modal-shell modal-shell-sm">
       <button class="modal-close" data-close="modal-join">×</button>
       <div class="modal-shell-header">
         <div class="modal-title">Войти в проект</div>
@@ -303,15 +181,14 @@
 
   <!-- МОДАЛКА: детали проекта -->
   <div class="modal-overlay" id="modal-project">
-    <div class="modal modal-shell" style="max-width:680px;max-height:90vh">
+    <div class="modal modal-shell customer-modal-680">
       <button class="modal-close" data-close="modal-project">×</button>
       <div class="modal-shell-header">
       <div class="modal-title" id="modal-project-title">Проект</div>
       <div id="modal-project-meta" class="mb-3"></div>
 
       <!-- Вкладки -->
-      <div
-        style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:.75rem">
+      <div class="modal-tab-row">
         <button class="btn btn-sm btn-primary" data-tab="stages">Ход работ</button>
         <button class="btn btn-sm btn-outline" data-tab="documents">Документы</button>
         <button class="btn btn-sm btn-outline" data-tab="warehouse">Склад объекта</button>
@@ -321,17 +198,17 @@
 
       <!-- Ход работ -->
       <div id="tab-stages">
-        <div id="stages-progress" style="margin-bottom:1.25rem"></div>
+        <div id="stages-progress" class="customer-stage-progress"></div>
         <div id="stages-list" class="stage-list"></div>
       </div>
 
       <!-- Документы -->
-      <div id="tab-documents" style="display:none">
-        <div id="documents-list" style="color:var(--muted);font-size:.9rem">Загрузка...</div>
+      <div id="tab-documents" class="is-hidden">
+        <div id="documents-list" class="text-muted">Загрузка...</div>
       </div>
 
       <!-- Склад объекта -->
-      <div id="tab-warehouse" style="display:none">
+      <div id="tab-warehouse" class="is-hidden">
         <div id="warehouse-list"></div>
       </div>
       </div>
@@ -340,27 +217,26 @@
 
   <!-- МОДАЛКА: детали этапа -->
   <div class="modal-overlay" id="modal-stage-detail">
-    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+    <div class="modal modal-shell modal-shell-sm">
       <button class="modal-close" data-close="modal-stage-detail">×</button>
-      <div id="stage-detail-body" class="modal-shell-body autohide-scroll" style="padding-top:2rem"></div>
+      <div id="stage-detail-body" class="modal-shell-body autohide-scroll customer-stage-detail-body"></div>
     </div>
   </div>
 
   <!-- МОДАЛКА: согласование этапа не_выполнено -->
   <div class="modal-overlay" id="modal-approve-stage">
-    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+    <div class="modal modal-shell modal-shell-sm">
       <button class="modal-close" data-close="modal-approve-stage">×</button>
       <div class="modal-shell-header">
         <div class="modal-title">Согласование этапа</div>
       </div>
       <div class="modal-shell-body autohide-scroll">
-        <div id="approve-stage-name" style="font-weight:600;margin-bottom:.75rem"></div>
-        <div style="margin-bottom:1rem">
-          <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem">Примечание прораба:</div>
-          <div id="approve-stage-note" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem;
-                 font-size:.88rem;color:var(--text);line-height:1.5"></div>
+        <div id="approve-stage-name" class="customer-approve-stage-name"></div>
+        <div class="customer-approve-note-wrap">
+          <div class="customer-approve-note-label">Примечание прораба:</div>
+          <div id="approve-stage-note" class="customer-approve-note"></div>
         </div>
-        <p style="color:var(--muted);font-size:.85rem;margin-bottom:0">
+        <p class="customer-approve-disclaimer">
           Нажимая «Согласовать», вы подтверждаете, что ознакомлены с причиной невыполнения этапа.
         </p>
       </div>
@@ -373,7 +249,7 @@
 
   <!-- МОДАЛКА: новое сообщение -->
   <div class="modal-overlay" id="modal-new-message">
-    <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+    <div class="modal modal-shell modal-shell-sm">
       <button class="modal-close" data-close="modal-new-message">×</button>
       <div class="modal-shell-header">
         <div class="modal-title">Новое сообщение</div>
@@ -401,11 +277,12 @@
 
   <div id="toast-container"></div>
   <script src="/js/preloader.js"></script>
-  <script src="https://unpkg.com/imask"></script>
+  <script src="/vendor/imask.min.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/auth.js"></script>
   <script src="/js/dashboard.js"></script>
-  <script src="/js/customer.js?v=customer-dashboard-2"></script>
+  <script src="/js/customer_status.js?v=customer-status-1"></script>
+  <script src="/js/customer.js?v=customer-dashboard-3"></script>
 </body>
 
 </html>

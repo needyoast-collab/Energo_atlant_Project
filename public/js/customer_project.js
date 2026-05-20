@@ -3,65 +3,15 @@ let currentProject = null;
 let activeProjectId = null;
 let activeTab = 'overview';
 let stagesCache = [];
+let customerCalendarPlan = null;
 let pendingStageId = null;
 let pendingDocumentId = null;
 
-const CUSTOMER_STATUS_LABELS = {
-  lead: 'Рассматривается',
-  qualification: 'Рассматривается',
-  visit: 'Рассматривается',
-  offer: 'Согласование',
-  negotiation: 'Согласование',
-  contract: 'Договор подписан',
-  work: 'В работе',
-  won: 'Завершён',
-  lost: 'Отменён',
-};
-
-const CUSTOMER_STATUS_CLASSES = {
-  'Рассматривается': 'badge-gray',
-  'Согласование': 'badge-yellow',
-  'Договор подписан': 'badge-blue',
-  'В работе': 'badge-green',
-  'Завершён': 'badge-gray',
-  'Отменён': 'badge-red',
-};
-
-const CUSTOMER_DOC_LABELS = {
-  hidden_works_act: 'Акт скрытых работ',
-  exec_scheme: 'Исполнительная схема',
-  geodetic_survey: 'Геодезическая съёмка',
-  general_works_log: 'Общий журнал работ',
-  author_supervision: 'Журнал авторского надзора',
-  interim_acceptance: 'Акт промежуточной приёмки',
-  cable_test_act: 'Акт испытания КЛ',
-  measurement_protocol: 'Протокол измерений',
-  rd: 'Рабочая документация (РД)',
-  pd: 'Проектная документация (ПД)',
-  tz: 'Техническое задание (ТЗ)',
-  tu: 'Технические условия (ТУ)',
-  kp: 'Коммерческое предложение (КП)',
-  estimate: 'Смета',
-  contract: 'Договор подряда',
-  addendum: 'Дополнительное соглашение',
-  ks2: 'Акт КС-2',
-  ks3: 'Справка КС-3',
-  permit: 'Разрешение на строительство',
-  boundary_act: 'Акт разграничения',
-  other: 'Прочее',
-};
-
-const CUSTOMER_STAGE_STATUS_LABELS = {
-  pending: 'Запланировано',
-  planned: 'Запланировано',
-  in_progress: 'В работе',
-  done: 'Выполнено',
-  not_done: 'Не выполнено',
-};
+const CUSTOMER_DOC_LABELS = window.PROJECT_DOC_LABELS;
 
 async function initCustomerProjectPage() {
   try {
-    currentUser = await requireAuth('customer');
+    currentUser = await requireAuth(window.APP_ROLES.CUSTOMER);
     if (!currentUser) return;
 
     document.getElementById('user-name').textContent = currentUser.name;
@@ -163,7 +113,7 @@ async function loadProject() {
 
   const status = getCustomerStatus(currentProject.status);
   document.getElementById('project-meta').innerHTML = `
-    <span class="badge ${CUSTOMER_STATUS_CLASSES[status] || 'badge-gray'}">${escHtml(status)}</span>
+    <span class="badge ${CustomerStatus.getProjectBadgeClass(currentProject.status)}">${escHtml(status)}</span>
     <span>${escHtml(currentProject.code)}</span>
     ${currentProject.address ? `<span>Адрес: ${escHtml(currentProject.address)}</span>` : ''}
     ${currentProject.manager_name ? `<span>Менеджер: ${escHtml(currentProject.manager_name)}</span>` : ''}
@@ -180,20 +130,21 @@ function renderPageError(message) {
 }
 
 function getCustomerStatus(status) {
-  return CUSTOMER_STATUS_LABELS[status] || status || '—';
+  return CustomerStatus.getProjectLabel(status);
 }
 
 async function switchProjectTab(tab, options = {}) {
-  activeTab = ['overview', 'stages', 'documents', 'warehouse'].includes(tab) ? tab : 'overview';
+  activeTab = ['overview', 'stages', 'calendar', 'documents', 'warehouse'].includes(tab) ? tab : 'overview';
 
   document.querySelectorAll('[data-project-tab]').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.projectTab === activeTab);
   });
 
-  document.getElementById('tab-overview').style.display = activeTab === 'overview' ? '' : 'none';
-  document.getElementById('tab-stages').style.display = activeTab === 'stages' ? '' : 'none';
-  document.getElementById('tab-documents').style.display = activeTab === 'documents' ? '' : 'none';
-  document.getElementById('tab-warehouse').style.display = activeTab === 'warehouse' ? '' : 'none';
+  document.getElementById('tab-overview').classList.toggle('is-hidden', activeTab !== 'overview');
+  document.getElementById('tab-stages').classList.toggle('is-hidden', activeTab !== 'stages');
+  document.getElementById('tab-calendar').classList.toggle('is-hidden', activeTab !== 'calendar');
+  document.getElementById('tab-documents').classList.toggle('is-hidden', activeTab !== 'documents');
+  document.getElementById('tab-warehouse').classList.toggle('is-hidden', activeTab !== 'warehouse');
 
   const url = new URL(window.location.href);
   url.searchParams.set('tab', activeTab);
@@ -207,6 +158,10 @@ async function switchProjectTab(tab, options = {}) {
   }
   if (activeTab === 'warehouse') {
     await loadWarehouse();
+    return;
+  }
+  if (activeTab === 'calendar') {
+    await loadCalendarPlan();
     return;
   }
   if (activeTab === 'overview') {
@@ -256,10 +211,10 @@ async function loadOverview() {
           <strong>${stats.progress}%</strong>
           <span>${stats.done} из ${stats.total} этапов выполнено</span>
         </div>
-        <div class="foreman-stage-progress-track"><span style="width:${stats.progress}%"></span></div>
+        <progress class="foreman-stage-progress-track" value="${stats.progress}" max="100"></progress>
         <div class="customer-overview-metrics">
           <div><span>В работе</span><strong>${stats.inProgress}</strong></div>
-          <div><span>Проблемы</span><strong>${stats.notDone}</strong></div>
+          <div><span>Внимание</span><strong>${stats.notDone}</strong></div>
           <div><span>Фото</span><strong>${stats.photos}</strong></div>
         </div>
       </section>
@@ -314,7 +269,9 @@ function getStageStats(stages) {
   const total = stages.length;
   const done = stages.filter((stage) => stage.status === 'done').length;
   const inProgress = stages.filter((stage) => stage.status === 'in_progress').length;
-  const notDone = stages.filter((stage) => stage.status === 'not_done').length;
+  const notDone = stages.filter((stage) =>
+    ['attention', 'overdue', 'delayed'].includes(CustomerStatus.getStageKind(stage))
+  ).length;
   const photos = stages.reduce((sum, stage) => sum + Number(stage.photo_count || 0), 0);
   return {
     total,
@@ -358,15 +315,6 @@ function buildAttentionItems(stages, docs, notifications) {
     });
   }
 
-  if (!docs.length) {
-    items.push({
-      type: 'muted',
-      title: 'Документы ещё не загружены',
-      text: 'Как только команда добавит файлы, они появятся в разделе документов',
-      tab: 'documents',
-    });
-  }
-
   return items;
 }
 
@@ -384,11 +332,12 @@ function renderAttentionItem(item) {
 }
 
 function renderOverviewStage(stage) {
+  const statusLabel = getCustomerStageStatusLabel(stage);
   return `
     <button class="customer-overview-stage" type="button" data-overview-stage-id="${stage.id}">
       <div>
         <strong>${escHtml(stage.name)}</strong>
-        <span>${formatPlannedPeriod(stage)} · ${CUSTOMER_STAGE_STATUS_LABELS[stage.status] || stage.status || '—'}</span>
+        <span>${formatPlannedPeriod(stage)} · ${escHtml(statusLabel)}</span>
       </div>
       <em>${getStagePercent(stage)}%</em>
     </button>
@@ -399,7 +348,7 @@ function renderOverviewDoc(doc) {
   return `
     <a class="customer-overview-doc" href="${doc.url}" target="_blank" rel="noopener">
       <strong>${escHtml(doc.file_name)}</strong>
-      <span>${escHtml(CUSTOMER_DOC_LABELS[doc.doc_type] || doc.doc_type || 'Документ')} · ${formatDate(doc.uploaded_at)}</span>
+      <span>${escHtml(doc.doc_label || CUSTOMER_DOC_LABELS[doc.doc_type] || doc.doc_type || 'Документ')} · ${formatDate(doc.uploaded_at)}</span>
     </a>
   `;
 }
@@ -434,6 +383,281 @@ function getWarehouseSummary(items) {
   }, { count: 0, total: 0, balance: 0 });
 }
 
+async function loadCalendarPlan() {
+  const container = document.getElementById('customer-calendar-plan');
+  const summary = document.getElementById('customer-calendar-summary');
+  if (!container) return;
+
+  container.innerHTML = '<div class="foreman-stage-empty">Загрузка календарного плана...</div>';
+
+  try {
+    const { ok, data } = await apiRequest('GET', `/api/customer/projects/${activeProjectId}/calendar-plan`);
+    if (!ok || !data?.data) {
+      throw new Error(data?.error || 'calendar plan request failed');
+    }
+
+    customerCalendarPlan = data.data;
+    renderCustomerCalendarSummary();
+    renderCustomerCalendarPlan();
+  } catch (err) {
+    console.error('[customer-calendar] failed to load calendar plan', err);
+    customerCalendarPlan = null;
+    if (summary) summary.textContent = 'Плановые сроки работ по объекту.';
+    container.innerHTML = `
+      <div class="calendar-plan-empty">
+        <strong>Не удалось загрузить календарный план</strong>
+        <span>Обновите страницу. Если ошибка повторится, проверьте, что сервер запущен с последней версией кода.</span>
+      </div>`;
+  }
+}
+
+function renderCustomerCalendarSummary() {
+  const summary = document.getElementById('customer-calendar-summary');
+  if (!summary || !customerCalendarPlan) return;
+
+  const items = customerCalendarPlan.items || [];
+  const planned = items.filter((item) => item.planned_start && item.planned_end).length;
+  const works = items.filter((item) => !item.is_calendar_mobilization).length;
+  summary.textContent = items.length
+    ? `${planned} из ${items.length} строк запланированы · работы: ${works} · старт: ${formatDate(customerCalendarPlan.calendar_start)} · горизонт: ${customerCalendarPlan.duration_days} дней.`
+    : 'Календарный план ещё не сформирован.';
+}
+
+function renderCustomerCalendarPlan() {
+  const container = document.getElementById('customer-calendar-plan');
+  const items = customerCalendarPlan?.items || [];
+
+  if (!items.length) {
+    container.innerHTML = `
+      <div class="calendar-plan-empty">
+        <strong>Календарный план ещё не сформирован</strong>
+        <span>Когда прораб сформирует график, заказчик увидит здесь плановые сроки работ.</span>
+      </div>`;
+    return;
+  }
+
+  const days = Array.from({ length: customerCalendarPlan.duration_days }, (_, i) => i + 1);
+  const rows = buildCustomerCalendarRows(items);
+
+  container.innerHTML = `
+    <div class="calendar-plan-toolbar customer-calendar-toolbar">
+      <div class="calendar-plan-legend">
+        <span><i class="calendar-legend-work"></i>Работы</span>
+        <span><i class="calendar-legend-mobilization"></i>Мобилизация</span>
+        <span><i class="calendar-legend-overdue"></i>Просрочка</span>
+        <span><i class="calendar-legend-today"></i>Сегодня</span>
+      </div>
+      <div class="calendar-plan-hint">График доступен только для просмотра.</div>
+    </div>
+    <div class="calendar-plan-shell customer-calendar-shell">
+      <div class="calendar-plan-grid customer-calendar-plan-grid">
+        <div class="customer-calendar-row customer-calendar-header-row">
+          <div class="calendar-plan-head calendar-plan-sticky-left">Работы</div>
+          ${days.map((day) => {
+            const dayInfo = getCustomerCalendarDayInfo(day);
+            return `
+              <div class="calendar-plan-day-head ${day % 7 === 1 ? 'week-start' : ''} ${dayInfo.isWeekend ? 'is-weekend' : ''} ${dayInfo.isToday ? 'is-today' : ''}">
+                <div>${day}</div>
+                <span>${dayInfo.label}</span>
+              </div>`;
+          }).join('')}
+        </div>
+        ${rows.map((row) => `
+          <div class="customer-calendar-row">
+            ${row.type === 'phase'
+              ? renderCustomerCalendarPhaseRow(row, days)
+              : renderCustomerCalendarRow(row, days)}
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+function buildCustomerCalendarRows(items) {
+  const rows = [];
+  const mobilization = items.filter((item) => item.is_calendar_mobilization);
+  const works = items.filter((item) => !item.is_calendar_mobilization);
+
+  rows.push(...mobilization);
+  if (works.length) {
+    if (mobilization.length) rows.push(createCustomerCalendarPhaseRow('Основные работы', `${works.length} этапов`, works));
+    rows.push(...works);
+  }
+
+  return rows;
+}
+
+function createCustomerCalendarPhaseRow(name, subtitle, items) {
+  const planned = items.filter((item) => item.planned_start && item.planned_end);
+  const starts = planned.map((item) => item.planned_start).sort();
+  const ends = planned.map((item) => item.planned_end).sort();
+
+  return {
+    type: 'phase',
+    name,
+    subtitle,
+    planned_start: starts[0] || null,
+    planned_end: ends[ends.length - 1] || null,
+    is_overdue: items.some(isCustomerCalendarItemOverdue),
+  };
+}
+
+function renderCustomerCalendarPhaseRow(row, days) {
+  const rangeText = row.planned_start && row.planned_end
+    ? `${formatDate(row.planned_start)} — ${formatDate(row.planned_end)}`
+    : 'Диапазон не задан';
+
+  return `
+    <div class="calendar-plan-left calendar-plan-sticky-left calendar-phase-left ${row.is_overdue ? 'is-overdue' : ''}">
+      <div class="calendar-phase-title">${escHtml(row.name)}</div>
+      <div class="calendar-phase-meta">${escHtml(row.subtitle)} · ${rangeText}</div>
+    </div>
+    ${days.map((day) => {
+      const dayInfo = getCustomerCalendarDayInfo(day);
+      return `<div class="calendar-cell calendar-phase-cell customer-calendar-cell ${row.is_overdue ? 'is-overdue' : ''} ${day % 7 === 1 ? 'week-start' : ''} ${dayInfo.isWeekend ? 'is-weekend' : ''} ${dayInfo.isToday ? 'is-today' : ''}"></div>`;
+    }).join('')}`;
+}
+
+function renderCustomerCalendarRow(item, days) {
+  const range = getCustomerCalendarItemRange(item);
+  const actual = getCustomerCalendarItemActualEnd(item);
+  const progress = getCustomerCalendarItemProgress(item);
+  const delayDays = getCustomerCalendarItemDelayDays(item);
+  const isDelayed = delayDays > 0;
+  const isActiveOverdue = isCustomerCalendarItemActiveOverdue(item);
+  const hasDeadlineIssue = isDelayed || isActiveOverdue;
+  const isMobilization = item.is_calendar_mobilization;
+  const dates = item.planned_start && item.planned_end
+    ? `${formatDate(item.planned_start)} — ${formatDate(item.planned_end)}`
+    : 'Диапазон не задан';
+  const statusLabel = hasDeadlineIssue
+    ? isDelayed ? `Просрочка +${delayDays} дн.` : 'Просрочено'
+    : getCustomerStageStatusLabel(item);
+  const actualDay = actual ? customerCalendarDayIndex(actual) : null;
+  const delayEndDay = actualDay ? Math.min(customerCalendarPlan.duration_days, actualDay) : null;
+
+  return `
+    <div class="calendar-plan-left calendar-plan-sticky-left ${isMobilization ? 'is-mobilization' : ''} ${hasDeadlineIssue ? 'is-overdue' : ''}">
+      <div class="calendar-stage-row-main">
+        <div class="calendar-stage-text">
+          <div class="calendar-stage-name ${isMobilization ? 'calendar-stage-name-fixed' : ''}">${escHtml(item.name)}</div>
+          <div class="calendar-stage-meta">${dates}${actual ? ` · факт: ${formatDate(actual)}` : ''}${isDelayed ? ` · +${delayDays} дн.` : ''}</div>
+        </div>
+        <div class="calendar-stage-badges">
+          <span class="calendar-stage-progress ${hasDeadlineIssue ? 'is-danger' : ''}">${progress}%</span>
+          <span class="calendar-stage-status ${getCustomerCalendarStatusClass(item, hasDeadlineIssue)}">${escHtml(statusLabel)}</span>
+        </div>
+      </div>
+    </div>
+    ${days.map((day) => {
+      const dayInfo = getCustomerCalendarDayInfo(day);
+      const selected = range && day >= range.start && day <= range.end;
+      const isStart = selected && day === range.start;
+      const isEnd = selected && day === range.end;
+      const isDelayTail = isDelayed && range && delayEndDay && day > range.end && day <= delayEndDay;
+      const isDelayStart = isDelayTail && day === range.end + 1;
+      const isDelayEnd = isDelayTail && day === delayEndDay;
+      return `
+        <div class="calendar-cell customer-calendar-cell ${selected ? 'selected' : ''} ${isStart ? 'range-start' : ''} ${isEnd ? 'range-end' : ''} ${hasDeadlineIssue ? 'is-overdue' : ''} ${isDelayTail ? 'delay-tail' : ''} ${isDelayStart ? 'delay-start' : ''} ${isDelayEnd ? 'delay-end' : ''} ${isMobilization ? 'mobilization' : ''} ${day % 7 === 1 ? 'week-start' : ''} ${dayInfo.isWeekend ? 'is-weekend' : ''} ${dayInfo.isToday ? 'is-today' : ''}"
+             title="${escHtml(item.name)} · ${formatDate(dayInfo.dateOnly)}">
+          <span></span>
+        </div>`;
+    }).join('')}`;
+}
+
+function addCustomerCalendarDays(dateOnly, days) {
+  const [year, month, day] = String(dateOnly).slice(0, 10).split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  const nextYear = date.getFullYear();
+  const nextMonth = String(date.getMonth() + 1).padStart(2, '0');
+  const nextDay = String(date.getDate()).padStart(2, '0');
+  return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
+function getLocalDateOnly(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getCustomerCalendarDayInfo(day) {
+  const dateOnly = addCustomerCalendarDays(customerCalendarPlan.calendar_start, day - 1);
+  const [year, month, date] = dateOnly.split('-').map(Number);
+  const weekDay = new Date(year, month - 1, date).getDay();
+  return {
+    dateOnly,
+    label: `${String(date).padStart(2, '0')}.${String(month).padStart(2, '0')}`,
+    isWeekend: weekDay === 0 || weekDay === 6,
+    isToday: dateOnly === getLocalDateOnly(),
+  };
+}
+
+function customerCalendarDayIndex(dateOnly) {
+  if (!customerCalendarPlan?.calendar_start || !dateOnly) return null;
+  const [fromYear, fromMonth, fromDay] = String(customerCalendarPlan.calendar_start).slice(0, 10).split('-').map(Number);
+  const [toYear, toMonth, toDay] = String(dateOnly).slice(0, 10).split('-').map(Number);
+  const from = new Date(fromYear, fromMonth - 1, fromDay);
+  const to = new Date(toYear, toMonth - 1, toDay);
+  return Math.round((to - from) / 86400000) + 1;
+}
+
+function customerCalendarDateDiffDays(fromDateOnly, toDateOnly) {
+  if (!fromDateOnly || !toDateOnly) return 0;
+  const [fromYear, fromMonth, fromDay] = String(fromDateOnly).slice(0, 10).split('-').map(Number);
+  const [toYear, toMonth, toDay] = String(toDateOnly).slice(0, 10).split('-').map(Number);
+  const from = new Date(fromYear, fromMonth - 1, fromDay);
+  const to = new Date(toYear, toMonth - 1, toDay);
+  return Math.round((to - from) / 86400000);
+}
+
+function getCustomerCalendarItemRange(item) {
+  const start = customerCalendarDayIndex(item.planned_start);
+  const end = customerCalendarDayIndex(item.planned_end);
+  if (!start || !end) return null;
+  if (end < 1 || start > customerCalendarPlan.duration_days) return null;
+  return {
+    start: Math.max(1, Math.min(start, end)),
+    end: Math.min(customerCalendarPlan.duration_days, Math.max(start, end)),
+  };
+}
+
+function getCustomerCalendarItemProgress(item) {
+  if (item.planned_value) {
+    return Math.min(100, Math.round((Number(item.actual_value || 0) / Number(item.planned_value)) * 100));
+  }
+  return item.status === 'done' ? 100 : 0;
+}
+
+function isCustomerCalendarItemDone(item) {
+  return item.status === 'done' || getCustomerCalendarItemProgress(item) >= 100;
+}
+
+function getCustomerCalendarItemActualEnd(item) {
+  return item.actual_date || item.actual_end || null;
+}
+
+function getCustomerCalendarItemDelayDays(item) {
+  const actualEnd = getCustomerCalendarItemActualEnd(item);
+  if (!item.planned_end || !actualEnd) return 0;
+  return Math.max(0, customerCalendarDateDiffDays(item.planned_end, actualEnd));
+}
+
+function isCustomerCalendarItemActiveOverdue(item) {
+  if (!item.planned_end || isCustomerCalendarItemDone(item)) return false;
+  return String(item.planned_end).slice(0, 10) < getLocalDateOnly();
+}
+
+function isCustomerCalendarItemOverdue(item) {
+  return isCustomerCalendarItemActiveOverdue(item) || getCustomerCalendarItemDelayDays(item) > 0;
+}
+
+function getCustomerCalendarStatusClass(item, hasDeadlineIssue) {
+  if (hasDeadlineIssue) return 'is-danger';
+  return CustomerStatus.getStagePanelClass(item);
+}
+
 async function loadStages() {
   const container = document.getElementById('customer-stages-list');
   container.innerHTML = '<div class="foreman-stage-empty">Загрузка этапов...</div>';
@@ -452,7 +676,9 @@ async function loadStages() {
 
   const total = stagesCache.length;
   const done = stagesCache.filter((stage) => stage.status === 'done').length;
-  const notDone = stagesCache.filter((stage) => stage.status === 'not_done').length;
+  const notDone = stagesCache.filter((stage) =>
+    ['attention', 'overdue', 'delayed'].includes(CustomerStatus.getStageKind(stage))
+  ).length;
   const inProgress = stagesCache.filter((stage) => stage.status === 'in_progress').length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
@@ -463,13 +689,13 @@ async function loadStages() {
           <span>Готовность по этапам</span>
           <strong>${pct}%</strong>
         </div>
-        <div class="foreman-stage-progress-track"><span style="width:${pct}%"></span></div>
+        <progress class="foreman-stage-progress-track" value="${pct}" max="100"></progress>
       </div>
       <div class="foreman-stage-stats">
         <div><span>Всего</span><strong>${total}</strong></div>
         <div><span>Выполнено</span><strong>${done}</strong></div>
         <div><span>В работе</span><strong>${inProgress}</strong></div>
-        <div><span>Проблемы</span><strong>${notDone}</strong></div>
+        <div><span>Внимание</span><strong>${notDone}</strong></div>
       </div>
     </div>
     <div class="customer-stage-list">
@@ -486,7 +712,7 @@ async function loadStages() {
 
 function renderStageCard(stage) {
   const pct = getStagePercent(stage);
-  const statusLabel = CUSTOMER_STAGE_STATUS_LABELS[stage.status] || stage.status || '—';
+  const statusLabel = getCustomerStageStatusLabel(stage);
   const statusClass = getStageStatusClass(stage);
   const needsApproval = stage.status === 'not_done' && !stage.customer_agreed;
 
@@ -514,9 +740,9 @@ function renderStageCard(stage) {
           <strong>${escHtml(stage.note || '—')}</strong>
         </div>
       </div>
-      <div class="foreman-stage-status ${statusClass}">${escHtml(needsApproval ? 'Требует согласования' : statusLabel)}</div>
+      <div class="foreman-stage-status ${statusClass}">${escHtml(statusLabel)}</div>
       <div class="foreman-stage-progress-row">
-        <div class="foreman-stage-progress-track"><span style="width:${pct}%"></span></div>
+        <progress class="foreman-stage-progress-track" value="${pct}" max="100"></progress>
         <strong>${pct}%</strong>
       </div>
     </article>
@@ -532,10 +758,15 @@ function getStagePercent(stage) {
 }
 
 function getStageStatusClass(stage) {
-  if (stage.status === 'done') return 'is-done';
-  if (stage.status === 'in_progress') return 'is-progress';
-  if (stage.status === 'not_done') return 'is-danger';
-  return 'is-planned';
+  return CustomerStatus.getStagePanelClass(stage);
+}
+
+function getCustomerStageStatusLabel(stage) {
+  return CustomerStatus.getStageLabel(stage);
+}
+
+function isStageActiveOverdue(stage) {
+  return CustomerStatus.isStageActiveOverdue(stage);
 }
 
 function formatStageSubline(stage) {
@@ -585,7 +816,7 @@ function openStageDetail(stage) {
         <div class="customer-stage-detail-title">${escHtml(stage.name)}</div>
       </div>
       <div class="foreman-stage-status ${getStageStatusClass(stage)}">
-        ${escHtml(CUSTOMER_STAGE_STATUS_LABELS[stage.status] || stage.status || '—')}
+        ${escHtml(getCustomerStageStatusLabel(stage))}
       </div>
     </div>
     <div class="customer-stage-detail-grid">
@@ -612,7 +843,7 @@ function openStageDetail(stage) {
       <div class="customer-stage-photos">
         <div class="customer-stage-block-title">Фото этапа</div>
         <div id="stage-photos-grid" class="customer-stage-photos-grid">
-          <span style="color:var(--muted)">Загрузка...</span>
+          <span class="text-muted">Загрузка...</span>
         </div>
       </div>` : ''}
   `;
@@ -659,7 +890,7 @@ async function loadStagePhotos(stageId) {
 
   const { ok, data } = await apiRequest('GET', `/api/customer/stages/${stageId}/photos`);
   if (!ok || !data.data?.length) {
-    grid.innerHTML = '<span style="color:var(--muted)">Фото пока нет</span>';
+    grid.innerHTML = '<span class="text-muted">Фото пока нет</span>';
     return;
   }
 
@@ -710,7 +941,7 @@ function renderDocumentCard(doc) {
       <div class="customer-doc-main">
         <div class="customer-doc-title">${escHtml(doc.file_name)}</div>
         <div class="customer-doc-meta">
-          ${escHtml(CUSTOMER_DOC_LABELS[doc.doc_type] || doc.doc_type || 'Документ')}
+          ${escHtml(doc.doc_label || CUSTOMER_DOC_LABELS[doc.doc_type] || doc.doc_type || 'Документ')}
           ${doc.description ? ` · ${escHtml(doc.description)}` : ''}
         </div>
         <div class="customer-doc-meta">${formatDate(doc.uploaded_at)} · ${escHtml(doc.uploaded_by_name || 'ЭнергоАтлант')}</div>
@@ -751,14 +982,14 @@ async function loadWarehouse() {
         <tbody>
           ${items.map((item) => {
             const balance = Number(item.qty_balance || 0);
-            const balanceColor = balance > 0 ? 'var(--success)' : balance < 0 ? 'var(--danger)' : 'var(--muted)';
+            const balanceClass = balance > 0 ? 'text-success' : balance < 0 ? 'text-danger' : 'text-muted';
             return `
               <tr>
                 <td>${escHtml(item.material_name)}</td>
                 <td>${escHtml(item.unit || '—')}</td>
                 <td>${formatNumber(item.qty_total)}</td>
                 <td>${formatNumber(item.qty_used)}</td>
-                <td style="font-weight:800;color:${balanceColor}">${formatNumber(item.qty_balance)}</td>
+                <td class="customer-warehouse-balance ${balanceClass}">${formatNumber(item.qty_balance)}</td>
               </tr>
             `;
           }).join('')}

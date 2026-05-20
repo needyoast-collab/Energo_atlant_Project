@@ -1,0 +1,245 @@
+/* Extracted from /login.html. */
+    .auth-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .auth-box {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .auth-logo {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 2rem;
+      color: var(--accent);
+      margin-bottom: .25rem;
+    }
+
+    .auth-sub {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-bottom: 2rem;
+    }
+    .auth-logo-panel {
+      text-align: center;
+      margin-bottom: 1.75rem;
+    }
+    .auth-logo-img-wide {
+      width: 100%;
+      object-fit: contain;
+      max-height: 90px;
+      display: block;
+      margin: 0 auto;
+    }
+    .auth-sub-tight {
+      margin-top: .75rem;
+      margin-bottom: 0;
+    }
+    .auth-title {
+      margin-bottom: 1.5rem;
+      font-size: 1.8rem;
+    }
+    .auth-footer-link-muted {
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    .modal-title-compact {
+      margin-bottom: 1rem;
+      padding-right: 2rem;
+    }
+
+    .auth-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 2rem;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.8);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+    .modal-overlay.modal-overlay-shifted {
+      align-items: flex-start;
+      padding-top: max(2rem, 8vh);
+      padding-bottom: 2rem;
+      overflow-y: auto;
+    }
+    .modal-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 540px;
+      padding: 2rem;
+      position: relative;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+      transition: max-width .3s ease, transform .3s ease;
+    }
+    .modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      cursor: pointer;
+      color: var(--muted);
+    }
+    .recovery-shell {
+      display: flex;
+      flex-direction: column;
+      gap: .8rem;
+      margin-top: .5rem;
+    }
+    .recovery-section {
+      border: 1px solid rgba(255,255,255,.06);
+      background: rgba(255,255,255,.02);
+      padding: 1rem 1rem 1.1rem;
+      opacity: .55;
+      overflow: hidden;
+      transform-origin: top center;
+      transition: opacity .3s ease, background .3s ease, border-color .3s ease,
+        max-height .42s cubic-bezier(.22, 1, .36, 1),
+        padding .42s cubic-bezier(.22, 1, .36, 1),
+        margin .42s cubic-bezier(.22, 1, .36, 1),
+        transform .42s cubic-bezier(.22, 1, .36, 1);
+    }
+    .recovery-section.is-open {
+      opacity: 1;
+      background: rgba(255,255,255,.03);
+      border-color: var(--border);
+      max-height: 420px;
+      transform: translateY(0) scaleY(1);
+    }
+    .recovery-section:not(.is-open) {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      margin: 0;
+      opacity: 0;
+      border-color: transparent;
+      transform: translateY(-6px) scaleY(.98);
+      pointer-events: none;
+    }
+    .recovery-section:not(.is-open) .recovery-reveal {
+      opacity: 0;
+    }
+    .recovery-reveal {
+      transition: opacity .2s ease .08s;
+    }
+    .recovery-title {
+      margin-bottom: .35rem;
+      font-size: 1rem;
+    }
+    .recovery-text {
+      color: var(--muted);
+      font-size: .85rem;
+      margin-bottom: 1rem;
+      max-width: 42ch;
+    }
+    .recovery-text:last-child {
+      margin-bottom: 0;
+    }
+    .recovery-status {
+      min-height: 1.2em;
+      color: var(--muted);
+      font-size: .82rem;
+      margin-top: .1rem;
+      margin-bottom: .85rem;
+    }
+    .recovery-actions {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .recovery-actions .btn {
+      flex: 1 1 180px;
+    }
+    .recovery-inline-action {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: .75rem;
+      margin-top: -.1rem;
+      margin-bottom: .65rem;
+      flex-wrap: wrap;
+    }
+    .recovery-link-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      padding: 0;
+      font: inherit;
+      font-size: .82rem;
+      cursor: pointer;
+      transition: opacity .2s ease, color .2s ease;
+    }
+    .recovery-link-btn[disabled] {
+      cursor: default;
+      opacity: .45;
+    }
+    .recovery-timer {
+      color: var(--muted);
+      font-size: .8rem;
+      white-space: nowrap;
+    }
+    .verify-meta {
+      color: var(--muted);
+      font-size: .85rem;
+      margin-bottom: 1rem;
+    }
+    .verify-status {
+      min-height: 1.2em;
+      color: var(--muted);
+      font-size: .82rem;
+      margin-bottom: 1rem;
+    }
+    .verify-resend {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin: .35rem 0 1rem;
+    }
+    .verify-link-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      padding: 0;
+      font: inherit;
+      font-size: .83rem;
+      cursor: pointer;
+      transition: opacity .2s ease;
+    }
+    .verify-link-btn[disabled] {
+      opacity: .45;
+      cursor: default;
+    }
+    .verify-timer {
+      color: var(--muted);
+      font-size: .8rem;
+    }
+    .modal-card.is-animating {
+      will-change: transform;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

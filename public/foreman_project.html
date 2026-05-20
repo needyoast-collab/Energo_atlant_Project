@@ -8,13 +8,13 @@
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css?v=foreman-project-page-37">
 </head>
-<body class="grid-bg foreman-project-page">
+<body class="grid-bg foreman-project-page" data-foreman-page-mode="project">
 <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
 <div class="dash-layout">
 
   <!-- САЙДБАР -->
   <aside class="sidebar">
-    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" class="sidebar-logo-img"></div>
     <nav class="sidebar-nav">
       <button class="nav-item project-back-nav" data-section="projects">
         <span class="project-back-nav-icon">←</span>
@@ -81,7 +81,7 @@
     </div>
 
     <!-- Календарный план работ -->
-    <div id="tab-calendar" style="display:none">
+    <div id="tab-calendar" class="is-hidden">
       <div class="project-section-head">
         <div>
           <div class="project-section-title">Календарный план</div>
@@ -98,14 +98,14 @@
     </div>
 
     <!-- Ведомость материалов -->
-    <div id="tab-specs" style="display:none">
+    <div id="tab-specs" class="is-hidden">
       <div class="project-section-head">
         <div>
           <div class="project-section-title">Ведомость материалов</div>
           <div class="project-section-subtitle">Согласование материалов от снабжения.</div>
         </div>
-        <div id="specs-bulk-actions" class="project-section-actions" style="display:none">
-          <span id="specs-bulk-counter" style="color:var(--muted);font-size:.8rem">0 отмечено</span>
+        <div id="specs-bulk-actions" class="project-section-actions is-hidden">
+          <span id="specs-bulk-counter" class="table-cell-muted-xs">0 отмечено</span>
           <button class="foreman-action-btn is-success" id="btn-approve-selected-specs">Согласовать отмеченные</button>
           <button class="foreman-action-btn is-danger" id="btn-reject-unchecked-specs">Отклонить неотмеченные</button>
         </div>
@@ -114,7 +114,7 @@
     </div>
 
     <!-- ВОР: ведомость объёмов работ -->
-    <div id="tab-work-specs" style="display:none">
+    <div id="tab-work-specs" class="is-hidden">
       <div class="project-section-head">
         <div>
           <div class="project-section-title">Ведомость объёмов работ</div>
@@ -122,8 +122,7 @@
         </div>
         <div class="project-section-actions" id="vor-actions">
           <button class="foreman-action-btn" id="btn-add-work-spec">Добавить позицию</button>
-          <button class="foreman-action-btn is-secondary" id="btn-generate-stages"
-            style="display:none">
+          <button class="foreman-action-btn is-secondary is-hidden" id="btn-generate-stages">
             Сформировать этапы
           </button>
         </div>
@@ -132,7 +131,7 @@
     </div>
 
     <!-- Склад объекта -->
-    <div id="tab-warehouse" style="display:none">
+    <div id="tab-warehouse" class="is-hidden">
       <div class="project-section-head">
         <div>
           <div class="project-section-title">Склад объекта</div>
@@ -150,14 +149,14 @@
     </div>
 
     <!-- Документы -->
-    <div id="tab-docs" style="display:none">
+    <div id="tab-docs" class="is-hidden">
       <div class="project-section-head">
         <div>
           <div class="project-section-title">Документы</div>
           <div class="project-section-subtitle">Технические документы проекта, доступные прорабу.</div>
         </div>
       </div>
-      <div id="project-docs-list"><span style="color:var(--muted)">Загрузка...</span></div>
+      <div id="project-docs-list"><span class="text-muted">Загрузка...</span></div>
     </div>
     </div>
   </section>
@@ -191,12 +190,12 @@
             <input type="hidden" name="planned_start">
             <input type="hidden" name="planned_end">
             <div class="form-group">
-              <label class="form-label">Фактическое окончание <span id="edit-stage-actual-end-required" class="required-mark" style="display:none">*</span></label>
+              <label class="form-label">Фактическое окончание <span id="edit-stage-actual-end-required" class="required-mark is-hidden">*</span></label>
               <input type="date" class="form-control" name="actual_end">
             </div>
           </div>
 
-          <div id="edit-stage-vor" class="stage-edit-fields stage-edit-fields-volume" style="display:none">
+          <div id="edit-stage-vor" class="stage-edit-fields stage-edit-fields-volume is-hidden">
             <div class="form-group">
               <label class="form-label">Статус</label>
               <select class="form-control" id="edit-stage-status-vor">
@@ -214,7 +213,7 @@
               <input type="date" class="form-control" name="planned_date">
             </div>
             <div class="form-group">
-              <label class="form-label">Фактическое окончание <span id="edit-stage-actual-date-required" class="required-mark" style="display:none">*</span></label>
+              <label class="form-label">Фактическое окончание <span id="edit-stage-actual-date-required" class="required-mark is-hidden">*</span></label>
               <input type="date" class="form-control" name="actual_date">
             </div>
             <div class="form-group stage-edit-readonly">
@@ -228,7 +227,7 @@
           </div>
 
           <div class="form-group stage-edit-note-field">
-            <label class="form-label">Примечание<span id="edit-stage-note-required" class="required-mark" style="display:none"> *</span></label>
+            <label class="form-label">Примечание<span id="edit-stage-note-required" class="required-mark is-hidden"> *</span></label>
             <textarea class="form-control" name="note" rows="3" placeholder="Пояснение по факту, просрочке или невыполнению"></textarea>
           </div>
         </section>
@@ -282,13 +281,13 @@
 
 <!-- МОДАЛКА: новая заявка МТР -->
 <div class="modal-overlay" id="modal-mtr">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-mtr">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Заявка на материалы</div>
     </div>
     <form id="mtr-form" class="modal-shell-body autohide-scroll">
-      <div class="form-group" style="display:none">
+      <div class="form-group is-hidden">
         <label class="form-label">Проект</label>
         <select class="form-control" name="project_id" id="mtr-project-select" required></select>
       </div>
@@ -302,7 +301,7 @@
         <label class="form-label">Материал</label>
         <input type="text" class="form-control" name="material_name" required placeholder="Кабель ВВГнг 3×2.5">
       </div>
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem">
+      <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">Количество</label>
           <input type="number" class="form-control" name="quantity" required min="0.001" step="0.001">
@@ -326,7 +325,7 @@
 
 <!-- МОДАЛКА: списание со склада -->
 <div class="modal-overlay" id="modal-writeoff">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-writeoff">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Списание материала</div>
@@ -334,7 +333,7 @@
     </div>
     <form id="writeoff-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
-        <label class="form-label">Этап <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Этап <span class="text-accent">*</span></label>
         <select class="form-control" name="stage_id" id="writeoff-stage-select" required>
           <option value="">— выберите этап —</option>
         </select>
@@ -353,7 +352,7 @@
 
 <!-- МОДАЛКА: отклонить позицию ведомости -->
 <div class="modal-overlay" id="modal-reject-spec">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-reject-spec">×</button>
     <div class="modal-shell-header">
       <div class="modal-title" id="reject-spec-title">Отклонить позицию</div>
@@ -361,7 +360,7 @@
     </div>
     <form id="reject-spec-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
-        <label class="form-label">Причина отклонения <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Причина отклонения <span class="text-accent">*</span></label>
         <textarea class="form-control" name="rejection_note" required rows="3" placeholder="Укажите причину..."></textarea>
       </div>
     </form>
@@ -374,30 +373,30 @@
 
 <!-- МОДАЛКА: добавить позиции ВОР -->
 <div class="modal-overlay" id="modal-batch">
-  <div class="modal modal-shell modal-shell-md" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-md">
     <button class="modal-close" data-close="modal-batch">×</button>
     <div class="modal-shell-header">
       <div class="modal-title" id="batch-modal-title">Добавить позиции — ВОР</div>
       <div id="batch-modal-subtitle" class="modal-subtitle"></div>
     </div>
     <div class="modal-shell-body autohide-scroll">
-      <table id="batch-table" style="width:100%;border-collapse:collapse">
+      <table id="batch-table" class="batch-table">
         <thead>
-          <tr style="border-bottom:2px solid var(--border)">
-            <th style="padding:.5rem .6rem;text-align:center;color:var(--muted);font-size:.78rem;width:36px">№</th>
-            <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem">Наименование</th>
-            <th class="batch-work-field" style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:110px">Ед. изм.</th>
-            <th class="batch-work-field" style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:100px">Кол-во</th>
+          <tr class="batch-head-row">
+            <th class="batch-th batch-th-index">№</th>
+            <th class="batch-th">Наименование</th>
+            <th class="batch-th batch-th-unit batch-work-field">Ед. изм.</th>
+            <th class="batch-th batch-th-qty batch-work-field">Кол-во</th>
           </tr>
         </thead>
         <tbody id="batch-tbody"></tbody>
       </table>
-      <div style="margin-top:.75rem">
-        <button class="btn btn-outline btn-sm" id="btn-batch-add-row" style="font-size:.82rem">Добавить строку</button>
+      <div class="batch-add-wrap">
+        <button class="btn btn-outline btn-sm batch-add-row" id="btn-batch-add-row">Добавить строку</button>
       </div>
     </div>
-    <div class="modal-shell-actions" style="justify-content:space-between;align-items:center">
-      <div id="batch-counter" style="color:var(--muted);font-size:.85rem">0 позиций заполнено</div>
+    <div class="modal-shell-actions batch-actions">
+      <div id="batch-counter" class="batch-counter">0 позиций заполнено</div>
       <div class="modal-shell-actions-main">
         <button class="btn btn-outline" data-close="modal-batch">Отмена</button>
         <button class="btn btn-primary" id="btn-batch-save">Сохранить в проект</button>
@@ -409,13 +408,16 @@
 <datalist id="catalog-datalist"></datalist>
 
 <div id="toast-container"></div>
-<script src="https://unpkg.com/imask"></script>
+<script src="/vendor/imask.min.js"></script>
 <script src="/js/preloader.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>
 <script src="/js/dashboard.js"></script>
-<script>window.FOREMAN_PAGE_MODE = 'project';</script>
-<script src="/js/foreman.js?v=foreman-project-page-37"></script>
+<script src="/js/foreman_specs.js?v=foreman-project-page-38"></script>
+<script src="/js/foreman_warehouse.js?v=foreman-project-page-38"></script>
+<script src="/js/foreman_stage_details.js?v=foreman-project-page-39"></script>
+<script src="/js/foreman_calendar.js?v=foreman-project-page-40"></script>
+<script src="/js/foreman.js?v=foreman-project-page-39"></script>
 <script src="/js/foreman_project.js?v=foreman-project-page-37"></script>
 </body>
 </html>

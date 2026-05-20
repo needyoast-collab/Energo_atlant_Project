@@ -1,6 +1,6 @@
 const { Router } = require('express');
-const multer = require('multer');
 const { requireRole, ROLES } = require('../middleware/auth');
+const { createMemoryUpload, FOREMAN_PHOTO_MIME_TYPES, MB } = require('../utils/upload');
 const {
   getProjects,
   joinProject,
@@ -31,13 +31,10 @@ const {
 
 const router = Router();
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
-    cb(null, allowed.includes(file.mimetype) ? true : new Error('Допустимые форматы: JPEG, PNG, WEBP, HEIC'));
-  },
+const upload = createMemoryUpload({
+  allowedMimeTypes: FOREMAN_PHOTO_MIME_TYPES,
+  maxFileSize: 10 * MB,
+  errorMessage: 'Допустимые форматы: JPEG, PNG, WEBP, HEIC',
 });
 
 router.use(requireRole([ROLES.FOREMAN, ROLES.ADMIN]));

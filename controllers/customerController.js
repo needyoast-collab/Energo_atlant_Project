@@ -3,10 +3,15 @@ const { pool } = require('../config/database');
 const { getSignedDownloadUrl } = require('../utils/signedUrl');
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { s3, BUCKET } = require('../config/storage');
-const { ROLES } = require('../middleware/auth');
 const { checkMembership, makeJoinProject } = require('../utils/project');
+const { getCalendarPlanPayload } = require('../utils/calendarPlan');
 const { createRequestSchema } = require('../utils/validate');
 const { sendNotification, notifyManagersAboutRequest } = require('../utils/notifications');
+const {
+  ROLES,
+  getReadableProjectDocumentTypes,
+  decorateProjectDocument,
+} = require('../utils/constants');
 const {
   getUploadFileExtension,
   normalizeStoredFileName,
@@ -18,6 +23,10 @@ const ALLOWED_EXTS = ['pdf', 'dwg', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg',
 // GET /api/customer/projects
 async function getProjects(req, res, next) {
   try {
+    const isAdmin = req.session.userRole === ROLES.ADMIN;
+    const accessJoin = isAdmin ? '' : 'JOIN project_members pm ON pm.project_id = p.id';
+    const accessWhere = isAdmin ? '' : 'AND pm.user_id = $1 AND pm.role = $2';
+    const values = isAdmin ? [] : [req.session.userId, ROLES.CUSTOMER];
     const result = await pool.query(
       `SELECT p.id, p.code, p.name, p.status, p.address, p.contract_value,
               p.planned_start, p.planned_end, p.created_at,
@@ -29,7 +38,6 @@ async function getProjects(req, res, next) {
               COALESCE(ph.photo_count, 0) AS photo_count,
               COALESCE(dc.doc_count, 0)   AS doc_count
        FROM projects p
-       JOIN project_members pm ON pm.project_id = p.id
        LEFT JOIN users u ON u.id = p.manager_id
        LEFT JOIN (
          SELECT project_id,
@@ -58,9 +66,11 @@ async function getProjects(req, res, next) {
          FROM project_documents
          GROUP BY project_id
        ) dc ON dc.project_id = p.id
-       WHERE pm.user_id = $1 AND pm.role = 'customer' AND p.is_deleted = FALSE
+       ${accessJoin}
+       WHERE p.is_deleted = FALSE
+       ${accessWhere}
        ORDER BY p.created_at DESC`,
-      [req.session.userId]
+      values
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -208,18 +218,20 @@ async function getDocuments(req, res, next) {
       return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
     }
 
+    const readableDocTypes = getReadableProjectDocumentTypes(req.session.userRole);
     const result = await pool.query(
       `SELECT pd.id, pd.doc_type, pd.file_key, pd.file_name, pd.description, pd.uploaded_at,
               u.name as uploaded_by_name
        FROM project_documents pd
        JOIN users u ON u.id = pd.uploaded_by
        WHERE pd.project_id = $1
+         AND pd.doc_type = ANY($2::text[])
        ORDER BY pd.uploaded_at DESC`,
-      [id]
+      [id, readableDocTypes]
     );
 
     const docs = await Promise.all(result.rows.map(async doc => ({
-      ...doc,
+      ...decorateProjectDocument(doc),
       file_name: normalizeStoredFileName(doc.file_name),
       url: await getSignedDownloadUrl(doc.file_key),
     })));
@@ -246,6 +258,21 @@ async function getWarehouse(req, res, next) {
       [id]
     );
     return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// GET /api/customer/projects/:id/calendar-plan
+async function getCalendarPlan(req, res, next) {
+  try {
+    const { id } = req.params;
+    const isMember = await checkMembership(id, req.session.userId);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
+
+    const payload = await getCalendarPlanPayload(id);
+    if (!payload) return res.status(404).json({ success: false, error: 'Проект не найден' });
+    return res.json({ success: true, data: payload });
   } catch (err) {
     return next(err);
   }
@@ -304,8 +331,8 @@ async function approveStage(req, res, next) {
     );
 
     const foremans = await pool.query(
-      `SELECT user_id FROM project_members WHERE project_id = $1 AND role = 'foreman'`,
-      [projectId]
+      `SELECT user_id FROM project_members WHERE project_id = $1 AND role = $2`,
+      [projectId, ROLES.FOREMAN]
     );
     await Promise.all(foremans.rows.map(f =>
       sendNotification({
@@ -324,4 +351,15 @@ async function approveStage(req, res, next) {
   }
 }
 
-module.exports = { getProjects, createRequest, joinProject, getProject, getStages, getStagePhotos, getDocuments, getWarehouse, approveStage };
+module.exports = {
+  getProjects,
+  createRequest,
+  joinProject,
+  getProject,
+  getStages,
+  getStagePhotos,
+  getDocuments,
+  getWarehouse,
+  getCalendarPlan,
+  approveStage,
+};

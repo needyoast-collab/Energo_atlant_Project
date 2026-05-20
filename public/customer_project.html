@@ -7,14 +7,14 @@
   <title>Объект заказчика — ЭнергоАтлант</title>
   <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/css/style.css?v=customer-project-page-5">
+  <link rel="stylesheet" href="/css/style.css?v=customer-project-page-8">
 </head>
 
 <body class="grid-bg foreman-project-page customer-project-page">
   <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
   <div class="dash-layout">
     <aside class="sidebar">
-      <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+      <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" class="sidebar-logo-img"></div>
       <nav class="sidebar-nav">
         <button class="nav-item project-back-nav" id="btn-back-projects">
           <span class="project-back-nav-icon">←</span>
@@ -30,6 +30,7 @@
         <div class="sidebar-project-title" id="sidebar-project-title">Объект</div>
         <button class="nav-item project-nav-item active" data-project-tab="overview">Обзор</button>
         <button class="nav-item project-nav-item" data-project-tab="stages">Ход работ</button>
+        <button class="nav-item project-nav-item" data-project-tab="calendar">Календарный план</button>
         <button class="nav-item project-nav-item" data-project-tab="documents">Документы</button>
         <button class="nav-item project-nav-item" data-project-tab="warehouse">Склад объекта</button>
       </nav>
@@ -89,7 +90,7 @@
           </div>
         </div>
 
-        <div id="tab-stages" style="display:none">
+        <div id="tab-stages" class="is-hidden">
           <div class="project-section-head">
             <div>
               <div class="project-section-title">Ход работ</div>
@@ -99,31 +100,41 @@
           <div id="customer-stages-list"></div>
         </div>
 
-        <div id="tab-documents" style="display:none">
+        <div id="tab-documents" class="is-hidden">
           <div class="project-section-head">
             <div>
               <div class="project-section-title">Документы</div>
               <div class="project-section-subtitle">Финансовые, технические и договорные документы по объекту.</div>
             </div>
           </div>
-          <div id="customer-documents-list"><span style="color:var(--muted)">Загрузка...</span></div>
+          <div id="customer-documents-list"><span class="text-muted">Загрузка...</span></div>
         </div>
 
-        <div id="tab-warehouse" style="display:none">
+        <div id="tab-calendar" class="is-hidden">
+          <div class="project-section-head">
+            <div>
+              <div class="project-section-title">Календарный план</div>
+              <div class="project-section-subtitle" id="customer-calendar-summary">Плановые сроки работ по объекту.</div>
+            </div>
+          </div>
+          <div id="customer-calendar-plan"><span class="text-muted">Загрузка...</span></div>
+        </div>
+
+        <div id="tab-warehouse" class="is-hidden">
           <div class="project-section-head">
             <div>
               <div class="project-section-title">Склад объекта</div>
               <div class="project-section-subtitle">Получено, использовано и остаток материалов на объекте.</div>
             </div>
           </div>
-          <div id="customer-warehouse-list"><span style="color:var(--muted)">Загрузка...</span></div>
+          <div id="customer-warehouse-list"><span class="text-muted">Загрузка...</span></div>
         </div>
       </div>
     </section>
   </main>
 
   <div class="modal-overlay" id="modal-stage-detail">
-    <div class="modal modal-shell modal-shell-md" style="max-height:90vh">
+    <div class="modal modal-shell modal-shell-md">
       <button class="modal-close" data-close="modal-stage-detail">×</button>
       <div id="stage-detail-body" class="modal-shell-body autohide-scroll customer-stage-detail"></div>
     </div>
@@ -131,11 +142,12 @@
 
   <div id="toast-container"></div>
   <script src="/js/preloader.js"></script>
-  <script src="https://unpkg.com/imask"></script>
+  <script src="/vendor/imask.min.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/auth.js"></script>
   <script src="/js/dashboard.js"></script>
-  <script src="/js/customer_project.js?v=customer-project-page-5"></script>
+  <script src="/js/customer_status.js?v=customer-status-1"></script>
+  <script src="/js/customer_project.js?v=customer-project-page-8"></script>
 </body>
 
 </html>

@@ -1,0 +1,21 @@
+/* Extracted from /dashboard_manager.html. */
+    .project-tab {
+      padding: .45rem 1rem;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: .875rem;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+
+    .project-tab:hover {
+      color: var(--text);
+    }
+
+    .project-tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }

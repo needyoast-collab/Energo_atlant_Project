@@ -14,7 +14,7 @@
 
   <!-- САЙДБАР -->
   <aside class="sidebar">
-    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" class="sidebar-logo-img"></div>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-section="projects">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -50,15 +50,15 @@
         <h1>Мои проекты</h1>
         <button class="btn btn-outline btn-sm" id="btn-join-project-proj">+ Войти по коду</button>
       </div>
-      <div id="projects-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem"></div>
+      <div id="projects-list" class="dashboard-card-grid"></div>
     </div>
 
     <!-- ЗАЯВКИ МТР -->
     <div class="dash-section" id="section-mtr">
       <div class="dash-header flex-between">
         <h1>Заявки на материалы</h1>
-        <div style="display:flex;gap:.5rem;align-items:center">
-          <select class="form-control" id="mtr-project-filter" style="font-size:.85rem;padding:.4rem .75rem">
+        <div class="dash-filter-actions">
+          <select class="form-control form-control-sm" id="mtr-project-filter">
             <option value="">Все проекты</option>
           </select>
           <button class="btn btn-outline btn-sm" id="btn-join-project">+ Войти по коду</button>
@@ -82,7 +82,7 @@
         <h1>Склад</h1>
         <button class="btn btn-primary btn-sm" id="btn-add-general">+ Добавить материал</button>
       </div>
-      <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+      <div class="stock-tab-row">
         <button class="btn btn-sm btn-primary" data-stock-tab="general">Общий склад компании</button>
         <button class="btn btn-sm btn-outline" data-stock-tab="projects">Склады проектов</button>
       </div>
@@ -94,21 +94,21 @@
               <thead>
                 <tr><th>Материал</th><th>Ед.</th><th>Всего</th><th>Зарез.</th><th>Доступно</th><th>Примечание</th><th></th></tr>
               </thead>
-              <tbody><tr><td colspan="7" style="color:var(--muted)">Загрузка...</td></tr></tbody>
+              <tbody><tr><td colspan="7" class="table-empty">Загрузка...</td></tr></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <div id="stock-tab-projects" style="display:none">
-        <div style="color:var(--muted);font-size:.85rem;margin-bottom:1rem">Выберите проект, чтобы открыть его склад объекта.</div>
+      <div id="stock-tab-projects" class="is-hidden">
+        <div class="manager-modal-muted-note">Выберите проект, чтобы открыть его склад объекта.</div>
         <div class="card">
           <div class="table-wrap">
             <table id="stock-projects-table">
               <thead>
                 <tr><th>Код</th><th>Название</th><th>Статус</th><th>Адрес</th><th></th></tr>
               </thead>
-              <tbody><tr><td colspan="5" style="color:var(--muted)">Загрузка...</td></tr></tbody>
+              <tbody><tr><td colspan="5" class="table-empty">Загрузка...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -120,14 +120,14 @@
 
 <!-- МОДАЛКА: проект (4 вкладки) -->
 <div class="modal-overlay" id="modal-project">
-  <div class="modal modal-shell" style="max-width:860px;max-height:90vh">
+  <div class="modal modal-shell modal-shell-900">
     <button class="modal-close" data-close="modal-project">×</button>
     <div class="modal-shell-header">
     <div class="modal-title" id="modal-project-title">Проект</div>
-    <div id="modal-project-meta" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
+    <div id="modal-project-meta" class="supplier-modal-meta mb-3"></div>
 
     <!-- Вкладки -->
-    <div id="sup-project-tabs" style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:.75rem;flex-wrap:wrap">
+    <div id="sup-project-tabs" class="modal-tab-row">
       <button class="btn btn-sm btn-primary"  id="sup-tab-btn-warehouse" data-suptab="warehouse">Склад объекта</button>
       <button class="btn btn-sm btn-outline"  id="sup-tab-btn-specs"     data-suptab="specs">Ведомость</button>
       <button class="btn btn-sm btn-outline"  id="sup-tab-btn-docs"      data-suptab="docs">Документы</button>
@@ -136,12 +136,12 @@
     <div class="modal-shell-body autohide-scroll">
 
     <!-- Склад объекта -->
-    <div id="sup-tab-warehouse" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
-        <div style="font-weight:600;font-size:.9rem">Склад объекта</div>
-        <div style="display:flex;gap:.5rem">
-          <a id="sup-warehouse-export" class="btn btn-outline btn-sm" href="#" target="_blank" style="font-size:.78rem">↓ CSV</a>
-          <button class="btn btn-primary btn-sm" id="btn-add-project-warehouse" style="font-size:.78rem">+ Добавить</button>
+    <div id="sup-tab-warehouse" class="is-hidden">
+      <div class="supplier-section-head">
+        <div class="supplier-section-title">Склад объекта</div>
+        <div class="supplier-section-actions">
+          <a id="sup-warehouse-export" class="btn btn-outline btn-sm supplier-small-btn" href="#" target="_blank">↓ CSV</a>
+          <button class="btn btn-primary btn-sm supplier-small-btn" id="btn-add-project-warehouse">+ Добавить</button>
         </div>
       </div>
       <div class="table-wrap">
@@ -155,21 +155,21 @@
     </div>
 
     <!-- Ведомость -->
-    <div id="sup-tab-specs" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
-        <div style="font-weight:600;font-size:.9rem">Ведомость материалов</div>
-        <div style="display:flex;gap:.5rem">
-          <button class="btn btn-outline btn-sm" id="btn-fulfill-selected-specs" style="font-size:.78rem;display:none">Обеспечить выбранные</button>
-          <button class="btn btn-outline btn-sm" id="btn-submit-specs" style="font-size:.78rem">Отправить на согласование</button>
-          <button class="btn btn-primary btn-sm" id="btn-add-spec" style="font-size:.78rem">+ Добавить позицию</button>
+    <div id="sup-tab-specs" class="is-hidden">
+      <div class="supplier-section-head">
+        <div class="supplier-section-title">Ведомость материалов</div>
+        <div class="supplier-section-actions">
+          <button class="btn btn-outline btn-sm supplier-small-btn is-hidden" id="btn-fulfill-selected-specs">Обеспечить выбранные</button>
+          <button class="btn btn-outline btn-sm supplier-small-btn" id="btn-submit-specs">Отправить на согласование</button>
+          <button class="btn btn-primary btn-sm supplier-small-btn" id="btn-add-spec">+ Добавить позицию</button>
         </div>
       </div>
       <div id="sup-specs-list"></div>
     </div>
 
     <!-- Документы -->
-    <div id="sup-tab-docs" style="display:none">
-      <div id="sup-modal-docs-list"><span style="color:var(--muted)">Загрузка...</span></div>
+    <div id="sup-tab-docs" class="is-hidden">
+      <div id="sup-modal-docs-list"><span class="text-muted">Загрузка...</span></div>
     </div>
     </div>
   </div>
@@ -177,7 +177,7 @@
 
 <!-- МОДАЛКА: войти по коду -->
 <div class="modal-overlay" id="modal-join">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-join">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Войти в проект</div>
@@ -197,7 +197,7 @@
 
 <!-- МОДАЛКА: обработка заявки МТР -->
 <div class="modal-overlay" id="modal-mtr">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-mtr">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Заявка МТР</div>
@@ -227,17 +227,17 @@
 
 <!-- МОДАЛКА: добавить в общий склад -->
 <div class="modal-overlay" id="modal-add-general">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-add-general">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Добавить на общий склад</div>
     </div>
     <form id="add-general-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
-        <label class="form-label">Материал <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Материал <span class="text-accent">*</span></label>
         <input type="text" class="form-control" name="material_name" required maxlength="200">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">Ед. изм.</label>
           <input type="text" class="form-control" name="unit" maxlength="20" placeholder="шт, м, кг...">
@@ -261,7 +261,7 @@
 
 <!-- МОДАЛКА: перевести на объект -->
 <div class="modal-overlay" id="modal-transfer">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-transfer">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Перевести на объект</div>
@@ -269,14 +269,14 @@
     </div>
     <form id="transfer-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
-        <label class="form-label">Проект <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Проект <span class="text-accent">*</span></label>
         <select class="form-control" name="project_id" required id="transfer-project-select">
           <option value="">— выберите проект —</option>
         </select>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-grid-2">
         <div class="form-group">
-          <label class="form-label">Количество <span style="color:var(--accent)">*</span></label>
+          <label class="form-label">Количество <span class="text-accent">*</span></label>
           <input type="number" class="form-control" name="quantity" required min="0.001" step="0.001">
         </div>
         <div class="form-group">
@@ -298,7 +298,7 @@
 
 <!-- МОДАЛКА: редактировать позицию общего склада -->
 <div class="modal-overlay" id="modal-edit-general">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-edit-general">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Редактировать позицию</div>
@@ -306,7 +306,7 @@
     </div>
     <form id="edit-general-form" class="modal-shell-body autohide-scroll">
       <input type="hidden" name="item_id" value="">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">Ед. изм.</label>
           <input type="text" class="form-control" name="unit" maxlength="20" placeholder="шт, м, кг...">
@@ -330,17 +330,17 @@
 
 <!-- МОДАЛКА: добавить материал на склад объекта -->
 <div class="modal-overlay" id="modal-add-warehouse">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-add-warehouse">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Добавить материал на склад</div>
     </div>
     <form id="add-warehouse-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
-        <label class="form-label">Материал <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Материал <span class="text-accent">*</span></label>
         <input type="text" class="form-control" name="material_name" required maxlength="200">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">Ед. изм.</label>
           <input type="text" class="form-control" name="unit" maxlength="20" placeholder="шт, м, кг...">
@@ -351,7 +351,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Источник <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Источник <span class="text-accent">*</span></label>
         <select class="form-control" name="source" required>
           <option value="purchase">Закупка</option>
           <option value="customer">От заказчика</option>
@@ -371,7 +371,7 @@
 
 <!-- МОДАЛКА: добавить позицию ведомости -->
 <div class="modal-overlay" id="modal-add-spec">
-  <div class="modal modal-shell modal-shell-md" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-md">
     <button class="modal-close" data-close="modal-add-spec">×</button>
     <div class="modal-shell-header">
       <div class="modal-title" id="modal-spec-title">Позиция ведомости</div>
@@ -379,21 +379,21 @@
     <form id="spec-form" class="modal-shell-body autohide-scroll">
       <input type="hidden" name="spec_id" value="">
       <div class="form-group">
-        <label class="form-label">Материал <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Материал <span class="text-accent">*</span></label>
         <input type="text" class="form-control" name="material_name" required maxlength="200">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">Ед. изм.</label>
           <input type="text" class="form-control" name="unit" maxlength="20" placeholder="шт, м, кг...">
         </div>
         <div class="form-group">
-          <label class="form-label">Количество <span style="color:var(--accent)">*</span></label>
+          <label class="form-label">Количество <span class="text-accent">*</span></label>
           <input type="number" class="form-control" name="quantity" required min="0.001" step="0.001">
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Цена за ед. <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Цена за ед. <span class="text-accent">*</span></label>
         <input type="number" class="form-control" name="unit_price" required min="0" step="0.01" placeholder="0.00">
       </div>
     </form>
@@ -406,31 +406,31 @@
 
 <!-- МОДАЛКА: добавить позиции ВОМ -->
 <div class="modal-overlay" id="modal-batch">
-  <div class="modal modal-shell modal-shell-lg" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-lg">
     <button class="modal-close" data-close="modal-batch">×</button>
     <div class="modal-shell-header">
       <div class="modal-title" id="batch-modal-title">Добавить позиции — ВОМ</div>
       <div id="batch-modal-subtitle" class="modal-subtitle"></div>
     </div>
     <div class="modal-shell-body autohide-scroll">
-      <table style="width:100%;border-collapse:collapse">
+      <table class="batch-table">
         <thead>
-          <tr style="border-bottom:2px solid var(--border)">
-            <th style="padding:.5rem .6rem;text-align:center;color:var(--muted);font-size:.78rem;width:36px">№</th>
-            <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem">Наименование</th>
-            <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:110px">Ед. изм.</th>
-            <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:100px">Кол-во</th>
-            <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:120px">Цена</th>
+          <tr class="batch-head-row">
+            <th class="batch-th batch-th-index">№</th>
+            <th class="batch-th">Наименование</th>
+            <th class="batch-th batch-th-unit">Ед. изм.</th>
+            <th class="batch-th batch-th-qty">Кол-во</th>
+            <th class="batch-th batch-th-price">Цена</th>
           </tr>
         </thead>
         <tbody id="batch-tbody"></tbody>
       </table>
-      <div style="margin-top:.75rem">
-        <button class="btn btn-outline btn-sm" id="btn-batch-add-row" style="font-size:.82rem">+ Добавить строку</button>
+      <div class="batch-add-wrap">
+        <button class="btn btn-outline btn-sm batch-add-row" id="btn-batch-add-row">+ Добавить строку</button>
       </div>
     </div>
-    <div class="modal-shell-actions" style="justify-content:space-between;align-items:center">
-      <div id="batch-counter" style="color:var(--muted);font-size:.85rem">0 позиций заполнено</div>
+    <div class="modal-shell-actions batch-actions">
+      <div id="batch-counter" class="batch-counter">0 позиций заполнено</div>
       <div class="modal-shell-actions-main">
         <button class="btn btn-outline" data-close="modal-batch">Отмена</button>
         <button class="btn btn-primary" id="btn-batch-save">Сохранить в проект</button>
@@ -441,34 +441,34 @@
 
 <!-- МОДАЛКА: обеспечить выбранные позиции ВОМ -->
 <div class="modal-overlay" id="modal-fulfill-selected">
-  <div class="modal modal-shell modal-shell-lg" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-lg">
     <button class="modal-close" data-close="modal-fulfill-selected">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Обеспечить выбранные</div>
       <div id="fulfill-selected-subtitle" class="modal-subtitle"></div>
     </div>
     <form id="fulfill-selected-form" class="modal-shell-body autohide-scroll">
-      <div style="display:grid;grid-template-columns:minmax(180px,260px) 1fr;gap:.75rem;margin-bottom:1rem">
-        <div class="form-group" style="margin:0">
+      <div class="supplier-fulfill-grid">
+        <div class="form-group form-group-compact">
           <label class="form-label">Источник</label>
           <select class="form-control" id="fulfill-selected-source" name="source" required>
             <option value="purchase">Закупка</option>
             <option value="customer">Давальческий материал</option>
           </select>
         </div>
-        <div class="form-group" style="margin:0">
+        <div class="form-group form-group-compact">
           <label class="form-label">Комментарий</label>
           <input type="text" class="form-control" id="fulfill-selected-notes" name="notes" maxlength="1000" placeholder="Необязательно">
         </div>
       </div>
       <div class="table-wrap">
-        <table style="width:100%">
+        <table class="w-full">
           <thead>
             <tr>
               <th>Материал</th>
-              <th style="width:110px;text-align:right">Остаток</th>
-              <th style="width:130px">Количество</th>
-              <th style="width:140px" data-purchase-price-head>Цена закупки</th>
+              <th class="supplier-remaining-head">Остаток</th>
+              <th class="supplier-quantity-head">Количество</th>
+              <th class="supplier-purchase-head" data-purchase-price-head>Цена закупки</th>
             </tr>
           </thead>
           <tbody id="fulfill-selected-tbody"></tbody>
@@ -484,16 +484,16 @@
 
 <!-- МОДАЛКА: обеспечить позицию ВОМ -->
 <div class="modal-overlay" id="modal-fulfill-spec">
-  <div class="modal modal-shell modal-shell-md" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-md">
     <button class="modal-close" data-close="modal-fulfill-spec">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Обеспечить позицию</div>
       <div id="fulfill-spec-info" class="modal-subtitle"></div>
     </div>
     <form id="fulfill-spec-form" class="modal-shell-body autohide-scroll">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-grid-2">
         <div class="form-group">
-          <label class="form-label">Источник <span style="color:var(--accent)">*</span></label>
+          <label class="form-label">Источник <span class="text-accent">*</span></label>
           <select class="form-control" name="source" required id="fulfill-spec-source">
             <option value="company">Склад компании</option>
             <option value="purchase">Закупка</option>
@@ -501,21 +501,21 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Количество <span style="color:var(--accent)">*</span></label>
+          <label class="form-label">Количество <span class="text-accent">*</span></label>
           <input type="number" class="form-control" name="quantity" required min="0.001" step="0.001">
         </div>
       </div>
-      <div class="form-group" id="fulfill-purchase-price-wrap" style="display:none">
-        <label class="form-label">Цена закупки <span style="color:var(--accent)">*</span></label>
+      <div class="form-group is-hidden" id="fulfill-purchase-price-wrap">
+        <label class="form-label">Цена закупки <span class="text-accent">*</span></label>
         <input type="number" class="form-control" name="purchase_price" min="0" step="0.01" placeholder="0.00">
       </div>
       <div class="form-group" id="fulfill-general-wrap">
-        <label class="form-label">Позиция общего склада <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Позиция общего склада <span class="text-accent">*</span></label>
         <select class="form-control" name="general_item_id" id="fulfill-general-item">
           <option value="">— выберите позицию —</option>
         </select>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">Ед. изм.</label>
           <input type="text" class="form-control" name="unit" maxlength="20" placeholder="шт, м, кг...">
@@ -534,7 +534,7 @@
 </div>
 
 <div id="toast-container"></div>
-<script src="https://unpkg.com/imask"></script>
+<script src="/vendor/imask.min.js"></script>
 <script src="/js/preloader.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>

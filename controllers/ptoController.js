@@ -4,39 +4,42 @@ const { getSignedDownloadUrl } = require('../utils/signedUrl');
 const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { s3, BUCKET } = require('../config/storage');
 const { randomUUID } = require('crypto');
-const { ROLES } = require('../middleware/auth');
 const { checkMembership, makeJoinProject } = require('../utils/project');
 const { uploadDocSchema } = require('../utils/validate');
+const {
+  ROLES,
+  EXECUTIVE_DOCUMENT_TYPES,
+  PROJECT_DOCUMENT_LABELS,
+  getReadableProjectDocumentTypes,
+  decorateProjectDocument,
+} = require('../utils/constants');
 const {
   getUploadFileExtension,
   normalizeStoredFileName,
   normalizeUploadFileName,
 } = require('../utils/fileNames');
 
-const DOC_LABELS = {
-  hidden_works_act:    'Акт скрытых работ',
-  exec_scheme:         'Исполнительная схема',
-  geodetic_survey:     'Геодезическая съёмка',
-  general_works_log:   'Общий журнал работ',
-  author_supervision:  'Журнал авторского надзора',
-  interim_acceptance:  'Акт промежуточной приёмки',
-  cable_test_act:      'Акт испытания КЛ',
-  measurement_protocol:'Протокол измерений',
-  other:               'Прочее',
-};
+const DOC_LABELS = Object.fromEntries(
+  EXECUTIVE_DOCUMENT_TYPES.map((docType) => [docType, PROJECT_DOCUMENT_LABELS[docType]])
+);
 
 // GET /api/pto/projects
 async function getProjects(req, res, next) {
   try {
+    const isAdmin = req.session.userRole === ROLES.ADMIN;
+    const accessJoin = isAdmin ? '' : 'JOIN project_members pm ON pm.project_id = p.id';
+    const accessWhere = isAdmin ? '' : 'AND pm.user_id = $1 AND pm.role = $2';
+    const values = isAdmin ? [] : [req.session.userId, ROLES.PTO];
     const result = await pool.query(
       `SELECT p.id, p.code, p.name, p.status, p.address, p.created_at,
               u.name as manager_name
        FROM projects p
-       JOIN project_members pm ON pm.project_id = p.id
        LEFT JOIN users u ON u.id = p.manager_id
-       WHERE pm.user_id = $1 AND pm.role = 'pto' AND p.is_deleted = FALSE
+       ${accessJoin}
+       WHERE p.is_deleted = FALSE
+       ${accessWhere}
        ORDER BY p.created_at DESC`,
-      [req.session.userId]
+      values
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -148,8 +151,8 @@ async function uploadDocument(req, res, next) {
     const notify = await pool.query(
       `SELECT u.id FROM project_members pm
        JOIN users u ON u.id = pm.user_id
-       WHERE pm.project_id = $1 AND pm.role IN ('manager','customer')`,
-      [id]
+       WHERE pm.project_id = $1 AND pm.role = ANY($2::text[])`,
+      [id, [ROLES.MANAGER, ROLES.CUSTOMER]]
     );
 
     const project = await pool.query(
@@ -187,18 +190,20 @@ async function getDocuments(req, res, next) {
       return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
     }
 
+    const readableDocTypes = getReadableProjectDocumentTypes(req.session.userRole);
     const result = await pool.query(
       `SELECT pd.id, pd.doc_type, pd.file_key, pd.file_name, pd.description, pd.uploaded_at,
               pd.uploaded_by as uploaded_by_id, u.name as uploaded_by_name
        FROM project_documents pd
        JOIN users u ON u.id = pd.uploaded_by
        WHERE pd.project_id = $1
+         AND pd.doc_type = ANY($2::text[])
        ORDER BY pd.uploaded_at DESC`,
-      [id]
+      [id, readableDocTypes]
     );
 
     const docs = await Promise.all(result.rows.map(async doc => ({
-      ...doc,
+      ...decorateProjectDocument(doc),
       file_name: normalizeStoredFileName(doc.file_name),
       url: await getSignedDownloadUrl(doc.file_key),
     })));

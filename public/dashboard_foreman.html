@@ -8,13 +8,13 @@
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
 </head>
-<body class="grid-bg">
+<body class="grid-bg" data-foreman-page-mode="dashboard">
 <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
 <div class="dash-layout">
 
   <!-- САЙДБАР -->
   <aside class="sidebar">
-    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" class="sidebar-logo-img"></div>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-section="projects">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -93,7 +93,7 @@
 
 <!-- МОДАЛКА: войти по коду -->
 <div class="modal-overlay" id="modal-join">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-join">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Войти в проект</div>
@@ -113,14 +113,14 @@
 
 <!-- МОДАЛКА: проект (этапы + фото) -->
 <div class="modal-overlay" id="modal-project">
-  <div class="modal modal-shell" style="max-width:1080px;max-height:90vh">
+  <div class="modal modal-shell modal-shell-xl">
     <button class="modal-close" data-close="modal-project">×</button>
     <div class="modal-shell-header">
     <div class="modal-title" id="modal-project-title">Проект</div>
-    <div id="modal-project-meta" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
+    <div id="modal-project-meta" class="supplier-modal-meta mb-3"></div>
 
     <!-- Вкладки -->
-    <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:.75rem;flex-wrap:wrap">
+    <div class="modal-tab-row">
       <button class="btn btn-sm btn-primary" id="tab-btn-stages"    data-tab="stages">Этапы</button>
       <button class="btn btn-sm btn-outline" id="tab-btn-calendar"  data-tab="calendar">Календарный план</button>
       <button class="btn btn-sm btn-outline" id="tab-btn-specs"       data-tab="specs">ВОМ</button>
@@ -134,22 +134,22 @@
     <!-- Этапы -->
     <div id="tab-stages">
       <div class="flex-between mb-2">
-        <span style="font-weight:600;font-size:.9rem">Этапы работ</span>
+        <span class="supplier-section-title">Этапы работ</span>
         <button class="btn btn-outline btn-sm" id="btn-add-stage">Добавить этап</button>
       </div>
       <div id="stages-list" class="stage-list"></div>
     </div>
 
     <!-- Календарный план работ -->
-    <div id="tab-calendar" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem">
+    <div id="tab-calendar" class="is-hidden">
+      <div class="project-section-head">
         <div>
-          <div style="font-weight:600;font-size:.9rem">Календарный план производства работ</div>
-          <div id="calendar-plan-summary" style="color:var(--muted);font-size:.8rem;margin-top:.2rem">
+          <div class="project-section-title">Календарный план производства работ</div>
+          <div id="calendar-plan-summary" class="project-section-subtitle">
             Выберите первый и последний день в строке этапа, чтобы задать плановый диапазон.
           </div>
         </div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <div class="project-section-actions">
           <button class="foreman-action-btn" id="btn-generate-calendar-plan">Сформировать план</button>
           <button class="foreman-action-btn is-secondary" id="btn-export-calendar-plan">Выгрузить</button>
         </div>
@@ -158,26 +158,25 @@
     </div>
 
     <!-- Ведомость материалов -->
-    <div id="tab-specs" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">
-        <div style="font-weight:600;font-size:.9rem">Ведомость материалов</div>
-        <div id="specs-bulk-actions" style="display:none;gap:.5rem;align-items:center;flex-wrap:wrap">
-          <span id="specs-bulk-counter" style="color:var(--muted);font-size:.8rem">0 отмечено</span>
-          <button class="btn btn-outline btn-sm" id="btn-approve-selected-specs" style="font-size:.78rem">Согласовать отмеченные</button>
-          <button class="btn btn-outline btn-sm" id="btn-reject-unchecked-specs" style="font-size:.78rem">Отклонить неотмеченные</button>
+    <div id="tab-specs" class="is-hidden">
+      <div class="supplier-section-head">
+        <div class="supplier-section-title">Ведомость материалов</div>
+        <div id="specs-bulk-actions" class="project-section-actions is-hidden">
+          <span id="specs-bulk-counter" class="table-cell-muted-xs">0 отмечено</span>
+          <button class="btn btn-outline btn-sm supplier-small-btn" id="btn-approve-selected-specs">Согласовать отмеченные</button>
+          <button class="btn btn-outline btn-sm supplier-small-btn" id="btn-reject-unchecked-specs">Отклонить неотмеченные</button>
         </div>
       </div>
       <div id="specs-list"></div>
     </div>
 
     <!-- ВОР: ведомость объёмов работ -->
-    <div id="tab-work-specs" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.75rem">
-        <div style="font-weight:600;font-size:.9rem">Ведомость объёмов работ</div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap" id="vor-actions">
-          <button class="btn btn-primary btn-sm" id="btn-add-work-spec" style="font-size:.78rem">Добавить позицию</button>
-          <button class="btn btn-outline btn-sm" id="btn-generate-stages"
-            style="font-size:.78rem;display:none">
+    <div id="tab-work-specs" class="is-hidden">
+      <div class="supplier-section-head">
+        <div class="supplier-section-title">Ведомость объёмов работ</div>
+        <div class="project-section-actions" id="vor-actions">
+          <button class="btn btn-primary btn-sm supplier-small-btn" id="btn-add-work-spec">Добавить позицию</button>
+          <button class="btn btn-outline btn-sm supplier-small-btn is-hidden" id="btn-generate-stages">
             Сформировать этапы
           </button>
         </div>
@@ -186,8 +185,8 @@
     </div>
 
     <!-- Склад объекта -->
-    <div id="tab-warehouse" style="display:none">
-      <div style="font-weight:600;font-size:.9rem;margin-bottom:.75rem">Склад объекта</div>
+    <div id="tab-warehouse" class="is-hidden">
+      <div class="supplier-section-title mb-2">Склад объекта</div>
       <div class="table-wrap">
         <table id="modal-warehouse-table">
           <thead>
@@ -199,8 +198,8 @@
     </div>
 
     <!-- Документы -->
-    <div id="tab-docs" style="display:none">
-      <div id="project-docs-list"><span style="color:var(--muted)">Загрузка...</span></div>
+    <div id="tab-docs" class="is-hidden">
+      <div id="project-docs-list"><span class="text-muted">Загрузка...</span></div>
     </div>
     </div>
   </div>
@@ -234,12 +233,12 @@
             <input type="hidden" name="planned_start">
             <input type="hidden" name="planned_end">
             <div class="form-group">
-              <label class="form-label">Фактическое окончание <span id="edit-stage-actual-end-required" class="required-mark" style="display:none">*</span></label>
+              <label class="form-label">Фактическое окончание <span id="edit-stage-actual-end-required" class="required-mark is-hidden">*</span></label>
               <input type="date" class="form-control" name="actual_end">
             </div>
           </div>
 
-          <div id="edit-stage-vor" class="stage-edit-fields stage-edit-fields-volume" style="display:none">
+          <div id="edit-stage-vor" class="stage-edit-fields stage-edit-fields-volume is-hidden">
             <div class="form-group">
               <label class="form-label">Статус</label>
               <select class="form-control" id="edit-stage-status-vor">
@@ -257,7 +256,7 @@
               <input type="date" class="form-control" name="planned_date">
             </div>
             <div class="form-group">
-              <label class="form-label">Фактическое окончание <span id="edit-stage-actual-date-required" class="required-mark" style="display:none">*</span></label>
+              <label class="form-label">Фактическое окончание <span id="edit-stage-actual-date-required" class="required-mark is-hidden">*</span></label>
               <input type="date" class="form-control" name="actual_date">
             </div>
             <div class="form-group stage-edit-readonly">
@@ -271,7 +270,7 @@
           </div>
 
           <div class="form-group stage-edit-note-field">
-            <label class="form-label">Примечание<span id="edit-stage-note-required" class="required-mark" style="display:none"> *</span></label>
+            <label class="form-label">Примечание<span id="edit-stage-note-required" class="required-mark is-hidden"> *</span></label>
             <textarea class="form-control" name="note" rows="3" placeholder="Пояснение по факту, просрочке или невыполнению"></textarea>
           </div>
         </section>
@@ -325,7 +324,7 @@
 
 <!-- МОДАЛКА: новая заявка МТР -->
 <div class="modal-overlay" id="modal-mtr">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-mtr">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Заявка на материалы</div>
@@ -345,7 +344,7 @@
         <label class="form-label">Материал</label>
         <input type="text" class="form-control" name="material_name" required placeholder="Кабель ВВГнг 3×2.5">
       </div>
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem">
+      <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">Количество</label>
           <input type="number" class="form-control" name="quantity" required min="0.001" step="0.001">
@@ -369,7 +368,7 @@
 
 <!-- МОДАЛКА: списание со склада -->
 <div class="modal-overlay" id="modal-writeoff">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-writeoff">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Списание материала</div>
@@ -377,7 +376,7 @@
     </div>
     <form id="writeoff-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
-        <label class="form-label">Этап <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Этап <span class="text-accent">*</span></label>
         <select class="form-control" name="stage_id" id="writeoff-stage-select" required>
           <option value="">— выберите этап —</option>
         </select>
@@ -396,7 +395,7 @@
 
 <!-- МОДАЛКА: отклонить позицию ведомости -->
 <div class="modal-overlay" id="modal-reject-spec">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-reject-spec">×</button>
     <div class="modal-shell-header">
       <div class="modal-title" id="reject-spec-title">Отклонить позицию</div>
@@ -404,7 +403,7 @@
     </div>
     <form id="reject-spec-form" class="modal-shell-body autohide-scroll">
       <div class="form-group">
-        <label class="form-label">Причина отклонения <span style="color:var(--accent)">*</span></label>
+        <label class="form-label">Причина отклонения <span class="text-accent">*</span></label>
         <textarea class="form-control" name="rejection_note" required rows="3" placeholder="Укажите причину..."></textarea>
       </div>
     </form>
@@ -417,30 +416,30 @@
 
 <!-- МОДАЛКА: добавить позиции ВОР -->
 <div class="modal-overlay" id="modal-batch">
-  <div class="modal modal-shell modal-shell-md" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-md">
     <button class="modal-close" data-close="modal-batch">×</button>
     <div class="modal-shell-header">
       <div class="modal-title" id="batch-modal-title">Добавить позиции — ВОР</div>
       <div id="batch-modal-subtitle" class="modal-subtitle"></div>
     </div>
     <div class="modal-shell-body autohide-scroll">
-      <table id="batch-table" style="width:100%;border-collapse:collapse">
+      <table id="batch-table" class="batch-table">
         <thead>
-          <tr style="border-bottom:2px solid var(--border)">
-            <th style="padding:.5rem .6rem;text-align:center;color:var(--muted);font-size:.78rem;width:36px">№</th>
-            <th style="padding:.5rem .6rem;text-align:left;font-size:.82rem">Наименование</th>
-            <th class="batch-work-field" style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:110px">Ед. изм.</th>
-            <th class="batch-work-field" style="padding:.5rem .6rem;text-align:left;font-size:.82rem;width:100px">Кол-во</th>
+          <tr class="batch-head-row">
+            <th class="batch-th batch-th-index">№</th>
+            <th class="batch-th">Наименование</th>
+            <th class="batch-th batch-th-unit batch-work-field">Ед. изм.</th>
+            <th class="batch-th batch-th-qty batch-work-field">Кол-во</th>
           </tr>
         </thead>
         <tbody id="batch-tbody"></tbody>
       </table>
-      <div style="margin-top:.75rem">
-        <button class="btn btn-outline btn-sm" id="btn-batch-add-row" style="font-size:.82rem">Добавить строку</button>
+      <div class="batch-add-wrap">
+        <button class="btn btn-outline btn-sm batch-add-row" id="btn-batch-add-row">Добавить строку</button>
       </div>
     </div>
-    <div class="modal-shell-actions" style="justify-content:space-between;align-items:center">
-      <div id="batch-counter" style="color:var(--muted);font-size:.85rem">0 позиций заполнено</div>
+    <div class="modal-shell-actions batch-actions">
+      <div id="batch-counter" class="batch-counter">0 позиций заполнено</div>
       <div class="modal-shell-actions-main">
         <button class="btn btn-outline" data-close="modal-batch">Отмена</button>
         <button class="btn btn-primary" id="btn-batch-save">Сохранить в проект</button>
@@ -452,13 +451,16 @@
 <datalist id="catalog-datalist"></datalist>
 
 <div id="toast-container"></div>
-<script src="https://unpkg.com/imask"></script>
+<script src="/vendor/imask.min.js"></script>
 <script src="/js/preloader.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>
 <script src="/js/dashboard.js"></script>
-<script>window.FOREMAN_PAGE_MODE = 'dashboard';</script>
-<script src="/js/foreman.js?v=foreman-split-10"></script>
+<script src="/js/foreman_specs.js?v=foreman-split-11"></script>
+<script src="/js/foreman_warehouse.js?v=foreman-split-11"></script>
+<script src="/js/foreman_stage_details.js?v=foreman-split-12"></script>
+<script src="/js/foreman_calendar.js?v=foreman-split-13"></script>
+<script src="/js/foreman.js?v=foreman-split-12"></script>
 <script src="/js/foreman_dashboard.js?v=foreman-split-2"></script>
 </body>
 </html>

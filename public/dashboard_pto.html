@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/pages/dashboard-pto.css">
 </head>
 <body class="grid-bg">
 <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
@@ -14,7 +15,7 @@
 
   <!-- САЙДБАР -->
   <aside class="sidebar">
-    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" class="sidebar-logo-img"></div>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-section="projects">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -46,38 +47,37 @@
         <h1>Мои проекты</h1>
         <button class="btn btn-outline btn-sm" id="btn-join-project">+ Войти по коду</button>
       </div>
-      <div id="projects-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem"></div>
+      <div id="projects-list" class="dashboard-card-grid"></div>
     </div>
 
     <!-- ДОКУМЕНТЫ -->
     <div class="dash-section" id="section-documents">
       <div class="dash-header flex-between">
         <h1>Исполнительная документация</h1>
-        <select class="form-control" id="docs-project-select" style="font-size:.85rem;padding:.4rem .75rem;max-width:260px">
+        <select class="form-control form-control-sm max-w-260" id="docs-project-select">
           <option value="">— выберите проект —</option>
         </select>
       </div>
 
       <!-- Загрузка ИД -->
-      <div class="card" style="margin-bottom:1.5rem" id="upload-section" style="display:none">
+      <div class="card mb-3 is-hidden" id="upload-section">
         <div class="card-title">Загрузить документ</div>
         <form id="upload-doc-form">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
-            <div class="form-group" style="margin:0">
+          <div class="form-grid-2 form-group-tight">
+            <div class="form-group form-group-compact">
               <label class="form-label">Тип документа</label>
               <select class="form-control" name="doc_type" id="doc-type-select" required>
                 <option value="">— выберите —</option>
               </select>
             </div>
-            <div class="form-group" style="margin:0">
+            <div class="form-group form-group-compact">
               <label class="form-label">Файл (PDF, Word, Excel, фото)</label>
-              <input type="file" class="form-control" name="file" id="doc-file-input"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" required
-                style="padding:.4rem .6rem;font-size:.85rem">
+              <input type="file" class="form-control form-control-sm" name="file" id="doc-file-input"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" required>
             </div>
           </div>
-          <div class="form-group" style="margin-bottom:.75rem">
-            <input type="text" class="form-control" name="description" placeholder="Описание (необязательно)" style="font-size:.85rem">
+          <div class="form-group form-group-tight">
+            <input type="text" class="form-control form-control-sm" name="description" placeholder="Описание (необязательно)">
           </div>
           <button type="submit" class="btn btn-primary btn-sm">Загрузить</button>
         </form>
@@ -85,7 +85,7 @@
 
       <!-- Список документов -->
       <div class="card" id="docs-list-card">
-        <div id="docs-list" style="color:var(--muted);font-size:.9rem">Выберите проект</div>
+        <div id="docs-list" class="text-muted">Выберите проект</div>
       </div>
     </div>
 
@@ -94,7 +94,7 @@
 
 <!-- МОДАЛКА: войти по коду -->
 <div class="modal-overlay" id="modal-join">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-join">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Войти в проект</div>
@@ -114,14 +114,14 @@
 
 <!-- МОДАЛКА: проект (этапы + документы) -->
 <div class="modal-overlay" id="modal-project">
-  <div class="modal modal-shell" style="max-width:620px;max-height:90vh">
+  <div class="modal modal-shell modal-shell-620">
     <button class="modal-close" data-close="modal-project">×</button>
     <div class="modal-shell-header">
     <div class="modal-title" id="modal-project-title">Проект</div>
-    <div id="modal-project-meta" class="mb-3" style="color:var(--muted);font-size:.9rem"></div>
+    <div id="modal-project-meta" class="mb-3 text-muted"></div>
 
     <!-- Вкладки -->
-    <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:.75rem">
+    <div class="modal-tab-row">
       <button class="btn btn-sm btn-primary" id="pto-tab-btn-stages" data-ptotab="stages">Этапы</button>
       <button class="btn btn-sm btn-outline"  id="pto-tab-btn-docs"   data-ptotab="docs">Документы</button>
     </div>
@@ -130,20 +130,20 @@
 
     <!-- Этапы -->
     <div id="pto-tab-stages">
-      <div style="font-weight:600;font-size:.9rem;margin-bottom:.75rem">Этапы работ</div>
+      <div class="section-mini-title">Этапы работ</div>
       <div id="modal-stages-list" class="stage-list"></div>
     </div>
 
     <!-- Документы -->
-    <div id="pto-tab-docs" style="display:none">
-      <div id="pto-modal-docs-list"><span style="color:var(--muted)">Загрузка...</span></div>
+    <div id="pto-tab-docs" class="is-hidden">
+      <div id="pto-modal-docs-list"><span class="text-muted">Загрузка...</span></div>
     </div>
     </div>
   </div>
 </div>
 
 <div id="toast-container"></div>
-<script src="https://unpkg.com/imask"></script>
+<script src="/vendor/imask.min.js"></script>
 <script src="/js/preloader.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>

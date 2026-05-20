@@ -1,0 +1,171 @@
+/* Extracted from /contact.html. */
+    .page-hero {
+      padding: 140px 2rem 5rem;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-hero .section-label { margin-bottom: .75rem; }
+    .page-hero h1 { margin-bottom: 1rem; }
+    .page-hero p { color: var(--muted); max-width: 540px; margin: 0 auto; }
+
+    /* Основная сетка контактов */
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 3rem;
+      align-items: start;
+    }
+
+    /* Блок контактной информации */
+    .contact-info-block {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    .contact-info-item {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .contact-info-icon {
+      width: 44px; height: 44px;
+      background: rgba(245,166,35,.1);
+      border: 1px solid rgba(245,166,35,.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .contact-info-icon svg { width: 20px; height: 20px; stroke: var(--accent); }
+    .contact-info-label {
+      font-size: .75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: .3rem;
+    }
+    .contact-info-value {
+      font-weight: 600;
+      font-size: .95rem;
+    }
+    .contact-info-value a {
+      color: var(--text);
+      transition: color .2s;
+    }
+    .contact-info-value a:hover { color: var(--accent); text-decoration: none; }
+
+    /* Часы работы */
+    .work-hours {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      padding: 1.25rem 1.5rem;
+    }
+    .work-hours-title {
+      font-weight: 700;
+      font-size: .88rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: .75rem;
+    }
+    .work-hours-row {
+      display: flex;
+      justify-content: space-between;
+      padding: .3rem 0;
+      font-size: .88rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .work-hours-row:last-child { border: none; }
+    .work-hours-row span:first-child { color: var(--muted); }
+    .work-hours-row span:last-child { font-weight: 600; }
+
+    /* Форма */
+    .contact-form-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    }
+    .contact-form-title {
+      font-family: 'Stolzl', sans-serif;
+      font-size: 1.8rem;
+      color: var(--accent);
+      margin-bottom: .5rem;
+    }
+    .contact-form-sub {
+      color: var(--muted);
+      font-size: .88rem;
+      margin-bottom: 1.75rem;
+    }
+
+    /* Карта */
+    .map-wrap {
+      width: 100%;
+      height: 300px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-top: 3rem;
+      position: relative;
+    }
+    .map-wrap iframe { width: 100%; height: 100%; border: none; filter: grayscale(40%) invert(10%); }
+
+    /* Соцсети */
+    .socials {
+      display: flex;
+      gap: .75rem;
+      margin-top: .5rem;
+    }
+    .social-btn {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: .5rem 1rem;
+      border-radius: 9999px;
+      font-size: .82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: border-color .2s, color .2s;
+    }
+    .social-btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+    .social-btn svg { width: 16px; height: 16px; }
+
+    /* Форма успеха */
+    .form-success {
+      display: none;
+      text-align: center;
+      padding: 2rem 0;
+    }
+    .form-success-icon {
+      width: 64px; height: 64px;
+      background: rgba(0,196,140,.15);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1rem;
+    }
+    .form-success-icon svg { width: 32px; height: 32px; stroke: var(--success); }
+
+    @media (max-width: 900px) {
+      .contact-grid { grid-template-columns: 1fr; }
+    }
+
+    input, select, textarea {
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #ffffff;
+    }
+
+/* Extracted static style attributes from /contact.html. */
+.u-contact-01 { height:36px;width:auto; }
+.u-contact-02 { margin-top:2rem; }
+.u-contact-03 { color:var(--muted); }
+.u-contact-04 { margin-bottom:.5rem; }
+.u-contact-05 { color:var(--muted);font-size:.9rem; }
+.u-contact-06 { margin-top:3rem; }
+.u-contact-07 { border-radius: 8px;display: block; }
+.u-contact-08 { color:var(--muted);font-size:.85rem; }
+.u-contact-09 { color:var(--muted);opacity:0.5;cursor:not-allowed; }

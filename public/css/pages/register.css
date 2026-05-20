@@ -1,0 +1,162 @@
+/* Extracted from /register.html. */
+    .auth-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .auth-box {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .auth-logo {
+      display: flex;
+      justify-content: center;
+      margin-bottom: .5rem;
+    }
+
+    .auth-logo img {
+      width: min(320px, 72%);
+      height: auto;
+      display: block;
+    }
+
+    .auth-sub {
+      color: var(--muted);
+      font-size: .95rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .auth-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 2rem;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    }
+    .auth-title {
+      margin-bottom: 1.25rem;
+      font-size: 1.8rem;
+    }
+    .auth-note {
+      font-size: .85rem;
+    }
+    .auth-footer-link-muted {
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    .modal-title-compact {
+      margin-bottom: 1rem;
+      padding-right: 2rem;
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .role-tabs {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .role-tab {
+      flex: 1;
+      padding: .6rem;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: .85rem;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      transition: all .2s;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+    }
+
+    .role-tab.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(245, 166, 35, .08);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.82);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 520px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 2rem;
+      position: relative;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.6rem;
+      line-height: 1;
+    }
+
+    .verify-status {
+      min-height: 1.2em;
+      color: var(--muted);
+      font-size: .82rem;
+      margin-bottom: 1rem;
+    }
+
+    .verify-meta {
+      color: var(--muted);
+      font-size: .85rem;
+      margin-bottom: 1rem;
+    }
+
+    .verify-resend {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin: .35rem 0 1rem;
+    }
+
+    .verify-link-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      padding: 0;
+      font: inherit;
+      font-size: .83rem;
+      cursor: pointer;
+      transition: opacity .2s ease;
+    }
+
+    .verify-link-btn[disabled] {
+      opacity: .45;
+      cursor: default;
+    }
+
+    .verify-timer {
+      color: var(--muted);
+      font-size: .8rem;
+    }

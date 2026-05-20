@@ -10,16 +10,14 @@
     links.querySelectorAll('a[href]').forEach(a => {
       const href = new URL(a.href).pathname;
       const isActive = href === path || (href === '/' && (path === '/' || path === '/index.html'));
-      if (isActive) a.style.color = 'var(--accent)';
+      a.classList.toggle('active', isActive);
     });
   }
 
   // Blur при скролле
   if (navbar) {
     window.addEventListener('scroll', () => {
-      navbar.style.background = window.scrollY > 40
-        ? 'rgba(6,10,16,.97)'
-        : 'rgba(6,10,16,.85)';
+      navbar.classList.toggle('scrolled', window.scrollY > 40);
     }, { passive: true });
   }
 

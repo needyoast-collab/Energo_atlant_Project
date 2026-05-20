@@ -2,6 +2,7 @@ require('dotenv').config();
 const crypto = require('crypto');
 const argon2 = require('argon2');
 const { pool } = require('../config/database');
+const { ROLES } = require('../utils/constants');
 
 async function seedAdmin() {
   const email    = 'admin@energoatlant.ru';
@@ -12,10 +13,10 @@ async function seedAdmin() {
 
   const result = await pool.query(
     `INSERT INTO users (role, name, email, password_hash, is_verified)
-     VALUES ('admin', $1, $2, $3, TRUE)
+     VALUES ($1, $2, $3, $4, TRUE)
      ON CONFLICT (email) DO NOTHING
      RETURNING id`,
-    [name, email, hash]
+    [ROLES.ADMIN, name, email, hash]
   );
 
   if (result.rows.length === 0) {

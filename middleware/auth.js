@@ -1,15 +1,6 @@
 const { pool } = require('../config/database');
 const { verifyMobileToken } = require('../utils/mobileToken');
-
-const ROLES = {
-  ADMIN:    'admin',
-  MANAGER:  'manager',
-  FOREMAN:  'foreman',
-  SUPPLIER: 'supplier',
-  PTO:      'pto',
-  CUSTOMER: 'customer',
-  PARTNER:  'partner',
-};
+const { ROLES } = require('../utils/constants');
 
 function getBearerToken(req) {
   const header = req.get('authorization') || '';

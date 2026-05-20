@@ -12,13 +12,17 @@ const PROJECT_STATUS_LABELS = {
   won: 'Завершён',
   lost: 'Отказ',
 };
-const PROGRESS_COLORS = { green: '#22c55e', yellow: '#f59e0b', red: '#ef4444' };
+const PROGRESS_DOT_CLASS = {
+  green: 'admin-progress-dot-green',
+  yellow: 'admin-progress-dot-yellow',
+  red: 'admin-progress-dot-red',
+};
 const PROGRESS_LABELS = { green: 'Завершён', yellow: 'В работе', red: 'Не начат' };
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
   try {
-    currentUser = await requireAuth('admin');
+    currentUser = await requireAuth(window.APP_ROLES.ADMIN);
     if (!currentUser) return;
     document.getElementById('user-name').textContent = currentUser.name;
     renderUserAvatar(currentUser);
@@ -100,8 +104,8 @@ async function loadProjects() {
   tbody.innerHTML = list.map(p => `
     <tr>
       <td>
-        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${PROGRESS_COLORS[p.progress_color] || '#6b7280'};vertical-align:middle;margin-right:6px"></span>
-        <span style="font-size:.8rem;color:var(--muted)">${PROGRESS_LABELS[p.progress_color] || '—'}</span>
+        <span class="admin-progress-dot ${PROGRESS_DOT_CLASS[p.progress_color] || 'admin-progress-dot-default'}"></span>
+        <span class="admin-muted-sm">${PROGRESS_LABELS[p.progress_color] || '—'}</span>
       </td>
       <td>${escHtml(p.code)}</td>
       <td>${escHtml(p.name)}</td>
@@ -131,13 +135,13 @@ async function loadProjectHistory() {
   tbody.innerHTML = data.data.map(h => `
     <tr>
       <td>${formatDateTime(h.created_at)}</td>
-      <td>${escHtml(h.project_code)}<br><span class="text-muted" style="font-size:.78rem">${escHtml(h.project_name || '')}</span></td>
+      <td>${escHtml(h.project_code)}<br><span class="admin-muted-xs">${escHtml(h.project_name || '')}</span></td>
       <td><span class="badge badge-gray">${escHtml(h.action)}</span></td>
       <td>${escHtml(h.field_name || '—')}</td>
-      <td style="max-width:180px;word-break:break-word;font-size:.82rem">${escHtml(h.old_value || '—')}</td>
-      <td style="max-width:180px;word-break:break-word;font-size:.82rem">${escHtml(h.new_value || '—')}</td>
-      <td>${escHtml(h.changed_by_name || 'Система')}<br><span class="text-muted" style="font-size:.78rem">${escHtml(h.changed_by_role || '')}</span></td>
-      <td style="max-width:220px;word-break:break-word;font-size:.82rem">${escHtml(h.details || '—')}</td>
+      <td class="admin-history-value">${escHtml(h.old_value || '—')}</td>
+      <td class="admin-history-value">${escHtml(h.new_value || '—')}</td>
+      <td>${escHtml(h.changed_by_name || 'Система')}<br><span class="admin-muted-xs">${escHtml(h.changed_by_role || '')}</span></td>
+      <td class="admin-history-details">${escHtml(h.details || '—')}</td>
     </tr>
   `).join('') || '<tr><td colspan="8" class="text-muted">История пуста</td></tr>';
 }
@@ -179,7 +183,7 @@ function renderUsers() {
       <td>
         <div class="flex gap-1">
           ${!u.is_deleted ? `<button class="btn btn-sm btn-outline" data-action="edit" data-id="${u.id}" data-name="${escHtml(u.name)}" data-email="${escHtml(u.email)}" data-role="${u.role}">Изменить</button>` : ''}
-          ${!u.is_deleted && u.role !== 'admin' ? `<button class="btn btn-sm btn-danger" data-action="delete" data-id="${u.id}">Удалить</button>` : ''}
+          ${!u.is_deleted && u.role !== window.APP_ROLES.ADMIN ? `<button class="btn btn-sm btn-danger" data-action="delete" data-id="${u.id}">Удалить</button>` : ''}
           ${u.is_deleted ? `<button class="btn btn-sm btn-outline" data-action="restore" data-id="${u.id}">Восстановить</button>` : ''}
         </div>
       </td>
@@ -257,9 +261,9 @@ async function loadPayouts() {
   const tbody = document.querySelector('#payouts-table tbody');
   tbody.innerHTML = data.data.map(p => `
     <tr>
-      <td>${escHtml(p.partner_name)}<br><span class="text-muted" style="font-size:.8rem">${escHtml(p.partner_email)}</span></td>
+      <td>${escHtml(p.partner_name)}<br><span class="admin-muted-sm">${escHtml(p.partner_email)}</span></td>
       <td>${formatMoney(p.amount)}</td>
-      <td style="max-width:200px;word-break:break-word;font-size:.85rem">${escHtml(p.payment_details)}</td>
+      <td class="admin-payout-details">${escHtml(p.payment_details)}</td>
       <td>${badge(p.status)}</td>
       <td>${formatDate(p.created_at)}</td>
       <td>
@@ -317,7 +321,7 @@ async function loadCatalog() {
   tbody.innerHTML = data.data.map(c => `
     <tr>
       <td>
-        ${!c.is_approved ? '<span style="color:var(--accent);margin-right:4px" title="Ожидает утверждения">❗</span>' : ''}
+        ${!c.is_approved ? '<span class="admin-catalog-pending" title="Ожидает утверждения">❗</span>' : ''}
         ${escHtml(c.item_name)}
       </td>
       <td>${escHtml(c.unit)}</td>
@@ -390,21 +394,15 @@ function addCatalogBatchRow() {
   const rowNum = tbody.querySelectorAll('tr').length + 1;
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td style="padding:.3rem .5rem;color:var(--muted);font-size:.8rem;text-align:center">${rowNum}</td>
-    <td style="padding:.2rem .3rem">
-      <input type="text" class="catalog-batch-cell catalog-batch-name" placeholder="Наименование работы"
-        style="width:100%;min-width:240px;background:var(--bg2);color:var(--text);
-               border:1px solid var(--border);border-radius:4px;padding:.35rem .55rem;font-size:.84rem;font-family:inherit;box-sizing:border-box">
+    <td class="admin-batch-cell-index">${rowNum}</td>
+    <td class="admin-batch-cell-wrap">
+      <input type="text" class="catalog-batch-cell catalog-batch-name" placeholder="Наименование работы">
     </td>
-    <td style="padding:.2rem .3rem">
-      <input type="text" class="catalog-batch-cell catalog-batch-unit" placeholder="шт, м, компл..."
-        style="width:100%;background:var(--bg2);color:var(--text);
-               border:1px solid var(--border);border-radius:4px;padding:.35rem .55rem;font-size:.84rem;font-family:inherit;box-sizing:border-box">
+    <td class="admin-batch-cell-wrap">
+      <input type="text" class="catalog-batch-cell catalog-batch-unit" placeholder="шт, м, компл...">
     </td>
-    <td style="padding:.2rem .3rem">
-      <input type="number" class="catalog-batch-cell catalog-batch-price" placeholder="0" min="0" step="0.01"
-        style="width:100%;min-width:90px;background:var(--bg2);color:var(--text);
-               border:1px solid var(--border);border-radius:4px;padding:.35rem .55rem;font-size:.84rem;font-family:inherit;box-sizing:border-box">
+    <td class="admin-batch-cell-wrap">
+      <input type="number" class="catalog-batch-cell catalog-batch-price" placeholder="0" min="0" step="0.01">
     </td>
   `;
   tbody.appendChild(tr);
@@ -413,11 +411,7 @@ function addCatalogBatchRow() {
 }
 
 function updateCatalogBatchModalSize(rowsCount) {
-  const modal = document.getElementById('catalog-batch-modal-box');
-  if (!modal) return;
-  const effectiveRows = Math.max(rowsCount, 5);
-  const targetHeight = Math.min(88, 50 + effectiveRows * 4.6);
-  modal.style.maxHeight = `${targetHeight}vh`;
+  void rowsCount;
 }
 
 function updateCatalogBatchState() {
@@ -470,13 +464,13 @@ document.getElementById('modal-catalog-bulk').addEventListener('keydown', (e) =>
 
 document.getElementById('modal-catalog-bulk').addEventListener('focusin', (e) => {
   if (e.target.classList.contains('catalog-batch-cell')) {
-    e.target.style.borderColor = '#F5A623';
+    e.target.classList.add('is-focused');
   }
 });
 
 document.getElementById('modal-catalog-bulk').addEventListener('focusout', (e) => {
   if (e.target.classList.contains('catalog-batch-cell')) {
-    e.target.style.borderColor = 'var(--border)';
+    e.target.classList.remove('is-focused');
   }
 });
 
@@ -571,7 +565,7 @@ async function loadCoefficients() {
     <tr>
       <td>${escHtml(c.name)}</td>
       <td>${Number(c.value).toFixed(3)}</td>
-      <td class="text-muted" style="font-size:.82rem">${escHtml(c.description || '—')}</td>
+      <td class="text-muted admin-coeff-description">${escHtml(c.description || '—')}</td>
       <td>
         <div class="flex gap-1">
           <button class="btn btn-sm btn-outline" data-action="coeff-edit" 

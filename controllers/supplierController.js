@@ -1,8 +1,12 @@
 const { pool } = require('../config/database');
 const { sendNotification } = require('../utils/notifications');
-const { ROLES } = require('../middleware/auth');
 const { checkMembership, makeJoinProject } = require('../utils/project');
 const { normalizeStoredFileName } = require('../utils/fileNames');
+const {
+  ROLES,
+  getReadableProjectDocumentTypes,
+  decorateProjectDocument,
+} = require('../utils/constants');
 const {
   updateMtrSchema,
   addGeneralWarehouseSchema,
@@ -22,15 +26,20 @@ const {
 // GET /api/supplier/projects
 async function getProjects(req, res, next) {
   try {
+    const isAdmin = req.session.userRole === ROLES.ADMIN;
+    const accessJoin = isAdmin ? '' : 'JOIN project_members pm ON pm.project_id = p.id';
+    const accessWhere = isAdmin ? '' : 'AND pm.user_id = $1 AND pm.role = $2';
+    const values = isAdmin ? [] : [req.session.userId, ROLES.SUPPLIER];
     const result = await pool.query(
       `SELECT p.id, p.code, p.name, p.status, p.address, p.created_at,
               u.name as manager_name
        FROM projects p
-       JOIN project_members pm ON pm.project_id = p.id
        LEFT JOIN users u ON u.id = p.manager_id
-       WHERE pm.user_id = $1 AND pm.role = 'supplier' AND p.is_deleted = FALSE
+       ${accessJoin}
+       WHERE p.is_deleted = FALSE
+       ${accessWhere}
        ORDER BY p.created_at DESC`,
-      [req.session.userId]
+      values
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -163,17 +172,19 @@ async function getProjectDocuments(req, res, next) {
     const isMember = await checkMembership(id, req.session.userId);
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
+    const readableDocTypes = getReadableProjectDocumentTypes(req.session.userRole);
     const result = await pool.query(
       `SELECT pd.id, pd.doc_type, pd.file_key, pd.file_name, pd.description, pd.uploaded_at,
               u.name AS uploaded_by_name
        FROM project_documents pd
        JOIN users u ON u.id = pd.uploaded_by
        WHERE pd.project_id = $1
+         AND pd.doc_type = ANY($2::text[])
        ORDER BY pd.uploaded_at DESC`,
-      [id]
+      [id, readableDocTypes]
     );
     const docs = result.rows.map((doc) => ({
-      ...doc,
+      ...decorateProjectDocument(doc),
       file_name: normalizeStoredFileName(doc.file_name),
     }));
     return res.json({ success: true, data: docs });
@@ -507,8 +518,8 @@ async function fulfillSpec(req, res, next) {
       const foremen = await pool.query(
         `SELECT user_id
          FROM project_members
-         WHERE project_id = $1 AND role = 'foreman'`,
-        [spec.rows[0].project_id]
+         WHERE project_id = $1 AND role = $2`,
+        [spec.rows[0].project_id, ROLES.FOREMAN]
       );
 
       await Promise.all(foremen.rows.map((row) => sendNotification({
@@ -611,8 +622,8 @@ async function batchFulfillSpecs(req, res, next) {
     const foremen = await pool.query(
       `SELECT user_id
        FROM project_members
-       WHERE project_id = $1 AND role = 'foreman'`,
-      [projectId]
+       WHERE project_id = $1 AND role = $2`,
+      [projectId, ROLES.FOREMAN]
     );
 
     const message = items.length === 1
@@ -772,8 +783,8 @@ async function submitSpecs(req, res, next) {
 
     // Уведомляем всех прорабов проекта
     const foremans = await pool.query(
-      `SELECT user_id FROM project_members WHERE project_id = $1 AND role = 'foreman'`,
-      [id]
+      `SELECT user_id FROM project_members WHERE project_id = $1 AND role = $2`,
+      [id, ROLES.FOREMAN]
     );
     await Promise.all(foremans.rows.map(f =>
       sendNotification({

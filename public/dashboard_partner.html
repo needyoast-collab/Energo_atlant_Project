@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/pages/dashboard-partner.css">
 </head>
 <body class="grid-bg">
 <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
@@ -14,7 +15,7 @@
 
   <!-- САЙДБАР -->
   <aside class="sidebar">
-    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" style="width:140px;height:auto"></div>
+    <div class="sidebar-logo"><img src="/img/logo.png" alt="ЭнергоАтлант" class="sidebar-logo-img"></div>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-section="overview">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -59,28 +60,27 @@
       </div>
 
       <!-- Уровень -->
-      <div class="card" style="margin-bottom:1.5rem" id="level-card">
+      <div class="card mb-3" id="level-card">
         <div class="card-title">Ваш уровень</div>
         <div id="level-info"></div>
       </div>
 
       <!-- Реф. ссылка -->
-      <div class="card" style="margin-bottom:1.5rem">
+      <div class="card mb-3">
         <div class="card-title">Реферальная ссылка</div>
-        <p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">
+        <p class="partner-ref-desc">
           Отправьте эту ссылку потенциальному заказчику. Когда он зарегистрируется и подпишет договор — вы получите комиссию.
         </p>
-        <div style="display:flex;gap:.5rem;align-items:center">
-          <input type="text" class="form-control" id="ref-link" readonly
-            style="font-size:.85rem;color:var(--accent);font-family:monospace">
-          <button class="btn btn-outline btn-sm" id="btn-copy-link" style="flex-shrink:0">Скопировать</button>
+        <div class="partner-ref-row">
+          <input type="text" class="form-control partner-ref-input" id="ref-link" readonly>
+          <button class="btn btn-outline btn-sm partner-copy-btn" id="btn-copy-link">Скопировать</button>
         </div>
       </div>
 
       <!-- Уровни программы -->
       <div class="card">
         <div class="card-title">Уровни партнёрства</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-top:.5rem">
+        <div class="partner-level-grid">
           <div id="level-start"  class="level-tile">
             <div class="level-name">Старт</div>
             <div class="level-cond">0–2 клиента</div>
@@ -145,7 +145,7 @@
 
 <!-- МОДАЛКА: запрос выплаты -->
 <div class="modal-overlay" id="modal-payout">
-  <div class="modal modal-shell modal-shell-sm" style="max-height:90vh">
+  <div class="modal modal-shell modal-shell-sm">
     <button class="modal-close" data-close="modal-payout">×</button>
     <div class="modal-shell-header">
       <div class="modal-title">Запрос выплаты</div>
@@ -170,23 +170,6 @@
 </div>
 
 <div id="toast-container"></div>
-<style>
-.level-tile {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
-  transition: border-color .2s;
-}
-.level-tile.active {
-  border-color: var(--accent);
-  background: rgba(245,166,35,.06);
-}
-.level-name { font-family: 'Stolzl', sans-serif; font-size: 1.1rem; margin-bottom: .25rem; }
-.level-cond { color: var(--muted); font-size: .8rem; margin-bottom: .5rem; }
-.level-pct  { font-family: 'Stolzl', sans-serif; font-size: 1.8rem; color: var(--accent); line-height: 1; }
-</style>
 <script src="/js/preloader.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>

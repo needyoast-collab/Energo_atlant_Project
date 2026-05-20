@@ -1,0 +1,20 @@
+/* Extracted from /manager_project.html. */
+    body.manager-project-page .dash-main {
+      display: none;
+    }
+
+    body.manager-project-page #modal-project #modal-project-info {
+      margin-bottom: 1.3rem;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    body.manager-project-page #modal-project #ptab-main > hr {
+      margin: 1.5rem 0;
+    }
+
+    body.manager-project-page #modal-project .form-group {
+      min-width: 0;
+    }
