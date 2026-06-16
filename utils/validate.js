@@ -65,6 +65,28 @@ const changePasswordSchema = z.object({
   new_password: z.string().min(8).max(100),
 });
 
+const updateLoginSchema = z.object({
+  login: z.string().min(3).max(50),
+});
+
+const requestEmailChangeSchema = z.object({
+  new_email: z.string().trim().email('Укажите корректный email').max(100),
+});
+
+const confirmEmailChangeSchema = z.object({
+  code: z.string().length(6),
+});
+
+const NOTIFICATION_TYPES = ['photo', 'document', 'status', 'message', 'mtr'];
+
+const updateNotificationSettingsSchema = z.object({
+  photo:    z.boolean().optional(),
+  document: z.boolean().optional(),
+  status:   z.boolean().optional(),
+  message:  z.boolean().optional(),
+  mtr:      z.boolean().optional(),
+});
+
 // --- foreman ---
 
 const createStageSchema = z.object({
@@ -257,10 +279,19 @@ const uploadDocSchema = z.object({
 
 // --- customer ---
 
+const requestDocTypesSchema = z.preprocess((value) => {
+  if (value === undefined) return [];
+  const values = Array.isArray(value) ? value : [value];
+  return values
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+}, z.array(z.enum(REQUEST_DOCUMENT_TYPES)).max(10));
+
 const createRequestSchema = z.object({
   message: z.string().max(2000).optional(),
   phone: z.string().max(20).optional(),
   doc_type: z.enum(REQUEST_DOCUMENT_TYPES).optional(),
+  doc_types: requestDocTypesSchema,
 });
 
 // --- admin ---
@@ -380,6 +411,11 @@ module.exports = {
   loginSchema,
   updateProfileSchema,
   changePasswordSchema,
+  updateLoginSchema,
+  requestEmailChangeSchema,
+  confirmEmailChangeSchema,
+  updateNotificationSettingsSchema,
+  NOTIFICATION_TYPES,
   createStageSchema,
   updateStageSchema,
   mtrSchema,

@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
   <title>Проект менеджера — ЭнергоАтлант</title>
   <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.ico">
@@ -57,6 +58,7 @@
         <button class="nav-item project-nav-item active" data-project-tab="main">Основное</button>
         <button class="nav-item project-nav-item" data-project-tab="stages">Этапы</button>
         <button class="nav-item project-nav-item" data-project-tab="estimate">Смета</button>
+        <button class="nav-item project-nav-item" data-project-tab="calendar">Календарный план</button>
         <button class="nav-item project-nav-item" data-project-tab="warehouse">Склад объекта</button>
         <button class="nav-item project-nav-item" data-project-tab="documents">Документы</button>
       </nav>
@@ -485,7 +487,7 @@
               <div class="project-section-title">Этапы работ</div>
               <div class="project-section-subtitle">План, факт, сроки и примечания по выполнению проекта.</div>
             </div>
-            <button class="manager-add-stage-btn" id="btn-add-stage" type="button"><span>+</span> Добавить этап</button>
+            <button class="manager-add-stage-btn is-hidden" id="btn-add-stage" type="button"><span>+</span> Добавить этап</button>
           </div>
           <div id="stages-list"></div>
         </div>
@@ -524,7 +526,7 @@
                 <div class="manager-estimate-note">Позиции ВОР, цены и коэффициент проекта.</div>
               </div>
               <div class="project-section-actions">
-                <button class="btn btn-outline btn-sm" id="btn-generate-stages">Сформировать этапы</button>
+                <button class="btn btn-outline btn-sm is-hidden" id="btn-generate-stages">Сформировать этапы</button>
                 <button class="btn btn-primary btn-sm" id="btn-add-vor">+ Добавить позицию</button>
               </div>
             </div>
@@ -582,6 +584,17 @@
         <div class="project-tab-panel is-hidden" id="ptab-warehouse">
           <div class="manager-modal-muted-note">Склад объекта — только просмотр</div>
           <div id="manager-warehouse-list"></div>
+        </div>
+
+        <!-- Календарный план -->
+        <div class="project-tab-panel is-hidden" id="ptab-calendar">
+          <div class="project-section-head">
+            <div>
+              <div class="project-section-title">Календарный план работ</div>
+              <div class="project-section-subtitle" id="manager-calendar-summary">Плановые сроки работ по объекту.</div>
+            </div>
+          </div>
+          <div id="manager-calendar-plan"><span class="text-muted">Загрузка...</span></div>
         </div>
 
         <!-- Документы -->
@@ -860,6 +873,7 @@
   <script src="/js/manager_kp.js?v=manager-project-page-38"></script>
   <script src="/js/manager_estimate.js?v=manager-project-page-38"></script>
   <script src="/js/manager_documents.js?v=manager-project-page-38"></script>
+  <script src="/js/manager_calendar.js"></script>
   <script src="/js/manager.js?v=manager-project-page-38"></script>
 </body>
 </html>

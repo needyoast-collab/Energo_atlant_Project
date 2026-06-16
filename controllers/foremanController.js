@@ -1,12 +1,13 @@
 const { pool } = require('../config/database');
 const { sendNotification } = require('../utils/notifications');
-const { getSignedDownloadUrl } = require('../utils/signedUrl');
-const { DeleteObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { getProtectedDownloadUrl } = require('../utils/signedUrl');
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { s3, BUCKET } = require('../config/storage');
 const { randomUUID } = require('crypto');
 const { checkMembership, makeJoinProject } = require('../utils/project');
 const { getCalendarPlanPayload } = require('../utils/calendarPlan');
 const { getUploadFileExtension, normalizeStoredFileName } = require('../utils/fileNames');
+const { deleteStoredObject } = require('../utils/storageObjects');
 const {
   ROLES,
   getReadableProjectDocumentTypes,
@@ -440,8 +441,7 @@ async function uploadPhoto(req, res, next) {
       });
     }
 
-    const signedUrl = await getSignedDownloadUrl(fileKey);
-    return res.status(201).json({ success: true, data: { ...result.rows[0], url: signedUrl } });
+    return res.status(201).json({ success: true, data: { ...result.rows[0], url: getProtectedDownloadUrl(fileKey) } });
   } catch (err) {
     return next(err);
   }
@@ -453,7 +453,7 @@ async function deletePhoto(req, res, next) {
     const { id } = req.params;
 
     const photo = await pool.query(
-      `SELECT sp.id, sp.file_key, ps.project_id
+      `SELECT sp.id, sp.file_key, sp.uploaded_by, ps.project_id
        FROM stage_photos sp
        JOIN project_stages ps ON ps.id = sp.stage_id
        WHERE sp.id = $1 AND ps.is_deleted = FALSE`,
@@ -464,13 +464,12 @@ async function deletePhoto(req, res, next) {
     const isMember = await checkMembership(photo.rows[0].project_id, req.session.userId);
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа' });
 
-    if (s3) {
-      await s3.send(new DeleteObjectCommand({
-        Bucket: BUCKET,
-        Key: photo.rows[0].file_key,
-      }));
+    const isAdmin = req.session.userRole === ROLES.ADMIN;
+    if (!isAdmin && photo.rows[0].uploaded_by !== req.session.userId) {
+      return res.status(403).json({ success: false, error: 'Можно удалить только своё фото' });
     }
 
+    await deleteStoredObject(photo.rows[0].file_key);
     await pool.query(
       `DELETE FROM stage_photos WHERE id = $1`,
       [id]
@@ -631,10 +630,10 @@ async function getStagePhotos(req, res, next) {
       [id]
     );
 
-    const withUrls = await Promise.all(photos.rows.map(async (photo) => ({
+    const withUrls = photos.rows.map((photo) => ({
       ...photo,
-      url: await getSignedDownloadUrl(photo.file_key),
-    })));
+      url: getProtectedDownloadUrl(photo.file_key),
+    }));
 
     return res.json({ success: true, data: withUrls });
   } catch (err) {
@@ -1010,6 +1009,272 @@ async function getProjectDocuments(req, res, next) {
   }
 }
 
+function fmtDate(value) {
+  if (!value) return '—';
+  const [y, m, d] = String(value).slice(0, 10).split('-');
+  return `${d}.${m}.${y}`;
+}
+
+function progressPct(item) {
+  if (item.status === 'done') return 100;
+  const v = Number(item.actual_value);
+  const p = Number(item.planned_value);
+  if (p > 0) return Math.min(100, Math.round((v / p) * 100));
+  return 0;
+}
+
+function statusRu(status) {
+  return { pending: 'Запланировано', in_progress: 'В работе', done: 'Выполнено', planned: 'Запланировано', not_done: 'Не выполнено' }[status] || status;
+}
+
+async function exportCalendarPlan(req, res, next) {
+  try {
+    const { id } = req.params;
+    const isMember = await checkMembership(id, req.session.userId);
+    if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
+
+    const [projectResult, payload] = await Promise.all([
+      pool.query(
+        `SELECT p.code, p.name, p.address, p.planned_start, p.planned_end, p.contract_signed_at,
+                p.contact_name,
+                u.name AS customer_name
+         FROM projects p
+         LEFT JOIN project_members pm ON pm.project_id = p.id AND pm.role = 'customer'
+         LEFT JOIN users u ON u.id = pm.user_id
+         WHERE p.id = $1 AND p.is_deleted = FALSE
+         LIMIT 1`,
+        [id]
+      ),
+      getCalendarPlanPayload(id),
+    ]);
+
+    if (!payload) return res.status(404).json({ success: false, error: 'Проект не найден' });
+
+    const proj = projectResult.rows[0] || {};
+    const items = payload.items || [];
+    const works = items.filter((i) => !i.is_calendar_mobilization);
+    const mob = items.filter((i) => i.is_calendar_mobilization);
+    const allRows = [...mob, ...works];
+
+    const rows = allRows.map((item, idx) => {
+      const isMob = item.is_calendar_mobilization;
+      const pct = progressPct(item);
+      const delay = (() => {
+        if (!item.planned_end || item.status === 'done') return 0;
+        const today = new Date().toISOString().slice(0, 10);
+        if (today <= item.planned_end) return 0;
+        const [py, pm, pd] = item.planned_end.split('-').map(Number);
+        const [ty, tm, td] = today.split('-').map(Number);
+        return Math.round((new Date(ty, tm - 1, td) - new Date(py, pm - 1, pd)) / 86400000);
+      })();
+      const isOverdue = delay > 0;
+
+      return `
+        <tr class="${isMob ? 'row-mob' : ''} ${isOverdue ? 'row-overdue' : ''} ${item.status === 'done' ? 'row-done' : ''}">
+          <td class="col-num">${idx + 1}</td>
+          <td class="col-name">${item.name || '—'}${isMob ? ' <span class="tag-mob">Мобилизация</span>' : ''}</td>
+          <td class="col-date">${fmtDate(item.planned_start)}</td>
+          <td class="col-date">${fmtDate(item.planned_end)}</td>
+          <td class="col-date">${fmtDate(item.actual_end || item.actual_date)}</td>
+          <td class="col-pct">
+            <div class="progress-wrap">
+              <div class="progress-bar" style="width:${pct}%"></div>
+              <span>${pct}%</span>
+            </div>
+          </td>
+          <td class="col-status">
+            <span class="status-badge status-${item.status}">
+              ${isOverdue ? `Просрочка +${delay} дн.` : statusRu(item.status)}
+            </span>
+          </td>
+          <td class="col-note">${item.note || ''}</td>
+        </tr>`;
+    }).join('');
+
+    const customer = proj.customer_name || proj.contact_name || '—';
+    const today = fmtDate(new Date().toISOString().slice(0, 10));
+
+    const html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Календарный план — ${proj.name || id}</title>
+<style>
+  @page { size: A3 landscape; margin: 16mm 12mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Arial', sans-serif; font-size: 10pt; color: #111; background: #fff; }
+
+  /* Шапка */
+  .doc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 2px solid #111; padding-bottom: 10px; }
+  .doc-company { font-size: 11pt; font-weight: 700; color: #111; }
+  .doc-company span { font-weight: 400; font-size: 9pt; color: #555; display: block; margin-top: 2px; }
+  .doc-title { text-align: center; flex: 1; }
+  .doc-title h1 { font-size: 14pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .doc-title p { font-size: 9pt; color: #555; margin-top: 3px; }
+  .doc-meta-right { text-align: right; font-size: 9pt; color: #555; }
+
+  /* Инфо-блок */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 20px; margin-bottom: 14px; padding: 10px 12px; border: 1px solid #d0d0d0; border-radius: 4px; background: #fafafa; }
+  .info-item { display: flex; flex-direction: column; gap: 2px; }
+  .info-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #888; }
+  .info-value { font-size: 10pt; font-weight: 600; color: #111; }
+
+  /* Таблица */
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: #111; color: #fff; }
+  thead th { padding: 7px 8px; text-align: left; font-size: 9pt; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid #e8e8e8; }
+  tbody tr:hover { background: #f7f7f7; }
+  tbody td { padding: 6px 8px; font-size: 9.5pt; vertical-align: middle; }
+
+  /* Колонки */
+  .col-num { width: 32px; text-align: center; color: #888; font-size: 8.5pt; }
+  .col-name { min-width: 200px; font-weight: 600; }
+  .col-date { width: 90px; white-space: nowrap; color: #333; }
+  .col-pct { width: 90px; }
+  .col-status { width: 120px; }
+  .col-note { color: #555; font-size: 9pt; }
+
+  /* Стили строк */
+  .row-mob td { background: rgba(59,130,246,.06); }
+  .row-mob .col-name { color: #1d4ed8; }
+  .row-overdue td { background: rgba(239,68,68,.05); }
+  .row-overdue .col-name { color: #b91c1c; }
+  .row-done td { color: #888; }
+  .row-done .col-name { text-decoration: line-through; color: #999; }
+
+  /* Прогресс */
+  .progress-wrap { position: relative; background: #eee; border-radius: 3px; height: 14px; overflow: hidden; }
+  .progress-bar { position: absolute; top: 0; left: 0; height: 100%; background: linear-gradient(90deg, #c97c1a, #f5a623); border-radius: 3px; }
+  .progress-wrap span { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; height: 100%; font-size: 7.5pt; font-weight: 700; color: #111; }
+
+  /* Статус */
+  .status-badge { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 8.5pt; font-weight: 600; }
+  .status-done     { background: #d1fae5; color: #065f46; }
+  .status-in_progress { background: #fef3c7; color: #92400e; }
+  .status-pending, .status-planned { background: #f3f4f6; color: #4b5563; }
+  .status-not_done { background: #fee2e2; color: #991b1b; }
+
+  /* Тэг мобилизация */
+  .tag-mob { display: inline-block; margin-left: 6px; padding: 1px 5px; border-radius: 3px; background: #dbeafe; color: #1e40af; font-size: 7.5pt; font-weight: 600; vertical-align: middle; }
+
+  /* Подписи */
+  .signatures { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 32px; padding-top: 10px; border-top: 1px solid #d0d0d0; }
+  .signature-item { display: flex; flex-direction: column; gap: 4px; }
+  .signature-label { font-size: 8pt; color: #888; text-transform: uppercase; letter-spacing: .04em; }
+  .signature-line { border-bottom: 1px solid #555; height: 28px; }
+  .signature-name { font-size: 8pt; color: #555; margin-top: 3px; }
+
+  /* Футер */
+  .doc-footer { margin-top: 14px; text-align: center; font-size: 8pt; color: #aaa; }
+
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="no-print" style="padding:10px;background:#f0f0f0;border-bottom:1px solid #ddd;display:flex;align-items:center;gap:12px;font-family:sans-serif;font-size:13px;">
+  <strong>Предпросмотр документа</strong> — для сохранения в PDF нажмите
+  <button onclick="window.print()" style="padding:5px 14px;background:#111;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">🖨 Печать / Сохранить как PDF</button>
+  <span style="color:#666;">Рекомендуемый формат: A3 альбомная</span>
+</div>
+
+<div style="padding: 16px 20px;">
+
+<div class="doc-header">
+  <div class="doc-company">
+    ЭнергоАтлант
+    <span>Электромонтажные работы 0.4–110 кВ</span>
+  </div>
+  <div class="doc-title">
+    <h1>Календарный план производства работ</h1>
+    <p>Форма КППР — ${proj.code || id}</p>
+  </div>
+  <div class="doc-meta-right">
+    Дата: ${today}<br>
+    Горизонт: ${payload.duration_days} дней
+  </div>
+</div>
+
+<div class="info-grid">
+  <div class="info-item">
+    <span class="info-label">Объект</span>
+    <span class="info-value">${proj.name || '—'}</span>
+  </div>
+  <div class="info-item">
+    <span class="info-label">Адрес</span>
+    <span class="info-value">${proj.address || '—'}</span>
+  </div>
+  <div class="info-item">
+    <span class="info-label">Заказчик</span>
+    <span class="info-value">${customer}</span>
+  </div>
+  <div class="info-item">
+    <span class="info-label">Начало работ</span>
+    <span class="info-value">${fmtDate(payload.calendar_start)}</span>
+  </div>
+  <div class="info-item">
+    <span class="info-label">Плановое окончание</span>
+    <span class="info-value">${fmtDate(proj.planned_end)}</span>
+  </div>
+  <div class="info-item">
+    <span class="info-label">Дата подписания договора</span>
+    <span class="info-value">${fmtDate(proj.contract_signed_at)}</span>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th class="col-num">№</th>
+      <th class="col-name">Наименование этапа работ</th>
+      <th class="col-date">Плановое начало</th>
+      <th class="col-date">Плановое окончание</th>
+      <th class="col-date">Фактическое окончание</th>
+      <th class="col-pct">Выполнение</th>
+      <th class="col-status">Статус</th>
+      <th class="col-note">Примечания</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${rows || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#888">Этапы не добавлены</td></tr>'}
+  </tbody>
+</table>
+
+<div class="signatures">
+  <div class="signature-item">
+    <span class="signature-label">Прораб</span>
+    <div class="signature-line"></div>
+    <span class="signature-name">_________________________ / подпись</span>
+  </div>
+  <div class="signature-item">
+    <span class="signature-label">Менеджер проекта</span>
+    <div class="signature-line"></div>
+    <span class="signature-name">_________________________ / подпись</span>
+  </div>
+  <div class="signature-item">
+    <span class="signature-label">Заказчик</span>
+    <div class="signature-line"></div>
+    <span class="signature-name">_________________________ / подпись</span>
+  </div>
+</div>
+
+<div class="doc-footer">ЭнергоАтлант · Москва и МО · +7 (993) 907-45-77 · energoatlant@yandex.ru</div>
+
+</div>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(html);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getProjects,
   joinProject,
@@ -1036,4 +1301,5 @@ module.exports = {
   addWorkSpec,
   batchAddWorkSpecs,
   getProjectDocuments,
+  exportCalendarPlan,
 };

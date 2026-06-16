@@ -1,0 +1,174 @@
+.about-nav-logo { height: 36px; width: auto; }
+
+.page-hero {
+  padding: 140px 2rem 5rem;
+  text-align: center;
+  background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.page-hero .section-label { margin-bottom: .75rem; }
+.page-hero h1 { font-size: clamp(1.6rem, 3.5vw, 2.6rem); margin-bottom: 1rem; }
+.page-hero p { color: var(--muted); max-width: 580px; margin: 0 auto; }
+
+/* ── Команда ─────────────────────────────────────────── */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+@media (max-width: 700px) {
+  .team-grid { grid-template-columns: 1fr; }
+}
+.team-card {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+.team-photo {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: .75rem;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .75rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.3;
+}
+.team-info { flex: 1; min-width: 0; }
+.team-role { color: var(--accent); font-size: .82rem; font-weight: 600; letter-spacing: .04em; margin-bottom: .35rem; }
+.team-name { font-size: 1.15rem; font-weight: 700; color: var(--text); margin-bottom: .5rem; }
+.team-desc { font-size: .88rem; color: var(--muted); line-height: 1.55; }
+
+/* ── История ─────────────────────────────────────────── */
+.story-layout {
+  display: grid;
+  grid-template-columns: 58% 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .story-layout { grid-template-columns: 1fr; }
+}
+.story-text p { color: var(--muted); line-height: 1.75; margin-bottom: 1.2rem; font-size: .97rem; }
+.story-text p:last-child { margin-bottom: 0; }
+.story-photo {
+  aspect-ratio: 4 / 3;
+  background: var(--bg);
+  border: 2px dashed var(--border);
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  color: var(--muted);
+  font-size: .82rem;
+  min-height: 200px;
+}
+.story-photo svg { opacity: .35; }
+
+/* ── Цифры ───────────────────────────────────────────── */
+.about-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  align-items: stretch;
+}
+@media (max-width: 900px) {
+  .about-stats { grid-template-columns: repeat(2, 1fr); }
+}
+.about-stats .stat-item {
+  border-top: 2px solid var(--accent);
+  border-radius: .75rem;
+  transition: transform .2s ease, box-shadow .2s ease;
+  cursor: default;
+}
+.about-stats .stat-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 28px rgba(245, 166, 35, .15);
+}
+.about-stats .stat-value { font-size: 2rem; }
+
+/* ── Таймлайн ────────────────────────────────────────── */
+.timeline {
+  position: relative;
+  max-width: 780px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 1.2rem;
+  top: 2.5rem;
+  bottom: 2.5rem;
+  width: 2px;
+  background: rgba(245, 166, 35, .2);
+  z-index: 0;
+}
+.timeline-step {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+.timeline-step:last-child { margin-bottom: 0; }
+.timeline-num {
+  flex-shrink: 0;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #111;
+  font-weight: 800;
+  font-size: .95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+.timeline-card {
+  flex: 1;
+  background: rgba(255, 255, 255, .025);
+  border: 1px solid var(--border);
+  border-radius: .75rem;
+  padding: 1.1rem 1.4rem;
+}
+.timeline-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: .4rem; }
+.timeline-desc { font-size: .9rem; color: var(--muted); line-height: 1.65; }
+
+/* ── Реквизиты + форма ───────────────────────────────── */
+.requisites-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .requisites-form-grid { grid-template-columns: 1fr; }
+}
+.about-requisites table { width: 100%; border-collapse: collapse; font-size: .92rem; line-height: 2; }
+.about-requisites td:first-child { color: var(--muted); padding-right: 2rem; white-space: nowrap; }
+.about-contact-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 2rem;
+}
+.about-contact-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1.5rem;
+}
+
+/* ── Фоны секций ─────────────────────────────────────── */
+.about-story-bg { background: var(--bg2); }
+.about-steps-bg { background: var(--bg2); }

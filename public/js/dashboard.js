@@ -28,8 +28,13 @@ function renderUserAvatar(user) {
   const container = document.getElementById('sidebar-avatar');
   if (!container || !user) return;
 
-  if (user.avatar_url) {
-    container.innerHTML = `<img src="${user.avatar_url}" alt="">`;
+  const avatarUrl = safeUrl(user.avatar_url, '');
+  if (avatarUrl) {
+    container.textContent = '';
+    const img = document.createElement('img');
+    img.src = avatarUrl;
+    img.alt = '';
+    container.appendChild(img);
     return;
   }
 
@@ -232,7 +237,12 @@ const TECH_DOC_TYPES = Object.fromEntries(
 
 /** Кодирует file_key в base64url для endpoint /api/documents/serve/:key */
 function serveDocUrl(fileKey) {
-  return '/api/documents/serve/' + btoa(fileKey).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const bytes = new TextEncoder().encode(String(fileKey ?? ''));
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return '/api/documents/serve/' + btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 /** Рендерит список технических документов в контейнер */
@@ -251,8 +261,8 @@ function renderTechDocs(container, docs) {
           ${doc.description ? ' · ' + escHtml(doc.description) : ''}
         </div>
       </div>
-      <a href="${serveDocUrl(doc.file_key)}" target="_blank"
-         class="btn btn-outline btn-sm tech-doc-download">Скачать</a>
+      <a href="${safeAttrUrl(doc.url || serveDocUrl(doc.file_key))}" target="_blank"
+         rel="noopener" class="btn btn-outline btn-sm tech-doc-download">Скачать</a>
     </div>
   `).join('');
 }

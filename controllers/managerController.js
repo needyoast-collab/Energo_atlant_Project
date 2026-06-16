@@ -22,6 +22,7 @@ const {
   addWorkSpecSchema,
   updateWorkSpecSchema,
 } = require('../utils/validate');
+const { getCalendarPlanPayload } = require('../utils/calendarPlan');
 
 function toDateOnly(value) {
   if (!value) return null;
@@ -107,6 +108,16 @@ async function syncPendingCatalogWork({ workName, unit, managerPrice, addedBy })
      VALUES ('work', $1, $2, $3, FALSE, $4)`,
     [normalizedName, normalizedUnit, price, addedBy]
   );
+}
+
+function ensureAdminStageWriteAccess(req, res) {
+  if (isAdminSession(req)) return true;
+
+  res.status(403).json({
+    success: false,
+    error: 'Изменять этапы может только администратор или прораб',
+  });
+  return false;
 }
 
 async function attachCustomerFromRequest({ projectId, requestId, changedBy }) {
@@ -779,6 +790,7 @@ async function createStage(req, res, next) {
     const { id } = req.params;
     const access = await ensureManagerProjectAccess(id, req, res);
     if (!access) return;
+    if (!ensureAdminStageWriteAccess(req, res)) return;
     const { name, order_num, planned_start, planned_end, planned_value, unit } = parsed.data;
     const result = await pool.query(
       `INSERT INTO project_stages
@@ -824,6 +836,7 @@ async function updateStage(req, res, next) {
     if (!stage.rows[0]) return res.status(404).json({ success: false, error: 'Этап не найден' });
     const access = await ensureManagerProjectAccess(stage.rows[0].project_id, req, res);
     if (!access) return;
+    if (!ensureAdminStageWriteAccess(req, res)) return;
 
     const currentStage = stage.rows[0];
     const nextStatus = parsed.data.status || currentStage.status;
@@ -907,6 +920,7 @@ async function deleteStage(req, res, next) {
     if (!stage.rows[0]) return res.status(404).json({ success: false, error: 'Этап не найден' });
     const access = await ensureManagerProjectAccess(stage.rows[0].project_id, req, res);
     if (!access) return;
+    if (!ensureAdminStageWriteAccess(req, res)) return;
 
     const result = await pool.query(
       `UPDATE project_stages SET is_deleted = TRUE WHERE id = $1 AND is_deleted = FALSE RETURNING id`,
@@ -1088,6 +1102,7 @@ async function generateStagesFromVOR(req, res, next) {
     const { id } = req.params;
     const access = await ensureManagerProjectAccess(id, req, res);
     if (!access) return;
+    if (!ensureAdminStageWriteAccess(req, res)) return;
     const project = await pool.query(
       `SELECT stages_generated, kp_sent_at FROM projects WHERE id = $1 AND is_deleted = FALSE`,
       [id]
@@ -1206,6 +1221,20 @@ async function getStaff(req, res, next) {
   }
 }
 
+async function getCalendarPlan(req, res, next) {
+  try {
+    const { id } = req.params;
+    const access = await ensureManagerProjectAccess(id, req, res);
+    if (!access) return;
+
+    const payload = await getCalendarPlanPayload(id);
+    if (!payload) return res.status(404).json({ success: false, error: 'Проект не найден' });
+    return res.json({ success: true, data: payload });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getRequests,
   updateRequest,
@@ -1229,4 +1258,5 @@ module.exports = {
   generateStagesFromVOR,
   getProjectWarehouse,
   getProjectSpecs,
+  getCalendarPlan,
 };

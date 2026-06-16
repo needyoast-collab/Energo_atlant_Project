@@ -1,6 +1,6 @@
 const { randomUUID } = require('crypto');
 const { pool } = require('../config/database');
-const { getSignedDownloadUrl } = require('../utils/signedUrl');
+const { getProtectedDownloadUrl } = require('../utils/signedUrl');
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { s3, BUCKET } = require('../config/storage');
 const { checkMembership, makeJoinProject } = require('../utils/project');
@@ -91,7 +91,7 @@ async function createRequest(req, res, next) {
       [req.session.userId]
     );
 
-    const { message, phone } = parsed.data;
+    const { message, phone, doc_type, doc_types } = parsed.data;
     const { name, email } = user.rows[0];
 
     const result = await pool.query(
@@ -114,10 +114,7 @@ async function createRequest(req, res, next) {
       if (!s3) {
         console.warn('[STORAGE] S3 не настроен — файлы не будут сохранены');
       } else {
-        const rawDocTypes = req.body.doc_types;
-        const docTypes = Array.isArray(rawDocTypes)
-          ? rawDocTypes
-          : rawDocTypes ? [rawDocTypes] : [];
+        const docTypes = doc_types.length ? doc_types : (doc_type ? [doc_type] : []);
 
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
@@ -230,11 +227,11 @@ async function getDocuments(req, res, next) {
       [id, readableDocTypes]
     );
 
-    const docs = await Promise.all(result.rows.map(async doc => ({
+    const docs = result.rows.map(doc => ({
       ...decorateProjectDocument(doc),
       file_name: normalizeStoredFileName(doc.file_name),
-      url: await getSignedDownloadUrl(doc.file_key),
-    })));
+      url: getProtectedDownloadUrl(doc.file_key),
+    }));
 
     return res.json({ success: true, data: docs });
   } catch (err) {
@@ -298,10 +295,10 @@ async function getStagePhotos(req, res, next) {
       [stageId]
     );
 
-    const result = await Promise.all(photos.rows.map(async p => ({
+    const result = photos.rows.map(p => ({
       ...p,
-      url: await getSignedDownloadUrl(p.file_key),
-    })));
+      url: getProtectedDownloadUrl(p.file_key),
+    }));
 
     return res.json({ success: true, data: result });
   } catch (err) {

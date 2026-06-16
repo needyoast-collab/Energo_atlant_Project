@@ -141,3 +141,5 @@
 .u-services-05 { color:var(--muted);font-size:.9rem; }
 .u-services-06 { color:var(--muted);font-size:.85rem; }
 .u-services-07 { color:var(--muted);opacity:0.5;cursor:not-allowed; }
+.svc-detail-link { font-size:.8rem;color:var(--accent);text-decoration:none;margin-top:.5rem;display:inline-block; }
+.svc-detail-link:hover { text-decoration:underline; }

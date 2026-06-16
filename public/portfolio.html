@@ -22,6 +22,16 @@
   <link rel="stylesheet" href="/css/aos.css">
   <script src="/js/image_fallbacks.js"></script>
   <link rel="stylesheet" href="/css/pages/portfolio.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Главная", "item": "https://energoatlant.ru/" },
+      { "@type": "ListItem", "position": 2, "name": "Объекты", "item": "https://energoatlant.ru/portfolio.html" }
+    ]
+  }
+  </script>
 </head>
 <body class="grid-bg">
 <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
@@ -33,6 +43,7 @@
     <li><a href="/">Главная</a></li>
     <li><a href="/services.html">Услуги</a></li>
     <li><a href="/portfolio.html">Объекты</a></li>
+    <li><a href="/about.html">О компании</a></li>
     <li><a href="/partners.html">Партнёрам</a></li>
     <li><a href="/contact.html">Контакты</a></li>
   </ul>
@@ -40,9 +51,15 @@
     <button class="navbar-burger" aria-label="Меню">
       <span></span><span></span><span></span>
     </button>
-    <a href="/login.html" class="btn btn-primary btn-sm">
+    <a href="tel:+79939074577" class="navbar-phone">
+      <span class="navbar-phone-text">+7 (993) 907-45-77</span>
+      <span class="navbar-phone-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.08 6.08l1.14-1.14a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </span>
+    </a>
+    <a class="btn btn-primary btn-sm" href="/login.html">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span class="navbar-btn-text">Личный кабинет</span>
+      <span class="navbar-btn-text">Войти в кабинет</span>
     </a>
   </div>
 </nav>
@@ -69,7 +86,175 @@
 
     <!-- Сетка -->
     <div class="portfolio-grid" id="portfolio-grid">
-      <!-- Карточки генерируются JS -->
+      <!-- Статические карточки для краулеров; JS перезаписывает при загрузке для фильтрации -->
+      <div class="portfolio-card" data-id="1" data-type="ВЛ">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_1_1.jpg" alt='ВЛ-0,4 кВ "ДШТ Чайка", Красногорск, Московская область' width="960" height="1280" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">ВЛ</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">ВЛ-0,4 кВ "ДШТ Чайка"</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Красногорск, Московская обл.</strong></span>
+            <span>0,4 кВ</span><span>2025</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="2" data-type="ВЛ">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_2_1.jpg" alt="Освещение пешеходных переходов ВЛ 0,4 кВ, пгт Лотошино, Московская область" width="960" height="1280" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">ВЛ</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">Освещение пешеходных переходов, ВЛ 0,4 кВ</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>пгт Лотошино, Московская обл.</strong></span>
+            <span>0,4 кВ</span><span>2025</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="3" data-type="ТП">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_3_1.jpg" alt="КТП 630 кВА, 10/0.4 кВ, монтаж трансформаторной подстанции, Московская область" width="1600" height="1200" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">ТП</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">КТП 630 кВА</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Московская обл.</strong></span>
+            <span>10/0.4 кВ</span><span>2024</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="4" data-type="КТП">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_4_1.jpg" alt="КТП 400 кВА, 10/0.4 кВ для жилого комплекса, Одинцово, Московская область" width="960" height="1280" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">КТП</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">КТП 400 кВА</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Одинцово, Московская обл.</strong></span>
+            <span>10/0.4 кВ</span><span>2024</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="5" data-type="РТП">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_5_1.jpg" alt="Монтаж РТП 6 кВ с ГНБ, кабельная линия 1 км, Москва" width="4080" height="3060" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">РТП</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">Монтаж РТП 6 кВ с ГНБ</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Москва</strong></span>
+            <span>6 кВ</span><span>2025</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="6" data-type="КТП">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_6_1.jpg" alt="КТП 630 кВА для производственного предприятия, Подольск, Московская область" width="3000" height="4000" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">КТП</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">КТП 630 кВА для производственного предприятия</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Подольск, Московская обл.</strong></span>
+            <span>10/0,4 кВ</span><span>2024</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="7" data-type="КЛ">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_7_1.jpg" alt="КЛ 10 кВ 0,8 км для реконструкции подстанции, Серпухов, Московская область" width="960" height="1280" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">КЛ</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">КЛ 10 кВ для реконструкции подстанции</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Серпухов, Московская обл.</strong></span>
+            <span>10 кВ</span><span>2024</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="8" data-type="ВЛ">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_8_1.jpg" alt='ВЛ-0,4 кВ СНТ "Калинка" 1,4 км, Можайск, Московская область' width="960" height="1280" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">ВЛ</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">ВЛ-0,4 кВ СНТ "Калинка"</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Можайск, Московская обл.</strong></span>
+            <span>0,4 кВ</span><span>2024</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="9" data-type="ТП">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_9_1.jpg" alt='Монтаж трансформаторов для СНТ "Одиночка", Московская область' width="960" height="1280" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">ТП</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">Трансформаторы СНТ "Одиночка"</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Московская обл.</strong></span>
+            <span>10/0,4 кВ</span><span>2025</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="10" data-type="ВЛ">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_10_1.jpg" alt="Монтаж ВЛ-0,4 кВ для РЖД 1 км, Московская область" width="960" height="1280" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">ВЛ</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">Монтаж ВЛ-0,4 кВ для РЖД</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Московская обл.</strong></span>
+            <span>0,4 кВ</span><span>2023</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="11" data-type="ТП">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_11_1.jpg" alt="Установка трансформатора и разъединителя для жилого комплекса, Московская область" width="960" height="1280" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">ТП</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">Установка трансформатора и разъединителя</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Московская обл.</strong></span>
+            <span>10/0,4 кВ</span><span>2023</span>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card" data-id="12" data-type="ТП">
+        <div class="portfolio-photo">
+          <img class="portfolio-card-img" src="/img/portfolio/obj_12_1.jpg" alt="Замена фундамента ЗРУ 35 кВ, Московская область" width="960" height="1280" loading="lazy" data-image-fallback="show-next">
+          <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
+          <div class="portfolio-photo-type">ТП</div>
+        </div>
+        <div class="portfolio-info">
+          <div class="portfolio-name">Замена фундамента ЗРУ 35 кВ</div>
+          <div class="portfolio-meta">
+            <span>📍 <strong>Московская обл.</strong></span>
+            <span>35 кВ</span><span>2022</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -94,32 +279,34 @@
     <div>
       <div class="footer-col-title">Услуги</div>
       <ul class="footer-links">
-        <li><a href="/services.html">ВЛ и КЛ</a></li>
-        <li><a href="/services.html">Подстанции</a></li>
-        <li><a href="/services.html">Электроснабжение</a></li>
-        <li><a href="/services.html">ИД</a></li>
+        <li><a href="/services.html#svc-1">ВЛ и КЛ</a></li>
+        <li><a href="/services.html#svc-3">Подстанции</a></li>
+        <li><a href="/services.html#svc-4">Электроснабжение</a></li>
+        <li><a href="/services.html#svc-5">ИД</a></li>
       </ul>
     </div>
     <div>
       <div class="footer-col-title">Компания</div>
       <ul class="footer-links">
         <li><a href="/portfolio.html">Объекты</a></li>
+        <li><a href="/about.html">О компании</a></li>
         <li><a href="/partners.html">Партнёрам</a></li>
-        <li><a href="/contact.html">Контакты</a></li>
+    <li><a href="/contact.html">Контакты</a></li>
       </ul>
     </div>
     <div>
       <div class="footer-col-title">Контакты</div>
       <ul class="footer-links">
+        <li><a href="tel:+79939074577">+7 (993) 907-45-77</a></li>
         <li><a href="mailto:energoatlant@yandex.ru">energoatlant@yandex.ru</a></li>
-        <li class="u-portfolio-07">г. Москва, ул. Новоорловская, д. 10</li>
+        <li class="u-portfolio-07">Московская обл., г.о. Истра, д. Трусово, д. 49А</li>
       </ul>
     </div>
   </div>
   <div class="footer-bottom">
+    <span>ООО «ЭнергоАтлант», ИНН 5017144698, КПП 501701001, ОГРН 1265000042152</span>
     <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
     <a href="/privacy.html">Политика конфиденциальности</a>
-    <span class="u-portfolio-08">Личный кабинет</span>
   </div>
 </footer>
 
@@ -136,6 +323,7 @@
 <script src="/js/nav.js"></script>
 <script src="/js/float-call.js"></script>
 <script src="/js/aos.js"></script>
+<script src="/js/api.js"></script>
 <script src="/js/portfolio_page.js"></script>
 </body>
 </html>

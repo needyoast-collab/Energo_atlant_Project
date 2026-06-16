@@ -28,7 +28,9 @@ function normalizeUploadFileName(value, fallback = 'file') {
 
 function getUploadFileExtension(value, fallback = 'bin') {
   const name = normalizeUploadFileName(value, fallback);
-  const ext = name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const parts = name.split('.');
+  if (parts.length < 2) return fallback;
+  const ext = parts.pop().toLowerCase().replace(/[^a-z0-9]/g, '');
   return ext || fallback;
 }
 

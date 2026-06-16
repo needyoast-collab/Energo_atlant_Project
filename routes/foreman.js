@@ -27,6 +27,7 @@ const {
   addWorkSpec,
   batchAddWorkSpecs,
   getProjectDocuments,
+  exportCalendarPlan,
 } = require('../controllers/foremanController');
 
 const router = Router();
@@ -46,6 +47,7 @@ router.get('/projects/:id', getProject);
 
 // Календарный план производства работ
 router.get('/projects/:id/calendar-plan', getCalendarPlan);
+router.get('/projects/:id/calendar-plan/export', exportCalendarPlan);
 router.post('/projects/:id/calendar-plan/generate', generateCalendarPlan);
 router.put('/calendar-plan/items/:id', updateCalendarPlanItem);
 

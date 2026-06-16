@@ -6,6 +6,7 @@
     getActiveProjectId: () => null,
     getActiveProject: () => null,
     getProjectsList: () => [],
+    canManageStages: () => false,
   };
 
   function configure(options = {}) {
@@ -22,6 +23,10 @@
 
   function getProjectsList() {
     return state.getProjectsList?.() || [];
+  }
+
+  function canManageStages() {
+    return Boolean(state.canManageStages?.());
   }
 
   function refreshKp(projectId) {
@@ -45,11 +50,14 @@
     const generateBtn = document.getElementById('btn-generate-stages');
     if (!generateBtn || !project) return;
 
+    const canGenerateStages = canManageStages();
     const generated = !!project.stages_generated;
     const kpSent = Boolean(project.kp_sent_at);
-    generateBtn.disabled = generated || !kpSent;
-    generateBtn.classList.toggle('is-hidden', generated);
-    generateBtn.title = kpSent ? '' : 'Сначала отправьте КП заказчику';
+    generateBtn.disabled = !canGenerateStages || generated || !kpSent;
+    generateBtn.classList.toggle('is-hidden', !canGenerateStages || generated);
+    generateBtn.title = canGenerateStages
+      ? (kpSent ? '' : 'Сначала отправьте КП заказчику')
+      : 'Формировать этапы может только администратор или прораб';
   }
 
   function switchTab(tab = activeEstimateTab) {
@@ -163,20 +171,33 @@
     `;
   }
 
-  async function loadVOR(projectId) {
+  function setEstimateLoading() {
+    const vor = document.getElementById('vor-list');
+    const specs = document.getElementById('vom-list');
+    const summary = document.getElementById('estimate-summary');
+    if (vor) vor.innerHTML = '<div class="manager-estimate-empty">Загрузка...</div>';
+    if (specs) specs.innerHTML = '<div class="manager-estimate-empty">Загрузка...</div>';
+    if (summary) summary.innerHTML = '<span class="text-muted">Загрузка...</span>';
+  }
+
+  async function fetchWorkSpecs(projectId) {
+    const { ok, data } = await apiRequest('GET', `/api/manager/projects/${projectId}/work-specs`);
+    if (!ok) throw new Error(data?.error || 'Не удалось загрузить ВОР');
+    return data.data || [];
+  }
+
+  async function fetchMaterialSpecs(projectId) {
+    const { ok, data } = await apiRequest('GET', `/api/manager/projects/${projectId}/specs`);
+    if (!ok) throw new Error(data?.error || 'Не удалось загрузить ВОМ');
+    return data.data || [];
+  }
+
+  function renderVOR(workSpecs) {
     const container = document.getElementById('vor-list');
     if (!container) return;
-    container.innerHTML = '<div class="manager-estimate-empty">Загрузка...</div>';
 
-    const { ok, data } = await apiRequest('GET', `/api/manager/projects/${projectId}/work-specs`);
-    if (!ok) {
-      container.innerHTML = '<div class="manager-estimate-empty">Ошибка загрузки</div>';
-      return;
-    }
-
-    if (!data.data.length) {
+    if (!workSpecs.length) {
       container.innerHTML = '<div class="manager-estimate-empty">ВОР пустой</div>';
-      refreshKp(projectId);
       return;
     }
 
@@ -192,28 +213,32 @@
             <th></th>
           </tr></thead>
           <tbody>
-            ${data.data.map(renderVorRow).join('')}
+            ${workSpecs.map(renderVorRow).join('')}
           </tbody>
         </table>
       </div>
     `;
-    refreshKp(projectId);
   }
 
-  async function loadSpecs(projectId) {
-    const container = document.getElementById('vom-list');
+  async function loadVOR(projectId) {
+    const container = document.getElementById('vor-list');
     if (!container) return;
     container.innerHTML = '<div class="manager-estimate-empty">Загрузка...</div>';
 
-    const { ok, data } = await apiRequest('GET', `/api/manager/projects/${projectId}/specs`);
-    if (!ok) {
-      container.innerHTML = '<div class="manager-estimate-empty">Ошибка загрузки</div>';
-      return;
-    }
-
-    if (!data.data.length) {
-      container.innerHTML = '<div class="manager-estimate-empty">Ведомость материалов пуста</div>';
+    try {
+      renderVOR(await fetchWorkSpecs(projectId));
       refreshKp(projectId);
+    } catch {
+      container.innerHTML = '<div class="manager-estimate-empty">Ошибка загрузки</div>';
+    }
+  }
+
+  function renderSpecs(materialSpecs) {
+    const container = document.getElementById('vom-list');
+    if (!container) return;
+
+    if (!materialSpecs.length) {
+      container.innerHTML = '<div class="manager-estimate-empty">Ведомость материалов пуста</div>';
       return;
     }
 
@@ -230,7 +255,7 @@
             <th>Снабженец</th>
           </tr></thead>
           <tbody>
-            ${data.data.map((spec) => `
+            ${materialSpecs.map((spec) => `
               <tr>
                 <td>${escHtml(spec.material_name)}</td>
                 <td class="num">${spec.quantity}</td>
@@ -245,26 +270,25 @@
         </table>
       </div>
     `;
-    refreshKp(projectId);
   }
 
-  async function loadSummary(projectId) {
+  async function loadSpecs(projectId) {
+    const container = document.getElementById('vom-list');
+    if (!container) return;
+    container.innerHTML = '<div class="manager-estimate-empty">Загрузка...</div>';
+
+    try {
+      renderSpecs(await fetchMaterialSpecs(projectId));
+      refreshKp(projectId);
+    } catch {
+      container.innerHTML = '<div class="manager-estimate-empty">Ошибка загрузки</div>';
+    }
+  }
+
+  function renderSummary(works, materials) {
     const container = document.getElementById('estimate-summary');
     if (!container) return;
-    container.innerHTML = '<span class="text-muted">Загрузка...</span>';
 
-    const [worksRes, materialsRes] = await Promise.all([
-      apiRequest('GET', `/api/manager/projects/${projectId}/work-specs`),
-      apiRequest('GET', `/api/manager/projects/${projectId}/specs`),
-    ]);
-
-    if (!worksRes.ok || !materialsRes.ok) {
-      container.innerHTML = '<span class="text-muted">Ошибка загрузки</span>';
-      return;
-    }
-
-    const works = worksRes.data.data || [];
-    const materials = materialsRes.data.data || [];
     const worksBaseTotal = works.reduce((acc, item) => {
       const price = Number(item.manager_price ?? item.catalog_price ?? 0);
       return acc + (Number(item.quantity) * price);
@@ -332,13 +356,39 @@
     `;
   }
 
+  async function loadSummary(projectId) {
+    const container = document.getElementById('estimate-summary');
+    if (!container) return;
+    container.innerHTML = '<span class="text-muted">Загрузка...</span>';
+
+    try {
+      const [works, materials] = await Promise.all([
+        fetchWorkSpecs(projectId),
+        fetchMaterialSpecs(projectId),
+      ]);
+      renderSummary(works, materials);
+    } catch {
+      container.innerHTML = '<span class="text-muted">Ошибка загрузки</span>';
+    }
+  }
+
   async function load(projectId) {
-    await Promise.all([
-      loadVOR(projectId),
-      loadSpecs(projectId),
-      loadSummary(projectId),
-    ]);
-    refreshKp(projectId);
+    setEstimateLoading();
+    try {
+      const [works, materials] = await Promise.all([
+        fetchWorkSpecs(projectId),
+        fetchMaterialSpecs(projectId),
+      ]);
+      renderVOR(works);
+      renderSpecs(materials);
+      renderSummary(works, materials);
+      refreshKp(projectId);
+    } catch (err) {
+      console.error('[manager-estimate] failed to load estimate', err);
+      document.getElementById('vor-list').innerHTML = '<div class="manager-estimate-empty">Ошибка загрузки</div>';
+      document.getElementById('vom-list').innerHTML = '<div class="manager-estimate-empty">Ошибка загрузки</div>';
+      document.getElementById('estimate-summary').innerHTML = '<span class="text-muted">Ошибка загрузки</span>';
+    }
   }
 
   async function open(projectId) {
@@ -369,7 +419,7 @@
     const { ok, data } = await apiRequest('DELETE', `/api/manager/work-specs/${btn.dataset.id}`);
     if (ok) {
       showToast('Позиция удалена', 'success');
-      loadVOR(getActiveProjectId());
+      load(getActiveProjectId());
     } else {
       showToast(data.error, 'error');
     }
@@ -411,13 +461,18 @@
     if (ok) {
       showToast(isEdit ? 'Позиция обновлена' : 'Позиция добавлена', 'success');
       resetVorForm();
-      loadVOR(projectId);
+      load(projectId);
     } else {
       showToast(data.error, 'error');
     }
   }
 
   async function generateStagesFromVor() {
+    if (!canManageStages()) {
+      showToast('Формировать этапы может только администратор или прораб', 'error');
+      return;
+    }
+
     const projectId = getActiveProjectId();
     const project = getActiveProject() || getProjectsList().find((item) => item.id == projectId);
 

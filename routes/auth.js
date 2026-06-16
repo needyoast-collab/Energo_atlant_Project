@@ -10,6 +10,10 @@ const {
   updateProfile,
   changePassword,
   uploadAvatar,
+  updateLogin,
+  requestEmailChange,
+  confirmEmailChange,
+  updateNotificationSettings,
   forgotPassword,
   verifyCode,
   resetPassword,
@@ -70,8 +74,12 @@ router.post('/mobile/logout', isAuthenticated, mobileLogout);
 router.post('/logout', isAuthenticated, logout);
 router.get('/me', isAuthenticated, me);
 router.put('/profile', isAuthenticated, updateProfile);
+router.put('/login', isAuthenticated, updateLogin);
 router.put('/password', isAuthenticated, changePassword);
 router.post('/avatar', isAuthenticated, avatarUpload.single('avatar'), uploadAvatar);
+router.post('/email-change/request', isAuthenticated, requestEmailChange);
+router.post('/email-change/confirm', isAuthenticated, confirmEmailChange);
+router.put('/notification-settings', isAuthenticated, updateNotificationSettings);
 router.post('/forgot-password', loginLimiter, forgotPassword);
 router.post('/verify-code', loginLimiter, verifyCode);
 router.post('/reset-password', loginLimiter, resetPassword);

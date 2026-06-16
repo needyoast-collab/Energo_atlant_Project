@@ -24,6 +24,7 @@ const {
   generateStagesFromVOR,
   getProjectWarehouse,
   getProjectSpecs,
+  getCalendarPlan,
 } = require('../controllers/managerController');
 const {
   getRequestFiles,
@@ -78,6 +79,7 @@ router.post('/projects/:id/work-specs', addWorkSpec);
 router.put('/work-specs/:id', updateWorkSpec);
 router.delete('/work-specs/:id', deleteWorkSpec);
 
+router.get('/projects/:id/calendar-plan', getCalendarPlan);
 router.get('/projects/:id/warehouse', getProjectWarehouse);
 router.get('/projects/:id/specs', getProjectSpecs);
 router.get('/projects/:id/kp-data', getKpData);

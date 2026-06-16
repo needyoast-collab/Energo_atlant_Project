@@ -5,4 +5,8 @@ node_modules/
 .claude/
 public/Политика конфиденциальности.docx
 public/yandex_dec3cdfd8c70b814.html
+public/02428ea7cfdf42a4aa4ae78fb41fcb17.txt
 TASKS_BACKLOG.md
+docs/
+logs/*
+!logs/.gitkeep

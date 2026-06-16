@@ -14,6 +14,9 @@ let activeStageId     = null;
 let activeStageIsVor  = false;
 let activeStageUsesVolume = false;
 let currentStagesList = [];
+let activeProjectTab = null;
+let loadedProjectTabs = new Set();
+let projectTabLoadPromises = new Map();
 
 function getInitialForemanPageMode() {
   return document.body?.dataset.foremanPageMode || window.FOREMAN_PAGE_MODE || 'dashboard';
@@ -33,10 +36,65 @@ window.ForemanWarehouse?.configure({
 });
 window.ForemanWarehouse?.init();
 
+function resetProjectTabCache() {
+  activeProjectTab = null;
+  loadedProjectTabs = new Set();
+  projectTabLoadPromises = new Map();
+}
+
+function loadProjectTabData(tab, { force = false } = {}) {
+  if (!activeProjectId || (!force && loadedProjectTabs.has(tab))) return Promise.resolve();
+  if (!force && projectTabLoadPromises.has(tab)) return projectTabLoadPromises.get(tab);
+
+  const loaders = {
+    stages: () => loadStages(activeProjectId),
+    calendar: () => window.ForemanCalendar?.load(activeProjectId),
+    specs: () => window.ForemanSpecs?.load(activeProjectId),
+    'work-specs': () => loadWorkSpecs(activeProjectId),
+    warehouse: () => window.ForemanWarehouse?.loadProject(activeProjectId),
+    docs: () => loadProjectDocs(activeProjectId),
+  };
+  const loader = loaders[tab];
+  if (!loader) return Promise.resolve();
+
+  const promise = Promise.resolve(loader())
+    .then(() => loadedProjectTabs.add(tab))
+    .catch((err) => {
+      loadedProjectTabs.delete(tab);
+      throw err;
+    })
+    .finally(() => projectTabLoadPromises.delete(tab));
+  projectTabLoadPromises.set(tab, promise);
+  return promise;
+}
+
+function invalidateProjectTabs(...tabs) {
+  tabs.forEach((tab) => loadedProjectTabs.delete(tab));
+}
+
+function reloadProjectTab(tab) {
+  invalidateProjectTabs(tab);
+  if (activeProjectTab === tab) return loadProjectTabData(tab, { force: true });
+  return Promise.resolve();
+}
+
+function preloadProjectTabs(priorityTab) {
+  const tabs = [
+    priorityTab,
+    ...TABS.filter((tab) => tab !== priorityTab),
+  ];
+  return Promise.allSettled(tabs.map((tab) => loadProjectTabData(tab)));
+}
+
+window.ForemanProjectTabs = {
+  invalidate: invalidateProjectTabs,
+  reload: reloadProjectTab,
+};
+
 window.ForemanStageDetails?.configure({
   getActiveStageId: () => activeStageId,
   getActiveProjectId: () => activeProjectId,
-  reloadStages: () => loadStages(activeProjectId),
+  reloadStages: () => reloadProjectTab('stages'),
 });
 window.ForemanStageDetails?.init();
 
@@ -122,6 +180,7 @@ async function loadProjects() {
 
 async function openProject(id) {
   activeProjectId = id;
+  resetProjectTabCache();
   const project = projectsList.find(p => p.id == id);
   if (!project) return;
 
@@ -144,12 +203,14 @@ async function openProject(id) {
   const initialTab = isForemanProjectPage
     ? new URLSearchParams(window.location.search).get('tab') || 'stages'
     : 'stages';
-  switchTab(TABS.includes(initialTab) ? initialTab : 'stages', false);
+  const activeTab = TABS.includes(initialTab) ? initialTab : 'stages';
+  const initialLoad = switchTab(activeTab, false, { force: true });
   if (!isForemanProjectPage) openModal('modal-project');
-  await loadStages(id);
   if (isForemanProjectPage) {
     requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0 }));
   }
+  await initialLoad.catch(() => {});
+  await preloadProjectTabs(activeTab);
 }
 
 // ─── Вкладки проекта ─────────────────────────────────────────
@@ -159,7 +220,8 @@ document.querySelectorAll('[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab, true));
 });
 
-function switchTab(tab, updateUrl = false) {
+function switchTab(tab, updateUrl = false, options = {}) {
+  activeProjectTab = tab;
   if (isForemanProjectPage) {
     document.querySelectorAll('.sidebar .nav-item.active').forEach((item) => {
       item.classList.remove('active');
@@ -180,11 +242,7 @@ function switchTab(tab, updateUrl = false) {
     url.searchParams.set('tab', tab);
     window.history.replaceState(null, '', url.toString());
   }
-  if (tab === 'specs')       window.ForemanSpecs?.load(activeProjectId);
-  if (tab === 'calendar')    window.ForemanCalendar?.load(activeProjectId);
-  if (tab === 'work-specs')  loadWorkSpecs(activeProjectId);
-  if (tab === 'warehouse')   window.ForemanWarehouse?.loadProject(activeProjectId);
-  if (tab === 'docs')        loadProjectDocs(activeProjectId);
+  return loadProjectTabData(tab, options);
 }
 
 // ─── Форматирование этапов ───────────────────────────────────
@@ -444,7 +502,7 @@ document.getElementById('btn-add-stage').addEventListener('click', () => {
     if (created) {
       showToast(`Добавлено этапов: ${created}`, 'success');
       closeModal('modal-batch');
-      loadStages(activeProjectId);
+      reloadProjectTab('stages');
     }
   }, { mode: 'stages', saveText: 'Сохранить этапы' });
 });
@@ -505,7 +563,7 @@ document.getElementById('edit-stage-form').addEventListener('submit', async (e) 
   if (ok) {
     showToast('Этап обновлён', 'success');
     closeModal('modal-edit-stage');
-    loadStages(activeProjectId);
+    reloadProjectTab('stages');
   } else showToast(data.error, 'error');
 });
 
@@ -577,8 +635,8 @@ document.getElementById('btn-generate-stages').addEventListener('click', async (
     showToast(`Создано этапов: ${data.data.length}`, 'success');
     const project = projectsList.find(p => p.id == activeProjectId);
     if (project) project.stages_generated = true;
-    loadWorkSpecs(activeProjectId);
-    loadStages(activeProjectId);
+    reloadProjectTab('work-specs');
+    invalidateProjectTabs('stages', 'calendar');
   } else showToast(data.error, 'error');
 });
 
@@ -589,7 +647,7 @@ document.getElementById('btn-add-work-spec').addEventListener('click', () => {
     if (ok) {
       showToast(`Добавлено позиций: ${data.data.inserted}`, 'success');
       closeModal('modal-batch');
-      loadWorkSpecs(activeProjectId);
+      reloadProjectTab('work-specs');
     } else showToast(data.error, 'error');
   });
 });

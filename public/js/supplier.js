@@ -26,6 +26,56 @@ let activeFulfillSpecId  = null;
 let activeStockTab       = 'general';
 let generalWarehouseCache = null;
 let currentSupSpecs = [];
+let activeSupTab = null;
+let loadedSupTabs = new Set();
+let supTabLoadPromises = new Map();
+
+function resetSupTabCache() {
+  activeSupTab = null;
+  loadedSupTabs = new Set();
+  supTabLoadPromises = new Map();
+}
+
+function loadSupTabData(tab, { force = false } = {}) {
+  if (!activeModalProjectId || (!force && loadedSupTabs.has(tab))) return Promise.resolve();
+  if (!force && supTabLoadPromises.has(tab)) return supTabLoadPromises.get(tab);
+
+  const loaders = {
+    warehouse: () => loadSupWarehouse(activeModalProjectId),
+    specs: () => loadSupSpecs(activeModalProjectId),
+    docs: () => loadSupModalDocs(activeModalProjectId),
+  };
+  const loader = loaders[tab];
+  if (!loader) return Promise.resolve();
+
+  const promise = Promise.resolve(loader())
+    .then(() => loadedSupTabs.add(tab))
+    .catch((err) => {
+      loadedSupTabs.delete(tab);
+      throw err;
+    })
+    .finally(() => supTabLoadPromises.delete(tab));
+  supTabLoadPromises.set(tab, promise);
+  return promise;
+}
+
+function invalidateSupTabs(...tabs) {
+  tabs.forEach((tab) => loadedSupTabs.delete(tab));
+}
+
+function reloadSupTab(tab) {
+  invalidateSupTabs(tab);
+  if (activeSupTab === tab) return loadSupTabData(tab, { force: true });
+  return Promise.resolve();
+}
+
+function preloadSupTabs(priorityTab, tabs = SUP_TABS) {
+  const orderedTabs = [
+    priorityTab,
+    ...tabs.filter((tab) => tab !== priorityTab),
+  ];
+  return Promise.allSettled(orderedTabs.map((tab) => loadSupTabData(tab)));
+}
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
@@ -131,7 +181,7 @@ function switchStockTab(tab) {
   const projects = document.getElementById('stock-tab-projects');
   if (general) general.classList.toggle('is-hidden', tab !== 'general');
   if (projects) projects.classList.toggle('is-hidden', tab !== 'projects');
-  if (tab === 'general') loadGeneralWarehouse();
+  if (tab === 'general' && !generalWarehouseCache) loadGeneralWarehouse();
   if (tab === 'projects') renderStockProjectsTable();
 }
 
@@ -142,6 +192,7 @@ document.querySelectorAll('[data-stock-tab]').forEach((btn) => {
 async function openProjectModal(id, options = {}) {
   const { warehouseOnly = false } = options;
   activeModalProjectId = id;
+  resetSupTabCache();
   const project = projectsList.find(p => p.id == id);
   if (!project) return;
 
@@ -159,7 +210,7 @@ async function openProjectModal(id, options = {}) {
   openModal('modal-project');
 
   try {
-    switchSupTab('warehouse');
+    await switchSupTab('warehouse', { force: true });
   } catch(err) { /* tab уже активен */ }
 
   if (warehouseOnly) {
@@ -167,20 +218,20 @@ async function openProjectModal(id, options = {}) {
     document.getElementById('sup-tab-specs').classList.add('is-hidden');
     document.getElementById('sup-tab-docs').classList.add('is-hidden');
   }
+  await preloadSupTabs('warehouse', warehouseOnly ? ['warehouse'] : SUP_TABS);
 }
 
 // ─── Вкладки проекта ─────────────────────────────────────────
 const SUP_TABS = ['warehouse', 'specs', 'docs'];
 
-function switchSupTab(tab) {
+function switchSupTab(tab, options = {}) {
+  activeSupTab = tab;
   SUP_TABS.forEach(t => {
     document.getElementById(`sup-tab-${t}`).classList.toggle('is-hidden', t !== tab);
     document.getElementById(`sup-tab-btn-${t}`).className =
       t === tab ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
   });
-  if (tab === 'warehouse') loadSupWarehouse(activeModalProjectId);
-  if (tab === 'specs')     loadSupSpecs(activeModalProjectId);
-  if (tab === 'docs')      loadSupModalDocs(activeModalProjectId);
+  return loadSupTabData(tab, options);
 }
 
 document.querySelectorAll('[data-suptab]').forEach(btn => {
@@ -232,7 +283,7 @@ document.getElementById('add-warehouse-form').addEventListener('submit', async (
   if (ok) {
     showToast('Материал добавлен на склад', 'success');
     closeModal('modal-add-warehouse');
-    loadSupWarehouse(activeModalProjectId);
+    reloadSupTab('warehouse');
   } else showToast(data.error, 'error');
 });
 
@@ -351,7 +402,7 @@ document.getElementById('sup-specs-list').addEventListener('click', async (e) =>
   if (delBtn) {
     if (!confirm('Удалить позицию?')) return;
     const { ok, data } = await apiRequest('DELETE', `/api/supplier/specs/${delBtn.dataset.id}`);
-    if (ok) { showToast('Удалено', 'success'); loadSupSpecs(activeModalProjectId); }
+    if (ok) { showToast('Удалено', 'success'); reloadSupTab('specs'); }
     else showToast(data.error, 'error');
     return;
   }
@@ -478,10 +529,8 @@ document.getElementById('fulfill-selected-form').addEventListener('submit', asyn
   if (ok) {
     showToast(`Обеспечено позиций: ${data.data.inserted}`, 'success');
     closeModal('modal-fulfill-selected');
-    loadSupSpecs(activeModalProjectId);
-    if (isVisible(document.getElementById('sup-tab-warehouse'))) {
-      loadSupWarehouse(activeModalProjectId);
-    }
+    reloadSupTab('specs');
+    invalidateSupTabs('warehouse');
   } else {
     showToast(data.error, 'error');
   }
@@ -494,7 +543,7 @@ document.getElementById('btn-add-spec').addEventListener('click', () => {
     if (ok) {
       showToast(`Добавлено позиций: ${data.data.inserted}`, 'success');
       closeModal('modal-batch');
-      loadSupSpecs(activeModalProjectId);
+      reloadSupTab('specs');
     } else showToast(data.error, 'error');
   });
 });
@@ -524,7 +573,7 @@ document.getElementById('spec-form').addEventListener('submit', async (e) => {
   if (ok) {
     showToast(specId ? 'Позиция обновлена' : 'Позиция добавлена', 'success');
     closeModal('modal-add-spec');
-    loadSupSpecs(activeModalProjectId);
+    reloadSupTab('specs');
   } else showToast(data.error, 'error');
 });
 
@@ -533,7 +582,7 @@ document.getElementById('btn-submit-specs').addEventListener('click', async () =
   const { ok, data } = await apiRequest('POST', `/api/supplier/projects/${activeModalProjectId}/specs/submit`);
   if (ok) {
     showToast(`Отправлено (${data.data.submitted} позиций)`, 'success');
-    loadSupSpecs(activeModalProjectId);
+    reloadSupTab('specs');
   } else showToast(data.error, 'error');
 });
 
@@ -593,10 +642,8 @@ document.getElementById('fulfill-spec-form').addEventListener('submit', async (e
   if (ok) {
     showToast('Материал поступил на склад объекта', 'success');
     closeModal('modal-fulfill-spec');
-    loadSupSpecs(activeModalProjectId);
-    if (isVisible(document.getElementById('sup-tab-warehouse'))) {
-      loadSupWarehouse(activeModalProjectId);
-    }
+    reloadSupTab('specs');
+    invalidateSupTabs('warehouse');
     loadGeneralWarehouse();
   } else {
     showToast(data.error, 'error');
@@ -884,6 +931,10 @@ document.getElementById('transfer-form').addEventListener('submit', async (e) =>
     closeModal('modal-transfer');
     generalWarehouseCache = null;
     loadGeneralWarehouse();
+    const targetProjectId = String(body.project_id);
+    if (String(activeModalProjectId || '') === targetProjectId) {
+      reloadSupTab('warehouse');
+    }
   } else showToast(data.error, 'error');
 });
 

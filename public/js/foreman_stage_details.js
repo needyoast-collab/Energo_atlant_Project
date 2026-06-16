@@ -94,8 +94,8 @@
           <div class="stage-photo-card">
             <button type="button" data-action="delete-stage-photo" data-id="${photo.id}" title="Удалить фото"
               class="stage-photo-delete-btn">×</button>
-            <a href="${photo.url}" target="_blank" rel="noopener" class="stage-photo-link">
-              <img src="${photo.url}" alt="${escHtml(photo.description || 'Фото этапа')}"
+            <a href="${safeAttrUrl(photo.url)}" target="_blank" rel="noopener" class="stage-photo-link">
+              <img src="${safeAttrUrl(photo.url)}" alt="${escAttr(photo.description || 'Фото этапа')}"
                 class="stage-photo-thumb">
               <div class="stage-photo-body">
                 <div class="stage-photo-title">${escHtml(photo.description || 'Без описания')}</div>

@@ -6,37 +6,47 @@
 
   <url>
     <loc>https://energoatlant.ru/</loc>
-    <lastmod>2026-04-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
+    <lastmod>2026-05-20</lastmod>
   </url>
 
   <url>
     <loc>https://energoatlant.ru/services.html</loc>
-    <lastmod>2026-04-19</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
+    <lastmod>2026-05-20</lastmod>
   </url>
 
   <url>
     <loc>https://energoatlant.ru/portfolio.html</loc>
-    <lastmod>2026-04-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2026-05-20</lastmod>
+  </url>
+
+  <url>
+    <loc>https://energoatlant.ru/partners.html</loc>
+    <lastmod>2026-05-20</lastmod>
   </url>
 
   <url>
     <loc>https://energoatlant.ru/contact.html</loc>
-    <lastmod>2026-04-19</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <lastmod>2026-05-20</lastmod>
   </url>
 
   <url>
-    <loc>https://energoatlant.ru/privacy.html</loc>
-    <lastmod>2026-04-19</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.2</priority>
+    <loc>https://energoatlant.ru/about.html</loc>
+    <lastmod>2026-05-20</lastmod>
+  </url>
+
+  <url>
+    <loc>https://energoatlant.ru/services/vl.html</loc>
+    <lastmod>2026-06-04</lastmod>
+  </url>
+
+  <url>
+    <loc>https://energoatlant.ru/services/kl.html</loc>
+    <lastmod>2026-06-04</lastmod>
+  </url>
+
+  <url>
+    <loc>https://energoatlant.ru/services/ktp.html</loc>
+    <lastmod>2026-06-04</lastmod>
   </url>
 
 </urlset>

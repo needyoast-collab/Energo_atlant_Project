@@ -10,11 +10,11 @@ const PROJECTS = [
     voltage: '0,4 кВ',
     year: '2025',
     length: '0,6 км',
-    desc: 'Строительство воздушной линии электропередачи 0,4 на железных опорах типа СФГ-700. Натяжка провода СИП-2 3*150+1*95,устройство заземлений семи опор.',
+    desc: 'Строительство воздушной линии электропередачи 0,4 кВ на металлических опорах типа СФГ-700. Натяжка провода СИП-2 3×150+1×95, устройство заземлений семи опор.',
   },
   {
     id: 2, type: 'ВЛ', img: '/img/portfolio/obj_2_1.jpg',
-    name: 'Безопасность пешеходных переходов',
+    name: 'Освещение пешеходных переходов, ВЛ 0,4 кВ',
     location: 'Московская область, пгт Лотошино',
     voltage: '0,4 кВ',
     year: '2025',
@@ -32,7 +32,7 @@ const PROJECTS = [
   },
   {
     id: 4, type: 'КТП', img: '/img/portfolio/obj_4_1.jpg',
-    name: 'КТП 400 кВа"',
+    name: 'КТП 400 кВА',
     location: 'Одинцово, Московская обл.',
     voltage: '10/0.4 кВ',
     year: '2024',
@@ -122,17 +122,17 @@ function renderCards() {
   grid.innerHTML = filtered.map((project, i) => `
     <div class="portfolio-card" data-id="${project.id}" data-aos="fade-up" data-aos-delay="${(i % 3) * 60}">
       <div class="portfolio-photo">
-        <img class="portfolio-card-img" src="${project.img}" alt="${project.name}"
+        <img class="portfolio-card-img" src="${safeAttrUrl(project.img)}" alt="${escAttr(project.name)}"
           data-image-fallback="show-next">
         <div class="portfolio-photo-placeholder-inline">Фото скоро</div>
-        <div class="portfolio-photo-type">${project.type}</div>
+        <div class="portfolio-photo-type">${escHtml(project.type)}</div>
       </div>
       <div class="portfolio-info">
-        <div class="portfolio-name">${project.name}</div>
+        <div class="portfolio-name">${escHtml(project.name)}</div>
         <div class="portfolio-meta">
-          <span>📍 <strong>${project.location}</strong></span>
-          <span>${project.voltage}</span>
-          <span>${project.year}</span>
+          <span>📍 <strong>${escHtml(project.location)}</strong></span>
+          <span>${escHtml(project.voltage)}</span>
+          <span>${escHtml(project.year)}</span>
         </div>
       </div>
     </div>
@@ -185,7 +185,7 @@ function buildGallery(photos, name) {
   if (!photos.length) return '<div class="modal-photo-placeholder"><span class="ph-label">⚡</span></div>';
   const nav = photos.length > 1;
   const slides = photos.map((url, i) =>
-    '<div class="gallery-slide' + (i === 0 ? ' active' : '') + '"><img src="' + url + '" alt="' + name + '"></div>'
+    '<div class="gallery-slide' + (i === 0 ? ' active' : '') + '"><img src="' + safeAttrUrl(url) + '" alt="' + escAttr(name) + '"></div>'
   ).join('');
   const dots = nav ? photos.map((_, i) =>
     '<div class="gallery-dot' + (i === 0 ? ' active' : '') + '" data-gi="' + i + '"></div>'
@@ -221,29 +221,29 @@ document.getElementById('portfolio-grid').addEventListener('click', async (event
 
   document.getElementById('modal-project-content').innerHTML =
     '<div class="gallery-slider portfolio-gallery-loading">Загружаем фото...</div>' +
-    '<div class="modal-title modal-title-spaced">' + project.name + '</div>';
+    '<div class="modal-title modal-title-spaced">' + escHtml(project.name) + '</div>';
   document.getElementById('modal-project').classList.add('open');
 
   const photos = await detectPhotos(project.id);
   const lenRow = project.length !== '—'
-    ? '<div class="modal-detail-item"><label>Протяжённость</label><span>' + project.length + '</span></div>'
+    ? '<div class="modal-detail-item"><label>Протяжённость</label><span>' + escHtml(project.length) + '</span></div>'
     : '';
 
   document.getElementById('modal-project-content').innerHTML =
     buildGallery(photos, project.name) +
     '<div class="modal-project-tags">' +
-      '<span class="tag">' + project.type + '</span>' +
-      '<span class="tag">' + project.voltage + '</span>' +
-      '<span class="tag">' + project.year + '</span>' +
+      '<span class="tag">' + escHtml(project.type) + '</span>' +
+      '<span class="tag">' + escHtml(project.voltage) + '</span>' +
+      '<span class="tag">' + escHtml(project.year) + '</span>' +
     '</div>' +
-    '<div class="modal-title">' + project.name + '</div>' +
+    '<div class="modal-title">' + escHtml(project.name) + '</div>' +
     '<div class="modal-detail-grid">' +
-      '<div class="modal-detail-item"><label>Местоположение</label><span>' + project.location + '</span></div>' +
-      '<div class="modal-detail-item"><label>Класс напряжения</label><span>' + project.voltage + '</span></div>' +
-      '<div class="modal-detail-item"><label>Год завершения</label><span>' + project.year + '</span></div>' +
+      '<div class="modal-detail-item"><label>Местоположение</label><span>' + escHtml(project.location) + '</span></div>' +
+      '<div class="modal-detail-item"><label>Класс напряжения</label><span>' + escHtml(project.voltage) + '</span></div>' +
+      '<div class="modal-detail-item"><label>Год завершения</label><span>' + escHtml(project.year) + '</span></div>' +
       lenRow +
     '</div>' +
-    '<p class="modal-project-desc">' + project.desc + '</p>' +
+    '<p class="modal-project-desc">' + escHtml(project.desc) + '</p>' +
     '<a href="/contact.html#request" class="btn btn-primary">Обсудить похожий проект</a>';
 });
 

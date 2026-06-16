@@ -25,10 +25,10 @@ const helmetConfig = helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
-      styleSrc: ["'self'", 'fonts.googleapis.com'],
-      styleSrcElem: ["'self'", 'fonts.googleapis.com'],
+      styleSrc: ["'self'"],
+      styleSrcElem: ["'self'"],
       styleSrcAttr: ["'none'"],
-      fontSrc: ["'self'", 'fonts.gstatic.com'],
+      fontSrc: ["'self'"],
       imgSrc,
       connectSrc,
       mediaSrc: ["'self'"],

@@ -368,8 +368,8 @@ async function loadStagePhotos(stageId) {
   const { ok, data } = await apiRequest('GET', `/api/customer/stages/${stageId}/photos`);
   if (!ok || !data.data.length) { grid.innerHTML = '<span class="text-muted customer-empty-text">Нет фото</span>'; return; }
   grid.innerHTML = data.data.map(p => `
-    <a href="${p.url}" target="_blank" rel="noopener" class="stage-photo-thumb">
-      <img src="${p.url}" alt="${escHtml(p.description || '')}">
+    <a href="${safeAttrUrl(p.url)}" target="_blank" rel="noopener" class="stage-photo-thumb">
+      <img src="${safeAttrUrl(p.url)}" alt="${escAttr(p.description || '')}">
     </a>
   `).join('');
 }
@@ -397,7 +397,7 @@ async function loadDocuments(id) {
         </div>
         <div class="customer-doc-meta">${formatDate(doc.uploaded_at)} · ${escHtml(doc.uploaded_by_name)}</div>
       </div>
-      <a href="${doc.url}" target="_blank" class="btn btn-outline btn-sm customer-doc-download">
+      <a href="${safeAttrUrl(doc.url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm customer-doc-download">
         Скачать
       </a>
     </div>

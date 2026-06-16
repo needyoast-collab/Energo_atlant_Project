@@ -404,24 +404,7 @@
       showToast('Сначала сформируйте календарный план', 'error');
       return;
     }
-    const rows = [
-      ['Этап', 'Плановое начало', 'Плановое окончание', 'Фактическое окончание', 'Статус'],
-      ...calendarPlan.items.map(item => [
-        item.name,
-        item.planned_start ? formatDate(item.planned_start) : '',
-        item.planned_end ? formatDate(item.planned_end) : '',
-        item.actual_date || item.actual_end ? formatDate(item.actual_date || item.actual_end) : '',
-        getStatusLabel(item.status),
-      ]),
-    ];
-    const csv = rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `calendar-plan-${getActiveProjectId()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    window.open(`/api/foreman/projects/${getActiveProjectId()}/calendar-plan/export`, '_blank');
   }
 
   function init() {

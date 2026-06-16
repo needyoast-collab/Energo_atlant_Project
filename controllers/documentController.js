@@ -9,7 +9,7 @@ async function serveDocument(req, res, next) {
     const fileKey = Buffer.from(req.params.key, 'base64url').toString('utf8');
 
     // Проверка: пользователь имеет доступ к этому файлу
-    const [photo, docAccess] = await Promise.all([
+    const [photo, docAccess, requestFile] = await Promise.all([
       pool.query(
         `SELECT sp.stage_id,
                 (pm.user_id IS NOT NULL) AS is_project_member
@@ -37,16 +37,28 @@ async function serveDocument(req, res, next) {
          LIMIT 1`,
         [fileKey, req.session.userId]
       ),
+      pool.query(
+        `SELECT prf.id
+         FROM public_request_files prf
+         JOIN public_requests pr ON pr.id = prf.request_id
+         WHERE prf.file_key = $1
+           AND pr.is_deleted = FALSE
+         LIMIT 1`,
+        [fileKey]
+      ),
     ]);
 
     const isAdmin = req.session.userRole === ROLES.ADMIN;
+    const isManager = req.session.userRole === ROLES.MANAGER;
     const stagePhoto = photo.rows[0];
     const doc = docAccess.rows[0];
+    const publicRequestFile = requestFile.rows[0];
     const hasPhotoAccess = Boolean(stagePhoto) && (isAdmin || stagePhoto.is_project_member);
     const hasDocumentAccess = Boolean(doc)
       && canReadProjectDocumentType(req.session.userRole, doc.doc_type)
       && (isAdmin || doc.is_project_member || doc.manager_id === req.session.userId);
-    const hasAccess = hasPhotoAccess || hasDocumentAccess;
+    const hasRequestFileAccess = Boolean(publicRequestFile) && (isAdmin || isManager);
+    const hasAccess = hasPhotoAccess || hasDocumentAccess || hasRequestFileAccess;
 
     if (!hasAccess) {
       return res.status(403).json({ success: false, error: 'Нет доступа к файлу' });

@@ -43,6 +43,10 @@ let activeProjectCoefficientIds = [];
 let draftProjectCoefficientIds = [];
 let managerPageMode = document.body?.dataset.managerPageMode || window.MANAGER_PAGE_MODE || 'dashboard';
 let isManagerProjectPage = managerPageMode === 'project';
+let activeProjectTab = null;
+let loadedProjectTabs = new Set();
+let projectTabLoadPromises = new Map();
+const PROJECT_TABS = ['main', 'stages', 'estimate', 'calendar', 'warehouse', 'documents'];
 
 const REQUEST_DOC_LABELS = window.REQUEST_DOC_LABELS;
 
@@ -59,6 +63,61 @@ const PROJECT_TEAM_ROLE_LABELS = {
   [window.APP_ROLES.CUSTOMER]: 'Заказчик',
 };
 
+function canManageManagerStages() {
+  return currentUser?.role === window.APP_ROLES.ADMIN;
+}
+
+function refreshManagerStageWriteControls() {
+  const canManageStages = canManageManagerStages();
+  document.getElementById('btn-add-stage')?.classList.toggle('is-hidden', !canManageStages);
+  return canManageStages;
+}
+
+function resetProjectTabCache() {
+  activeProjectTab = null;
+  loadedProjectTabs = new Set();
+  projectTabLoadPromises = new Map();
+}
+
+function loadProjectTabData(tab, { force = false } = {}) {
+  if (!activeProjectId || (!force && loadedProjectTabs.has(tab))) return Promise.resolve();
+  if (!force && projectTabLoadPromises.has(tab)) return projectTabLoadPromises.get(tab);
+
+  const loaders = {
+    stages:    () => loadManagerStages(activeProjectId),
+    estimate:  () => window.ManagerEstimate?.open(activeProjectId),
+    calendar:  () => window.ManagerCalendar?.load(activeProjectId),
+    warehouse: () => loadManagerWarehouse(activeProjectId),
+    documents: () => window.ManagerDocuments?.load(activeProjectId),
+  };
+  const loader = loaders[tab];
+  if (!loader) return Promise.resolve();
+
+  const promise = Promise.resolve(loader())
+    .then(() => loadedProjectTabs.add(tab))
+    .catch((err) => {
+      loadedProjectTabs.delete(tab);
+      throw err;
+    })
+    .finally(() => projectTabLoadPromises.delete(tab));
+  projectTabLoadPromises.set(tab, promise);
+  return promise;
+}
+
+function preloadProjectTabs(priorityTab) {
+  const tabs = [
+    priorityTab,
+    ...PROJECT_TABS.filter((tab) => tab !== priorityTab),
+  ];
+  return Promise.allSettled(tabs.map((tab) => loadProjectTabData(tab)));
+}
+
+function reloadProjectTab(tab) {
+  loadedProjectTabs.delete(tab);
+  if (activeProjectTab === tab) return loadProjectTabData(tab, { force: true });
+  return Promise.resolve();
+}
+
 window.ManagerKp?.configure({
   getActiveProjectId: () => activeProjectId,
   onSent: async ({ projectId, sentAt }) => {
@@ -71,12 +130,14 @@ window.ManagerKp?.configure({
 
     const generateBtn = document.getElementById('btn-generate-stages');
     const stagesGenerated = Boolean(activeProject?.stages_generated || project?.stages_generated);
-    if (generateBtn && !stagesGenerated) {
-      generateBtn.disabled = false;
-      generateBtn.title = '';
+    if (generateBtn) {
+      const canManageStages = canManageManagerStages();
+      generateBtn.classList.toggle('is-hidden', !canManageStages || stagesGenerated);
+      generateBtn.disabled = !canManageStages || stagesGenerated;
+      generateBtn.title = canManageStages ? '' : 'Формировать этапы может только администратор или прораб';
     }
 
-    window.ManagerDocuments?.load(projectId);
+    reloadProjectTab('documents');
     loadFunnel();
     loadProjects();
   },
@@ -87,6 +148,7 @@ window.ManagerEstimate?.configure({
   getActiveProjectId: () => activeProjectId,
   getActiveProject: () => activeProject,
   getProjectsList: () => projectsList,
+  canManageStages: canManageManagerStages,
 });
 window.ManagerEstimate?.init();
 
@@ -103,6 +165,7 @@ async function init() {
     if (!currentUser) return;
     document.getElementById('user-name').textContent = currentUser.name;
     renderUserAvatar(currentUser);
+    refreshManagerStageWriteControls();
     initNotificationBell();
     initCatalogAutocomplete(window.APP_ROLES.MANAGER);
     if (isManagerProjectPage) {
@@ -283,6 +346,7 @@ async function openProject(id, tab = 'main', notification = null) {
   if (!ok) return;
   const project = data.data;
   activeProject = project;
+  resetProjectTabCache();
 
   renderProjectOverview(project);
   document.getElementById('project-status-select').value = project.status;
@@ -300,12 +364,12 @@ async function openProject(id, tab = 'main', notification = null) {
   window.ManagerKp?.syncActionVisibility(!kpBtn.classList.contains('is-hidden'));
   kpBtn.disabled = true;
   kpBtn.title = 'Проверка состава КП...';
-  window.ManagerKp?.refreshButtonState(project.id);
 
-  switchProjectTab(tab);
   if (!isManagerProjectPage) openModal('modal-project');
 
+  await switchProjectTab(tab, { force: true }).catch(() => {});
   await Promise.allSettled([
+    preloadProjectTabs(tab),
     loadProjectCoefficientSummary(project.id),
     loadStaff(),
   ]);
@@ -452,7 +516,8 @@ document.addEventListener('notification:open', async (e) => {
   await openProject(notification.project_id, tab, notification);
 });
 
-function switchProjectTab(tab) {
+function switchProjectTab(tab, options = {}) {
+  activeProjectTab = tab;
   document.querySelectorAll('.project-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tab);
   });
@@ -468,10 +533,7 @@ function switchProjectTab(tab) {
     url.searchParams.delete('statusDraft');
     window.history.replaceState(null, '', url.toString());
   }
-  if (tab === 'stages') loadManagerStages(activeProjectId);
-  if (tab === 'estimate') window.ManagerEstimate?.open(activeProjectId);
-  if (tab === 'warehouse') loadManagerWarehouse(activeProjectId);
-  if (tab === 'documents') window.ManagerDocuments?.load(activeProjectId);
+  return loadProjectTabData(tab, options);
 }
 
 document.getElementById('modal-project').addEventListener('click', (e) => {
@@ -686,7 +748,7 @@ document.getElementById('btn-project-coeffs-save').addEventListener('click', asy
   updateProjectCoefficientSummary(data.data.items, data.data.total);
   showToast('Коэффициенты проекта обновлены', 'success');
   closeModal('modal-project-coeffs');
-  window.ManagerEstimate?.loadVOR(activeProjectId);
+  reloadProjectTab('estimate');
 });
 
 // ─── Этапы ───────────────────────────────────────────────────
@@ -737,6 +799,27 @@ function renderManagerStageItem(stage) {
   const dates = getManagerStageDates(stage);
   const progress = getManagerStageProgress(stage);
   const note = stage.note ? escHtml(stage.note) : '—';
+  const actions = canManageManagerStages() ? `
+      <div class="manager-stage-menu-wrap">
+        <button class="manager-stage-menu-btn" type="button" data-stage-menu aria-label="Действия по этапу">...</button>
+        <div class="manager-stage-menu">
+          <button type="button"
+            data-action="edit-stage" data-id="${stage.id}"
+            data-name="${escHtml(stage.name)}" data-status="${stage.status}"
+            data-is-from-vor="${stage.is_from_vor ? 'true' : 'false'}"
+            data-order="${stage.order_num ?? ''}"
+            data-start="${stage.planned_start || ''}" data-end="${stage.planned_end || ''}"
+            data-actual-end="${stage.actual_end || ''}"
+            data-planned-value="${stage.planned_value ?? ''}"
+            data-actual-value="${stage.actual_value ?? ''}"
+            data-unit="${escHtml(stage.unit || '')}"
+            data-planned-date="${stage.planned_date || ''}"
+            data-actual-date="${stage.actual_date || ''}"
+            data-note="${escHtml(stage.note || '')}"><span>✎</span> Редактировать</button>
+          <button type="button" class="danger" data-action="delete-stage" data-id="${stage.id}"><span>×</span> Удалить</button>
+        </div>
+      </div>
+    ` : '';
 
   return `
     <article class="manager-stage-item ${stage.is_from_vor ? 'is-vor' : ''}">
@@ -767,30 +850,13 @@ function renderManagerStageItem(stage) {
           <strong>${progress}%</strong>
         </div>
       </div>
-      <div class="manager-stage-menu-wrap">
-        <button class="manager-stage-menu-btn" type="button" data-stage-menu aria-label="Действия по этапу">...</button>
-        <div class="manager-stage-menu">
-          <button type="button"
-            data-action="edit-stage" data-id="${stage.id}"
-            data-name="${escHtml(stage.name)}" data-status="${stage.status}"
-            data-is-from-vor="${stage.is_from_vor ? 'true' : 'false'}"
-            data-order="${stage.order_num ?? ''}"
-            data-start="${stage.planned_start || ''}" data-end="${stage.planned_end || ''}"
-            data-actual-end="${stage.actual_end || ''}"
-            data-planned-value="${stage.planned_value ?? ''}"
-            data-actual-value="${stage.actual_value ?? ''}"
-            data-unit="${escHtml(stage.unit || '')}"
-            data-planned-date="${stage.planned_date || ''}"
-            data-actual-date="${stage.actual_date || ''}"
-            data-note="${escHtml(stage.note || '')}"><span>✎</span> Редактировать</button>
-          <button type="button" class="danger" data-action="delete-stage" data-id="${stage.id}"><span>×</span> Удалить</button>
-        </div>
-      </div>
+      ${actions}
     </article>
   `;
 }
 
 async function loadManagerStages(id) {
+  refreshManagerStageWriteControls();
   const container = document.getElementById('stages-list');
   container.innerHTML = '<div class="manager-estimate-empty">Загрузка...</div>';
   const { ok, data } = await apiRequest('GET', `/api/manager/projects/${id}/stages`);
@@ -876,6 +942,11 @@ document.getElementById('stages-list').addEventListener('click', async (e) => {
   if (!btn) return;
   btn.closest('.manager-stage-menu-wrap')?.classList.remove('open');
 
+  if (!canManageManagerStages()) {
+    showToast('Изменять этапы может только администратор или прораб', 'error');
+    return;
+  }
+
   if (btn.dataset.action === 'edit-stage') {
     document.getElementById('stage-modal-title').textContent = 'Редактировать этап';
     const isVor = btn.dataset.isFromVor === 'true';
@@ -901,7 +972,7 @@ document.getElementById('stages-list').addEventListener('click', async (e) => {
   if (btn.dataset.action === 'delete-stage') {
     if (!confirm('Удалить этап?')) return;
     const { ok, data } = await apiRequest('DELETE', `/api/manager/stages/${btn.dataset.id}`);
-    if (ok) { showToast('Этап удалён', 'success'); loadManagerStages(activeProjectId); }
+    if (ok) { showToast('Этап удалён', 'success'); reloadProjectTab('stages'); }
     else showToast(data.error, 'error');
   }
 });
@@ -913,6 +984,11 @@ document.addEventListener('click', (e) => {
 });
 
 document.getElementById('btn-add-stage').addEventListener('click', () => {
+  if (!canManageManagerStages()) {
+    showToast('Изменять этапы может только администратор или прораб', 'error');
+    return;
+  }
+
   document.getElementById('stage-modal-title').textContent = 'Новый этап';
   document.getElementById('stage-form').reset();
   document.getElementById('stage-form-id').value = '';
@@ -926,6 +1002,11 @@ document.getElementById('btn-add-stage').addEventListener('click', () => {
 
 document.getElementById('stage-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!canManageManagerStages()) {
+    showToast('Изменять этапы может только администратор или прораб', 'error');
+    return;
+  }
+
   const stageId = document.getElementById('stage-form-id').value;
   const isVor = document.getElementById('stage-form-is-vor').value === 'true';
   const name = document.getElementById('stage-form-name').value.trim();
@@ -995,7 +1076,7 @@ document.getElementById('stage-form').addEventListener('submit', async (e) => {
   if (ok) {
     showToast(stageId ? 'Этап обновлён' : 'Этап создан', 'success');
     closeModal('modal-manager-stage');
-    loadManagerStages(activeProjectId);
+    reloadProjectTab('stages');
   } else {
     showToast(data.error, 'error');
   }
@@ -1156,7 +1237,7 @@ async function loadRequestFiles(id) {
       <div class="manager-request-file-row">
         <span class="manager-request-file-type">${escHtml(REQUEST_DOC_LABELS[f.doc_type] || f.doc_type || '—')}</span>
         <span class="manager-request-file-name">${escHtml(f.file_name)}</span>
-        <a href="${f.url}" target="_blank" class="btn btn-outline btn-sm manager-request-file-download">Скачать</a>
+        <a href="${safeAttrUrl(f.url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm manager-request-file-download">Скачать</a>
       </div>`).join('')}
   `;
 }

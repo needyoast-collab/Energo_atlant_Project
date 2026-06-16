@@ -7,4 +7,16 @@ async function getSignedDownloadUrl(fileKey) {
   return getSignedUrl(s3, command, { expiresIn: 3600 }); // TTL 1 час
 }
 
-module.exports = { getSignedDownloadUrl };
+function encodeFileKey(fileKey) {
+  return Buffer.from(String(fileKey), 'utf8').toString('base64url');
+}
+
+function getProtectedDownloadUrl(fileKey) {
+  return `/api/documents/serve/${encodeFileKey(fileKey)}`;
+}
+
+module.exports = {
+  encodeFileKey,
+  getProtectedDownloadUrl,
+  getSignedDownloadUrl,
+};

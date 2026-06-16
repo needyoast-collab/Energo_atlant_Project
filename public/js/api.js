@@ -11,8 +11,25 @@ async function apiRequest(method, url, body = null) {
   }
 
   const res = await fetch(url, opts);
-  const data = await res.json();
-  return { ok: res.ok, status: res.status, data };
+  const text = await res.text();
+
+  if (!text) {
+    return {
+      ok: res.ok,
+      status: res.status,
+      data: res.ok ? { success: true, data: null } : { success: false, error: 'Пустой ответ сервера' },
+    };
+  }
+
+  try {
+    return { ok: res.ok, status: res.status, data: JSON.parse(text) };
+  } catch (_) {
+    return {
+      ok: false,
+      status: res.status,
+      data: { success: false, error: 'Некорректный ответ сервера' },
+    };
+  }
 }
 
 // ─── Toast-уведомления ────────────────────────────────────────
@@ -81,9 +98,38 @@ function escHtml(str) {
   return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function escAttr(str) {
+  return escHtml(str).replace(/'/g, '&#39;');
+}
+
+function safeUrl(url, fallback = '#') {
+  const value = String(url ?? '').trim();
+  if (!value) return fallback;
+
+  if (value.startsWith('/') && !value.startsWith('//')) {
+    return value;
+  }
+
+  if (value.startsWith('//')) {
+    return fallback;
+  }
+
+  try {
+    const parsed = new URL(value, window.location.origin);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function safeAttrUrl(url, fallback = '#') {
+  return escAttr(safeUrl(url, fallback));
+}
+
 // ─── Маска телефона +7 (___) ___-__-__ ───────────────────────
 (function () {
   function applyPhoneMask(input) {
+    if (typeof IMask !== 'function') return;
     IMask(input, {
       mask: '+{7} (000) 000-00-00',
       lazy: false,
@@ -111,6 +157,7 @@ function escHtml(str) {
   const SEL = 'input[data-mask="project-code"]';
 
   function applyProjectCodeMask(input) {
+    if (typeof IMask !== 'function') return;
     IMask(input, {
       mask: 'PRJ-0000-0000',
       lazy: false,

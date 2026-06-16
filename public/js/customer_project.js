@@ -6,8 +6,58 @@ let stagesCache = [];
 let customerCalendarPlan = null;
 let pendingStageId = null;
 let pendingDocumentId = null;
+let loadedProjectTabs = new Set();
+let projectTabLoadPromises = new Map();
 
 const CUSTOMER_DOC_LABELS = window.PROJECT_DOC_LABELS;
+const CUSTOMER_PROJECT_TABS = ['overview', 'stages', 'calendar', 'documents', 'warehouse'];
+
+function resetProjectTabCache() {
+  loadedProjectTabs = new Set();
+  projectTabLoadPromises = new Map();
+}
+
+function loadProjectTabData(tab, { force = false } = {}) {
+  if (!activeProjectId || (!force && loadedProjectTabs.has(tab))) return Promise.resolve();
+  if (!force && projectTabLoadPromises.has(tab)) return projectTabLoadPromises.get(tab);
+
+  const loaders = {
+    overview: loadOverview,
+    stages: loadStages,
+    calendar: loadCalendarPlan,
+    documents: loadDocuments,
+    warehouse: loadWarehouse,
+  };
+  const loader = loaders[tab];
+  if (!loader) return Promise.resolve();
+
+  const promise = Promise.resolve(loader())
+    .then(() => loadedProjectTabs.add(tab))
+    .catch((err) => {
+      loadedProjectTabs.delete(tab);
+      throw err;
+    })
+    .finally(() => projectTabLoadPromises.delete(tab));
+  projectTabLoadPromises.set(tab, promise);
+  return promise;
+}
+
+function invalidateProjectTabs(...tabs) {
+  tabs.forEach((tab) => loadedProjectTabs.delete(tab));
+}
+
+function reloadProjectTab(tab) {
+  invalidateProjectTabs(tab);
+  return loadProjectTabData(tab, { force: true });
+}
+
+function preloadProjectTabs(priorityTab) {
+  const tabs = [
+    priorityTab,
+    ...CUSTOMER_PROJECT_TABS.filter((tab) => tab !== priorityTab),
+  ];
+  return Promise.allSettled(tabs.map((tab) => loadProjectTabData(tab)));
+}
 
 async function initCustomerProjectPage() {
   try {
@@ -32,6 +82,7 @@ async function initCustomerProjectPage() {
     bindCustomerProjectEvents();
     await loadProject();
     await switchProjectTab(activeTab, { replace: true });
+    await preloadProjectTabs(activeTab);
   } finally {
     window.hidePreloader?.();
   }
@@ -91,12 +142,12 @@ function bindCustomerProjectEvents() {
 
     if (notification.type === 'document') {
       pendingDocumentId = notification.entity_id ? String(notification.entity_id) : null;
-      await switchProjectTab('documents');
+      await switchProjectTab('documents', { force: true });
       return;
     }
 
     pendingStageId = notification.entity_id ? String(notification.entity_id) : null;
-    await switchProjectTab('stages');
+    await switchProjectTab('stages', { force: true });
   });
 }
 
@@ -108,6 +159,7 @@ async function loadProject() {
   }
 
   currentProject = data.data;
+  resetProjectTabCache();
   document.getElementById('project-title').textContent = currentProject.name;
   document.getElementById('sidebar-project-title').textContent = currentProject.name;
 
@@ -134,7 +186,8 @@ function getCustomerStatus(status) {
 }
 
 async function switchProjectTab(tab, options = {}) {
-  activeTab = ['overview', 'stages', 'calendar', 'documents', 'warehouse'].includes(tab) ? tab : 'overview';
+  const previousTab = activeTab;
+  activeTab = CUSTOMER_PROJECT_TABS.includes(tab) ? tab : 'overview';
 
   document.querySelectorAll('[data-project-tab]').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.projectTab === activeTab);
@@ -148,27 +201,19 @@ async function switchProjectTab(tab, options = {}) {
 
   const url = new URL(window.location.href);
   url.searchParams.set('tab', activeTab);
-  if (options.replace) window.history.replaceState({}, '', url);
-  else window.history.pushState({}, '', url);
+  if (options.replace) {
+    window.history.replaceState({}, '', url);
+  } else if (previousTab !== activeTab) {
+    window.history.pushState({}, '', url);
+  }
 
+  const force = options.force
+    || (activeTab === 'documents' && Boolean(pendingDocumentId))
+    || (activeTab === 'stages' && Boolean(pendingStageId));
+  await loadProjectTabData(activeTab, { force });
   if (activeTab === 'documents') {
-    await loadDocuments();
     await markProjectDocumentNotificationsRead();
-    return;
   }
-  if (activeTab === 'warehouse') {
-    await loadWarehouse();
-    return;
-  }
-  if (activeTab === 'calendar') {
-    await loadCalendarPlan();
-    return;
-  }
-  if (activeTab === 'overview') {
-    await loadOverview();
-    return;
-  }
-  await loadStages();
 }
 
 async function loadOverview() {
@@ -346,7 +391,7 @@ function renderOverviewStage(stage) {
 
 function renderOverviewDoc(doc) {
   return `
-    <a class="customer-overview-doc" href="${doc.url}" target="_blank" rel="noopener">
+    <a class="customer-overview-doc" href="${safeAttrUrl(doc.url)}" target="_blank" rel="noopener">
       <strong>${escHtml(doc.file_name)}</strong>
       <span>${escHtml(doc.doc_label || CUSTOMER_DOC_LABELS[doc.doc_type] || doc.doc_type || 'Документ')} · ${formatDate(doc.uploaded_at)}</span>
     </a>
@@ -880,8 +925,8 @@ async function approveStage(stageId) {
 
   showToast('Этап согласован', 'success');
   closeModal('modal-stage-detail');
-  if (activeTab === 'overview') await loadOverview();
-  else await loadStages();
+  invalidateProjectTabs('overview', 'stages', 'calendar');
+  await reloadProjectTab(activeTab);
 }
 
 async function loadStagePhotos(stageId) {
@@ -895,8 +940,8 @@ async function loadStagePhotos(stageId) {
   }
 
   grid.innerHTML = data.data.map((photo) => `
-    <a href="${photo.url}" target="_blank" rel="noopener" class="stage-photo-thumb">
-      <img src="${photo.url}" alt="${escHtml(photo.description || '')}">
+    <a href="${safeAttrUrl(photo.url)}" target="_blank" rel="noopener" class="stage-photo-thumb">
+      <img src="${safeAttrUrl(photo.url)}" alt="${escAttr(photo.description || '')}">
     </a>
   `).join('');
 }
@@ -946,7 +991,7 @@ function renderDocumentCard(doc) {
         </div>
         <div class="customer-doc-meta">${formatDate(doc.uploaded_at)} · ${escHtml(doc.uploaded_by_name || 'ЭнергоАтлант')}</div>
       </div>
-      <a href="${doc.url}" target="_blank" rel="noopener" class="foreman-action-btn is-secondary is-compact">Скачать</a>
+      <a href="${safeAttrUrl(doc.url)}" target="_blank" rel="noopener" class="foreman-action-btn is-secondary is-compact">Скачать</a>
     </article>
   `;
 }

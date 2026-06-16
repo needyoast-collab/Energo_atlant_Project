@@ -510,6 +510,7 @@ POST   /api/manager/projects
 PUT    /api/manager/projects/:id
 POST   /api/manager/projects/:id/team
 POST   /api/manager/projects/:id/analyze
+GET    /api/manager/projects/:id/warehouse   склад объекта (только просмотр)
 GET    /api/manager/staff
 ```
 
@@ -621,7 +622,7 @@ GET    /api/documents/serve/:key   signed URL, TTL 1 час
 | Просмотр этапов            | да    | да      | да      | да       | да  | да       | —       |
 | Создать заявку на МТР      | да    | —       | да      | —        | —   | —        | —       |
 | Рассмотреть заявку МТР     | да    | —       | —       | да       | —   | —        | —       |
-| Просмотр склада            | да    | —       | да      | да       | —   | —        | —       |
+| Просмотр склада            | да    | да      | да      | да       | —   | —        | —       |
 | Экспорт склада в Excel     | да    | —       | —       | да       | —   | —        | —       |
 | Загрузить ИД               | да    | —       | —       | —        | да  | —        | —       |
 | Загрузить договор/смету    | да    | да      | —       | —        | —   | —        | —       |

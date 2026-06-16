@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
   <title>Профиль — ЭнергоАтлант</title>
   <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.ico">
@@ -12,42 +13,36 @@
   <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
   <main class="profile-page">
     <section class="profile-shell">
+
       <div class="profile-header">
-        <div>
-          <div class="profile-kicker">Личный кабинет</div>
-          <h1>Профиль</h1>
+        <div class="profile-header-left">
+          <div class="profile-avatar" id="profile-avatar">—</div>
+          <div>
+            <div class="profile-kicker">Личный кабинет</div>
+            <h1 id="profile-display-name">Профиль</h1>
+            <div class="profile-role-badge" id="profile-role-badge"></div>
+          </div>
         </div>
-        <a class="btn btn-outline btn-sm" id="profile-back-link" href="/login.html">Назад</a>
+        <a class="btn btn-outline btn-sm" id="profile-back-link" href="/login.html">← Назад</a>
       </div>
 
-      <div class="profile-grid">
+      <!-- ВКЛАДКИ -->
+      <div class="profile-tabs">
+        <button class="profile-tab active" data-tab="main">Профиль</button>
+        <button class="profile-tab" data-tab="security">Безопасность</button>
+        <button class="profile-tab" data-tab="notifications">Уведомления</button>
+        <button class="profile-tab" data-tab="account">Аккаунт</button>
+      </div>
+
+      <!-- ═══ ВКЛАДКА: ПРОФИЛЬ ═══ -->
+      <div class="profile-tab-content active" id="tab-main">
         <form class="card" id="profile-form">
+          <div class="modal-section-title mt-0">Основные данные</div>
+
           <div class="profile-avatar-row">
-            <div class="profile-avatar" id="profile-avatar">—</div>
-            <div>
-              <label class="btn btn-outline btn-sm" for="profile-avatar-input">Загрузить аватар</label>
-              <input type="file" id="profile-avatar-input" accept="image/jpeg,image/png,image/webp" hidden>
-              <div class="profile-note profile-note-upload">JPG, PNG или WEBP до 2 МБ.</div>
-            </div>
-          </div>
-          <div class="modal-section-title mt-0">Данные аккаунта</div>
-          <div class="profile-readonly-grid">
-            <div>
-              <div class="profile-field-label">Роль</div>
-              <div class="profile-field-value" id="profile-role">—</div>
-            </div>
-            <div>
-              <div class="profile-field-label">Логин</div>
-              <div class="profile-field-value" id="profile-login">—</div>
-            </div>
-            <div>
-              <div class="profile-field-label">Email</div>
-              <div class="profile-field-value" id="profile-email">—</div>
-            </div>
-            <div>
-              <div class="profile-field-label">Дата регистрации</div>
-              <div class="profile-field-value" id="profile-created">—</div>
-            </div>
+            <label class="btn btn-outline btn-sm" for="profile-avatar-input">Загрузить фото</label>
+            <input type="file" id="profile-avatar-input" accept="image/jpeg,image/png,image/webp" hidden>
+            <span class="profile-note">JPG, PNG или WEBP до 2 МБ</span>
           </div>
 
           <div class="form-group">
@@ -55,15 +50,53 @@
             <input type="text" class="form-control" name="name" id="profile-name" required>
           </div>
           <div class="form-group">
+            <label class="form-label">Логин</label>
+            <input type="text" class="form-control" name="login" id="profile-login-input" minlength="3" maxlength="50">
+            <div class="form-hint">Используется для входа в систему</div>
+          </div>
+          <div class="form-group">
             <label class="form-label">Телефон</label>
             <input type="tel" class="form-control" name="phone" id="profile-phone" placeholder="+7 (___) ___-__-__">
           </div>
-          <button type="submit" class="btn btn-primary btn-sm w-full">Сохранить профиль</button>
+          <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
         </form>
+      </div>
 
+      <!-- ═══ ВКЛАДКА: БЕЗОПАСНОСТЬ ═══ -->
+      <div class="profile-tab-content" id="tab-security">
+        <!-- Email -->
+        <div class="card" id="email-section">
+          <div class="modal-section-title mt-0">Email</div>
+          <div class="profile-readonly-row">
+            <span class="profile-field-label">Текущий email</span>
+            <span class="profile-field-value" id="profile-email-display">—</span>
+          </div>
+
+          <div id="email-change-step1">
+            <div class="form-group mt-2">
+              <label class="form-label">Новый email</label>
+              <input type="email" class="form-control" id="new-email-input" placeholder="new@example.ru">
+            </div>
+            <button class="btn btn-outline btn-sm" id="request-email-change-btn">Отправить код подтверждения</button>
+          </div>
+
+          <div id="email-change-step2" class="hidden">
+            <p class="profile-note">Код отправлен на новый email. Введите его ниже.</p>
+            <div class="form-group">
+              <label class="form-label">Код подтверждения</label>
+              <input type="text" class="form-control" id="email-change-code" maxlength="6" placeholder="6 цифр">
+            </div>
+            <div class="profile-btn-row">
+              <button class="btn btn-primary btn-sm" id="confirm-email-change-btn">Подтвердить</button>
+              <button class="btn btn-outline btn-sm" id="cancel-email-change-btn">Отмена</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Пароль -->
         <form class="card" id="password-form">
           <div class="modal-section-title mt-0">Пароль</div>
-          <div class="profile-note">Текущий пароль не отображается. Можно только задать новый после подтверждения текущего.</div>
+          <div class="profile-note">Введите текущий пароль для подтверждения изменений.</div>
           <div class="form-group">
             <label class="form-label">Текущий пароль</label>
             <input type="password" class="form-control" name="current_password" autocomplete="current-password" required>
@@ -76,13 +109,71 @@
             <label class="form-label">Повторите новый пароль</label>
             <input type="password" class="form-control" name="new_password_repeat" autocomplete="new-password" minlength="8" required>
           </div>
-          <button type="submit" class="btn btn-outline btn-sm w-full">Изменить пароль</button>
+          <button type="submit" class="btn btn-outline btn-sm">Изменить пароль</button>
         </form>
       </div>
+
+      <!-- ═══ ВКЛАДКА: УВЕДОМЛЕНИЯ ═══ -->
+      <div class="profile-tab-content" id="tab-notifications">
+        <div class="card">
+          <div class="modal-section-title mt-0">Настройки уведомлений</div>
+          <p class="profile-note">Отключённые типы не будут появляться в ленте и не будут отправляться на мобильный.</p>
+
+          <div class="notif-settings-list" id="notif-settings-list">
+            <!-- Рендерится в JS по роли пользователя -->
+          </div>
+
+          <button class="btn btn-primary btn-sm mt-2" id="save-notif-btn">Сохранить</button>
+        </div>
+      </div>
+
+      <!-- ═══ ВКЛАДКА: АККАУНТ ═══ -->
+      <div class="profile-tab-content" id="tab-account">
+        <div class="card">
+          <div class="modal-section-title mt-0">Информация об аккаунте</div>
+          <div class="profile-readonly-grid">
+            <div>
+              <div class="profile-field-label">Роль</div>
+              <div class="profile-field-value" id="profile-role">—</div>
+            </div>
+            <div>
+              <div class="profile-field-label">Email</div>
+              <div class="profile-field-value" id="profile-email-account">—</div>
+            </div>
+            <div>
+              <div class="profile-field-label">Логин</div>
+              <div class="profile-field-value" id="profile-login-display">—</div>
+            </div>
+            <div>
+              <div class="profile-field-label">Статус</div>
+              <div class="profile-field-value" id="profile-verified">—</div>
+            </div>
+            <div>
+              <div class="profile-field-label">ID аккаунта</div>
+              <div class="profile-field-value" id="profile-id">—</div>
+            </div>
+            <div>
+              <div class="profile-field-label">Дата регистрации</div>
+              <div class="profile-field-value" id="profile-created">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="modal-section-title mt-0">Документы</div>
+          <ul class="profile-links-list">
+            <li><a href="/privacy.html" target="_blank">Политика конфиденциальности</a></li>
+            <li><a href="/privacy.html" target="_blank">Обработка персональных данных</a></li>
+          </ul>
+        </div>
+      </div>
+
     </section>
   </main>
 
+  <div id="toast-container"></div>
   <script src="/js/preloader.js"></script>
+  <script src="/vendor/imask.min.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/auth.js"></script>
   <script src="/js/profile.js"></script>

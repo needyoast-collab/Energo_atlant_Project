@@ -1,9 +1,14 @@
 User-agent: *
 Allow: /
 
-# Закрываем технические страницы от индексации
+# Закрываем технические и приватные страницы от индексации
 Disallow: /login.html
+Disallow: /register.html
 Disallow: /dashboard
+Disallow: /manager_project.html
+Disallow: /foreman_project.html
+Disallow: /customer_project.html
+Disallow: /profile.html
 Disallow: /api/
 Disallow: /admin/
 
@@ -11,9 +16,15 @@ Disallow: /admin/
 User-agent: Yandexbot
 Allow: /
 Disallow: /login.html
+Disallow: /register.html
 Disallow: /dashboard
+Disallow: /manager_project.html
+Disallow: /foreman_project.html
+Disallow: /customer_project.html
+Disallow: /profile.html
 Disallow: /api/
 Disallow: /admin/
 
 Sitemap: https://energoatlant.ru/sitemap.xml
 Host: https://energoatlant.ru
+IndexNow-key: 02428ea7cfdf42a4aa4ae78fb41fcb17

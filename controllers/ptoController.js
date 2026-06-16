@@ -1,10 +1,11 @@
 const { pool } = require('../config/database');
 const { sendNotification } = require('../utils/notifications');
-const { getSignedDownloadUrl } = require('../utils/signedUrl');
-const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { getProtectedDownloadUrl } = require('../utils/signedUrl');
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { s3, BUCKET } = require('../config/storage');
 const { randomUUID } = require('crypto');
 const { checkMembership, makeJoinProject } = require('../utils/project');
+const { deleteStoredObject } = require('../utils/storageObjects');
 const { uploadDocSchema } = require('../utils/validate');
 const {
   ROLES,
@@ -202,11 +203,11 @@ async function getDocuments(req, res, next) {
       [id, readableDocTypes]
     );
 
-    const docs = await Promise.all(result.rows.map(async doc => ({
+    const docs = result.rows.map(doc => ({
       ...decorateProjectDocument(doc),
       file_name: normalizeStoredFileName(doc.file_name),
-      url: await getSignedDownloadUrl(doc.file_key),
-    })));
+      url: getProtectedDownloadUrl(doc.file_key),
+    }));
 
     return res.json({ success: true, data: docs });
   } catch (err) {
@@ -228,16 +229,18 @@ async function deleteDocument(req, res, next) {
       return res.status(404).json({ success: false, error: 'Документ не найден' });
     }
 
-    // Удалять может только тот, кто загрузил, или admin
-    if (doc.rows[0].uploaded_by !== req.session.userId && req.session.userRole !== ROLES.ADMIN) {
+    const isAdmin = req.session.userRole === ROLES.ADMIN;
+    const isMember = await checkMembership(doc.rows[0].project_id, req.session.userId);
+    if (!isAdmin && !isMember) {
       return res.status(403).json({ success: false, error: 'Нет доступа' });
     }
 
-    await s3.send(new DeleteObjectCommand({
-      Bucket: BUCKET,
-      Key:    doc.rows[0].file_key,
-    }));
+    // Удалять может только тот, кто загрузил, или admin
+    if (doc.rows[0].uploaded_by !== req.session.userId && !isAdmin) {
+      return res.status(403).json({ success: false, error: 'Нет доступа' });
+    }
 
+    await deleteStoredObject(doc.rows[0].file_key);
     await pool.query(`DELETE FROM project_documents WHERE id = $1`, [id]);
 
     return res.json({ success: true });

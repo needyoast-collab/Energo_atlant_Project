@@ -1,5 +1,5 @@
-const nodemailer = require('nodemailer');
 const { z } = require('zod');
+const { sendEmail } = require('../utils/email');
 
 const contactSchema = z.object({
   name:    z.string().min(1).max(100),
@@ -8,22 +8,11 @@ const contactSchema = z.object({
   message: z.string().max(2000).optional(),
 });
 
-let transporter = null;
-
-function getTransporter() {
-  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) return null;
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host:   'smtp.yandex.ru',
-      port:   465,
-      secure: true,
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-    });
-  }
-  return transporter;
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 // POST /api/contact
@@ -36,24 +25,21 @@ async function sendContact(req, res, next) {
 
     const { name, phone, email, message } = parsed.data;
 
-    const tp = getTransporter();
-    if (!tp) {
-      console.warn('[MAIL] Transporter не настроен, письмо не будет отправлено');
-      return res.json({ success: true });
-    }
-
-    const lines = [
-      `Имя: ${name}`,
-      `Телефон: ${phone}`,
-      email   ? `Email: ${email}`       : null,
-      message ? `Сообщение: ${message}` : null,
+    const rows = [
+      ['Имя', name],
+      ['Телефон', phone],
+      email   ? ['Email', email]       : null,
+      message ? ['Сообщение', message] : null,
     ].filter(Boolean);
 
-    await tp.sendMail({
-      from:    `"ЭнергоАтлант сайт" <${process.env.MAIL_USER}>`,
-      to:      'energoatlant@yandex.ru',
+    const html = rows
+      .map(([label, value]) => `<p><b>${label}:</b> ${escapeHtml(value)}</p>`)
+      .join('');
+
+    await sendEmail({
+      to: 'energoatlant@yandex.ru',
       subject: 'Новая заявка с сайта',
-      text:    lines.join('\n'),
+      html,
     });
 
     return res.json({ success: true });

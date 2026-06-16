@@ -276,33 +276,46 @@ async function transferToProject(req, res, next) {
     const isMember = await checkMembership(project_id, req.session.userId);
     if (!isMember) return res.status(403).json({ success: false, error: 'Нет доступа к проекту' });
 
-    // Берём позицию общего склада
-    const item = await pool.query(
-      `SELECT id, material_name, unit, qty_total, qty_reserved FROM warehouse_general WHERE id = $1`,
-      [id]
-    );
-    if (!item.rows[0]) return res.status(404).json({ success: false, error: 'Позиция общего склада не найдена' });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    const available = parseFloat(item.rows[0].qty_total) - parseFloat(item.rows[0].qty_reserved);
-    if (quantity > available) {
-      return res.status(400).json({ success: false, error: `Недостаточно на складе. Доступно: ${available}` });
+      // Берём позицию общего склада внутри транзакции, чтобы списание и приход были атомарными.
+      const item = await client.query(
+        `SELECT id, material_name, unit, qty_total, qty_reserved FROM warehouse_general WHERE id = $1`,
+        [id]
+      );
+      if (!item.rows[0]) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, error: 'Позиция общего склада не найдена' });
+      }
+
+      const available = parseFloat(item.rows[0].qty_total) - parseFloat(item.rows[0].qty_reserved);
+      if (quantity > available) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: `Недостаточно на складе. Доступно: ${available}` });
+      }
+
+      await client.query(
+        `UPDATE warehouse_general SET qty_total = qty_total - $1, updated_at = NOW() WHERE id = $2`,
+        [quantity, id]
+      );
+
+      const result = await client.query(
+        `INSERT INTO warehouse_project (project_id, material_name, unit, qty_total, source, general_item_id, notes)
+         VALUES ($1, $2, $3, $4, 'company', $5, $6)
+         RETURNING id, material_name, unit, qty_total, qty_used, source`,
+        [project_id, item.rows[0].material_name, unit || item.rows[0].unit, quantity, id, notes || null]
+      );
+
+      await client.query('COMMIT');
+      return res.status(201).json({ success: true, data: result.rows[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    // Уменьшаем qty_total на общем складе
-    await pool.query(
-      `UPDATE warehouse_general SET qty_total = qty_total - $1, updated_at = NOW() WHERE id = $2`,
-      [quantity, id]
-    );
-
-    // Создаём запись на складе объекта
-    const result = await pool.query(
-      `INSERT INTO warehouse_project (project_id, material_name, unit, qty_total, source, general_item_id, notes)
-       VALUES ($1, $2, $3, $4, 'company', $5, $6)
-       RETURNING id, material_name, unit, qty_total, qty_used, source`,
-      [project_id, item.rows[0].material_name, unit || item.rows[0].unit, quantity, id, notes || null]
-    );
-
-    return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
     return next(err);
   }

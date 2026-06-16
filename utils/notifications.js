@@ -66,7 +66,20 @@ async function sendMobilePush({ userId, projectId = null, type, message, entityT
   await deactivatePushTokens(inactiveTokens);
 }
 
+async function isNotificationEnabled(userId, type) {
+  const result = await pool.query(
+    `SELECT notification_settings FROM users WHERE id = $1 AND is_deleted = FALSE`,
+    [userId]
+  );
+  const settings = result.rows[0]?.notification_settings || {};
+  // Отсутствие ключа = включено; явный false = выключено
+  return settings[type] !== false;
+}
+
 async function sendNotification({ userId, projectId = null, type, message, entityType = null, entityId = null }) {
+  const enabled = await isNotificationEnabled(userId, type);
+  if (!enabled) return;
+
   await pool.query(
     `INSERT INTO notifications (user_id, project_id, type, entity_type, entity_id, message)
      VALUES ($1, $2, $3, $4, $5, $6)`,

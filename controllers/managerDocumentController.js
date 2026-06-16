@@ -1,9 +1,10 @@
 const { randomUUID } = require('crypto');
-const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { pool } = require('../config/database');
 const { s3, BUCKET } = require('../config/storage');
 const { sendNotification } = require('../utils/notifications');
-const { getSignedDownloadUrl } = require('../utils/signedUrl');
+const { getProtectedDownloadUrl } = require('../utils/signedUrl');
+const { deleteStoredObject } = require('../utils/storageObjects');
 const {
   ROLES,
   PROJECT_DOCUMENT_TYPES,
@@ -11,6 +12,7 @@ const {
   getReadableProjectDocumentTypes,
   normalizeProjectDocumentType,
   decorateProjectDocument,
+  isFinancialDocumentType,
 } = require('../utils/constants');
 const {
   isAdminSession,
@@ -107,11 +109,11 @@ async function getDocuments(req, res, next) {
       [id, readableDocTypes]
     );
 
-    const docs = await Promise.all(result.rows.map(async doc => ({
+    const docs = result.rows.map(doc => ({
       ...decorateProjectDocument(doc),
       file_name: normalizeStoredFileName(doc.file_name),
-      url: await getSignedDownloadUrl(doc.file_key),
-    })));
+      url: getProtectedDownloadUrl(doc.file_key),
+    }));
 
     return res.json({ success: true, data: docs });
   } catch (err) {
@@ -125,7 +127,7 @@ async function deleteDocument(req, res, next) {
     const { id } = req.params;
 
     const doc = await pool.query(
-      `SELECT pd.id, pd.file_key, pd.uploaded_by, pd.project_id
+      `SELECT pd.id, pd.file_key, pd.uploaded_by, pd.project_id, pd.doc_type
        FROM project_documents pd
        WHERE pd.id = $1`,
       [id]
@@ -144,7 +146,13 @@ async function deleteDocument(req, res, next) {
       return res.status(403).json({ success: false, error: 'Нет доступа' });
     }
 
-    await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: doc.rows[0].file_key }));
+    const canDeleteAsManager = isFinancialDocumentType(doc.rows[0].doc_type)
+      || doc.rows[0].uploaded_by === req.session.userId;
+    if (!isAdminSession(req) && !canDeleteAsManager) {
+      return res.status(403).json({ success: false, error: 'Можно удалить только финансовый документ или свою загрузку' });
+    }
+
+    await deleteStoredObject(doc.rows[0].file_key);
     await pool.query(`DELETE FROM project_documents WHERE id = $1`, [id]);
 
     await logProjectHistory({
@@ -171,11 +179,11 @@ async function getRequestFiles(req, res, next) {
        ORDER BY uploaded_at`,
       [id]
     );
-    const files = await Promise.all(result.rows.map(async f => ({
+    const files = result.rows.map(f => ({
       ...f,
       file_name: normalizeStoredFileName(f.file_name),
-      url: await getSignedDownloadUrl(f.file_key),
-    })));
+      url: getProtectedDownloadUrl(f.file_key),
+    }));
     return res.json({ success: true, data: files });
   } catch (err) {
     return next(err);

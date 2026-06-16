@@ -5,11 +5,17 @@ const {
   loginSchema,
   updateProfileSchema,
   changePasswordSchema,
+  updateLoginSchema,
+  requestEmailChangeSchema,
+  confirmEmailChangeSchema,
+  updateNotificationSettingsSchema,
+  NOTIFICATION_TYPES,
 } = require('../utils/validate');
 const { sendSms } = require('../utils/sms');
 const { sendEmail } = require('../utils/email');
 const { getSignedDownloadUrl } = require('../utils/signedUrl');
-const { DeleteObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { deleteStoredObject } = require('../utils/storageObjects');
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { s3, BUCKET } = require('../config/storage');
 const { randomUUID } = require('crypto');
 const {
@@ -177,6 +183,7 @@ async function buildUserProfileData(user) {
     is_verified: user.is_verified,
     created_at: user.created_at,
     avatar_url: user.avatar_file_key ? await getSignedDownloadUrl(user.avatar_file_key) : null,
+    notification_settings: user.notification_settings || {},
   };
 }
 
@@ -458,7 +465,7 @@ async function logout(req, res, next) {
 async function me(req, res, next) {
   try {
     const result = await pool.query(
-      `SELECT id, role, name, email, login, phone, is_verified, avatar_file_key, created_at
+      `SELECT id, role, name, email, login, phone, is_verified, avatar_file_key, created_at, notification_settings
        FROM users WHERE id = $1 AND is_deleted = FALSE`,
       [req.session.userId]
     );
@@ -506,7 +513,7 @@ async function updateProfile(req, res, next) {
        SET name = $1,
            phone = $2
        WHERE id = $3 AND is_deleted = FALSE
-       RETURNING id, role, name, email, login, phone, is_verified, avatar_file_key, created_at`,
+       RETURNING id, role, name, email, login, phone, is_verified, avatar_file_key, created_at, notification_settings`,
       [name.trim(), normalizedPhone, req.session.userId]
     );
 
@@ -564,10 +571,7 @@ async function uploadAvatar(req, res, next) {
 
     if (current.rows[0].avatar_file_key) {
       try {
-        await s3.send(new DeleteObjectCommand({
-          Bucket: BUCKET,
-          Key: current.rows[0].avatar_file_key,
-        }));
+        await deleteStoredObject(current.rows[0].avatar_file_key);
       } catch (err) {
         console.warn('[AUTH] Не удалось удалить старый аватар:', err.message);
       }
@@ -619,6 +623,150 @@ async function changePassword(req, res, next) {
     );
 
     return res.json({ success: true, message: 'Пароль изменён' });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function updateLogin(req, res, next) {
+  try {
+    const parsed = updateLoginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
+    const { login } = parsed.data;
+    const existing = await pool.query(
+      `SELECT id FROM users
+       WHERE LOWER(login) = LOWER($1) AND id <> $2 AND is_deleted = FALSE`,
+      [login, req.session.userId]
+    );
+    if (existing.rows[0]) {
+      return res.status(400).json({ success: false, error: 'Этот логин уже занят' });
+    }
+
+    const result = await pool.query(
+      `UPDATE users SET login = $1
+       WHERE id = $2 AND is_deleted = FALSE
+       RETURNING id, role, name, email, login, phone, is_verified, avatar_file_key, created_at, notification_settings`,
+      [login, req.session.userId]
+    );
+    if (!result.rows[0]) {
+      return res.status(404).json({ success: false, error: 'Пользователь не найден' });
+    }
+
+    return res.json({ success: true, data: await buildUserProfileData(result.rows[0]), message: 'Логин обновлён' });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function requestEmailChange(req, res, next) {
+  try {
+    const parsed = requestEmailChangeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
+    const newEmail = normalizeEmail(parsed.data.new_email);
+    if (!newEmail) {
+      return res.status(400).json({ success: false, error: 'Укажите корректный email' });
+    }
+
+    const existing = await pool.query(
+      `SELECT id FROM users WHERE email = $1 AND id <> $2 AND is_deleted = FALSE`,
+      [newEmail, req.session.userId]
+    );
+    if (existing.rows[0]) {
+      return res.status(400).json({ success: false, error: 'Этот email уже используется' });
+    }
+
+    const code = getResetCode();
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await pool.query(
+      `UPDATE users
+       SET email_change_pending = $1, email_change_code = $2, email_change_expires = $3
+       WHERE id = $4`,
+      [newEmail, code, expires, req.session.userId]
+    );
+
+    await sendEmail({
+      to: newEmail,
+      subject: 'Подтверждение смены email — ЭнергоАтлант',
+      html: `<p>Код подтверждения для смены email: <b>${code}</b></p><p>Код действует 15 минут.</p>`,
+    });
+
+    const message = (process.env.SMTP_USER)
+      ? 'Код отправлен на новый email'
+      : `Код отправлен. Тестовый код: ${code}`;
+
+    return res.json({ success: true, message });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function confirmEmailChange(req, res, next) {
+  try {
+    const parsed = confirmEmailChangeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
+    const result = await pool.query(
+      `UPDATE users
+       SET email = email_change_pending,
+           email_change_pending = NULL,
+           email_change_code = NULL,
+           email_change_expires = NULL
+       WHERE id = $1
+         AND email_change_code = $2
+         AND email_change_expires > NOW()
+         AND is_deleted = FALSE
+       RETURNING id, role, name, email, login, phone, is_verified, avatar_file_key, created_at, notification_settings`,
+      [req.session.userId, String(parsed.data.code).trim()]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(400).json({ success: false, error: 'Неверный или просроченный код' });
+    }
+
+    return res.json({ success: true, data: await buildUserProfileData(result.rows[0]), message: 'Email обновлён' });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function updateNotificationSettings(req, res, next) {
+  try {
+    const parsed = updateNotificationSettingsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    }
+
+    // Берём текущие настройки и мержим — клиент отправляет только изменённые поля
+    const current = await pool.query(
+      `SELECT notification_settings FROM users WHERE id = $1 AND is_deleted = FALSE`,
+      [req.session.userId]
+    );
+    if (!current.rows[0]) {
+      return res.status(404).json({ success: false, error: 'Пользователь не найден' });
+    }
+
+    const merged = { ...(current.rows[0].notification_settings || {}), ...parsed.data };
+
+    // Убираем true-значения: хранить нужно только false, остальное считается включённым
+    for (const key of NOTIFICATION_TYPES) {
+      if (merged[key] === true) delete merged[key];
+    }
+
+    await pool.query(
+      `UPDATE users SET notification_settings = $1 WHERE id = $2`,
+      [JSON.stringify(merged), req.session.userId]
+    );
+
+    return res.json({ success: true, data: { notification_settings: merged }, message: 'Настройки уведомлений сохранены' });
   } catch (err) {
     return next(err);
   }
@@ -815,6 +963,10 @@ module.exports = {
   updateProfile,
   changePassword,
   uploadAvatar,
+  updateLogin,
+  requestEmailChange,
+  confirmEmailChange,
+  updateNotificationSettings,
   forgotPassword,
   verifyCode,
   resetPassword,

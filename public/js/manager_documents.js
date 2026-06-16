@@ -175,7 +175,7 @@
           <div class="manager-docs-file-name">${escHtml(doc.file_name)}</div>
         </div>
         <div class="manager-docs-actions">
-          <a href="${doc.url}" target="_blank" class="manager-docs-action manager-docs-download"><span>↓</span> Скачать</a>
+          <a href="${safeAttrUrl(doc.url)}" target="_blank" rel="noopener" class="manager-docs-action manager-docs-download"><span>↓</span> Скачать</a>
           ${canDelete ? `
             <div class="manager-docs-menu-wrap">
               <button class="manager-docs-menu-btn" type="button" data-doc-menu aria-label="Действия по документу">...</button>

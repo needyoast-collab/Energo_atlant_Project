@@ -18,10 +18,86 @@
   <meta property="og:site_name" content="ЭнергоАтлант">
   <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.ico">
+  <!-- Preload критичных шрифтов (LCP: H1 использует Stolzl Bold) -->
+  <link rel="preload" as="font" href="/fonts/stolzl_bold.woff2" type="font/woff2" crossorigin>
+  <link rel="preload" as="font" href="/fonts/stolzl_regular.woff2" type="font/woff2" crossorigin>
+  <!-- TODO LCP: создать /img/hero-poster.webp (~40 КБ) из первого кадра hero.mp4 и добавить:
+       <link rel="preload" as="image" href="/img/hero-poster.webp" fetchpriority="high">
+       poster="/img/hero-poster.webp" на оба <video> ниже -->
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/aos.css">
   <script src="/js/image_fallbacks.js"></script>
   <link rel="stylesheet" href="/css/pages/index.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "ElectricalContractor",
+        "@id": "https://energoatlant.ru/#organization",
+        "name": "ЭнергоАтлант",
+        "legalName": "Общество с ограниченной ответственностью «ЭнергоАтлант»",
+        "url": "https://energoatlant.ru",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://energoatlant.ru/img/logo.png"
+        },
+        "image": "https://energoatlant.ru/img/og-preview.jpg",
+        "description": "Полный цикл электромонтажных работ 0.4–110 кВ: монтаж ВЛ, КЛ, трансформаторных подстанций, электроснабжение объектов, проектирование и исполнительная документация. Москва и Московская область.",
+        "telephone": "+7-993-907-45-77",
+        "email": "energoatlant@yandex.ru",
+        "taxID": "5017144698",
+        "vatID": "5017144698",
+        "iso6523Code": "0211:1265000042152",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "д. Трусово, д. 49А, помещ. 2, ком. 22",
+          "addressLocality": "г.о. Истра",
+          "addressRegion": "Московская область",
+          "postalCode": "143500",
+          "addressCountry": "RU"
+        },
+        "areaServed": [
+          { "@type": "City", "name": "Москва" },
+          { "@type": "AdministrativeArea", "name": "Московская область" }
+        ],
+        "openingHoursSpecification": [
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"],
+            "opens": "09:00",
+            "closes": "18:00"
+          },
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": "Saturday",
+            "opens": "10:00",
+            "closes": "15:00"
+          }
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+7-993-907-45-77",
+          "contactType": "sales",
+          "availableLanguage": "Russian",
+          "areaServed": "RU"
+        },
+        "slogan": "Электромонтаж под ключ — от проекта до сдачи объекта"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://energoatlant.ru/#website",
+        "url": "https://energoatlant.ru",
+        "name": "ЭнергоАтлант",
+        "description": "Электромонтажные работы 0.4–110 кВ в Москве и Московской области",
+        "inLanguage": "ru-RU",
+        "publisher": {
+          "@id": "https://energoatlant.ru/#organization"
+        }
+      }
+    ]
+  }
+  </script>
 </head>
 <body class="grid-bg">
 <div id="preloader"><img src="/img/logo.png" alt="ЭнергоАтлант" class="preloader-logo"></div>
@@ -33,6 +109,7 @@
     <li><a href="/">Главная</a></li>
     <li><a href="/services.html">Услуги</a></li>
     <li><a href="/portfolio.html">Объекты</a></li>
+    <li><a href="/about.html">О компании</a></li>
     <li><a href="/partners.html">Партнёрам</a></li>
     <li><a href="/contact.html">Контакты</a></li>
   </ul>
@@ -40,9 +117,15 @@
     <button class="navbar-burger" aria-label="Меню">
       <span></span><span></span><span></span>
     </button>
-    <a href="/login.html" class="btn btn-primary btn-sm">
+    <a href="tel:+79939074577" class="navbar-phone">
+      <span class="navbar-phone-text">+7 (993) 907-45-77</span>
+      <span class="navbar-phone-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.08 6.08l1.14-1.14a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </span>
+    </a>
+    <a class="btn btn-primary btn-sm" href="/login.html">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span class="navbar-btn-text">Личный кабинет</span>
+      <span class="navbar-btn-text">Войти в кабинет</span>
     </a>
   </div>
 </nav>
@@ -51,20 +134,18 @@
 <section class="hero">
   <!-- Текст слева -->
   <div class="hero-left">
-    <video class="hero-video-mobile" autoplay muted loop playsinline>
+    <video class="hero-video-mobile" autoplay muted loop playsinline preload="none">
       <source src="/img/hero.mp4" type="video/mp4">
     </video>
-    <p class="hero-subtitle">Электромонтаж · 110 кВ · Москва и МО</p>
+    <p class="hero-subtitle">Электромонтаж · 0,4–110 кВ </p>
     <h1 class="hero-title">
-      СТРОИМ<br>
-      ЭЛЕКТРИЧЕСКИЕ<br>
-      СЕТИ<br>
-      <span>ПОД КЛЮЧ</span>
+      ЭЛЕКТРОСЕТИ ПОД КЛЮЧ<br>
+      <span>С ФИКСИРОВАННОЙ СМЕТОЙ</span>
     </h1>
-    <p class="hero-desc">Проектируем, монтируем и сдаём объекты электроснабжения 0.4–110 кВ. В срок, с документами, с гарантией.</p>
+    <p class="hero-desc">Смета — в договоре, без доплат сверху: превышение по нашей вине за наш счёт. По небольшим объектам считаем за 2 часа после выезда инженера. Москва и МО, 0,4–110 кВ.</p>
     <div class="hero-actions">
-      <a href="#request" class="btn btn-primary">Получить расчёт бесплатно</a>
-      <a href="/portfolio.html" class="btn btn-outline">Смотреть объекты</a>
+      <a href="#request" class="btn btn-primary">Оставить заявку</a>
+      <a href="/portfolio.html" class="btn btn-outline">Наши объекты</a>
     </div>
     <div class="hero-stats">
       <div>
@@ -77,7 +158,11 @@
       </div>
       <div>
         <div class="hero-stat-val">2 года</div>
-        <div class="hero-stat-lbl">гарантия</div>
+        <div class="hero-stat-lbl">гарантии на работы</div>
+      </div>
+      <div>
+        <div class="hero-stat-val">100%</div>
+        <div class="hero-stat-lbl">комплект исполнительной документации</div>
       </div>
     </div>
   </div>
@@ -90,7 +175,6 @@
     </video>
     <div class="hero-video-fade"></div>
     <div class="hero-right-decor">
-      <div class="hero-right-kv">110<br>кВ</div>
     </div>
     <div class="hero-right-line"></div>
   </div>
@@ -123,52 +207,52 @@
 <section class="section">
   <div class="container">
     <div class="section-header" data-aos="fade-up">
-      <p class="section-label">Что мы делаем</p>
-      <h2 class="section-title">Наши услуги</h2>
+      <p class="section-label"></p>
+      <h2 class="section-title">Электромонтажные работы</h2>
       <p class="section-desc">Нажмите на карточку, чтобы узнать подробнее</p>
     </div>
 
     <div class="services-grid" id="services-grid">
       <div class="service-card-clickable" data-svc="1" data-aos="fade-up" data-aos-delay="0">
-        <img class="service-img-bg" src="/img/services/vl.jpg" alt="" data-image-fallback="hide">
+        <img class="service-img-bg" src="/img/services/vl.jpg" alt="Монтаж воздушных линий электропередачи ВЛ 0.4–110 кВ" loading="lazy" data-image-fallback="hide">
         <div class="service-num">01</div>
         <div class="service-name">Воздушные линии электропередачи</div>
-        <div class="service-desc">Монтаж ВЛ 0.4–110 кВ на опорах любых типов</div>
+        <div class="service-desc">Монтаж Воздушных Линий 0.4–110 кВ на опорах любых типов</div>
         <div class="service-arrow">→</div>
       </div>
       <div class="service-card-clickable" data-svc="2" data-aos="fade-up" data-aos-delay="60">
-        <img class="service-img-bg" src="/img/services/kl.jpg" alt="" data-image-fallback="hide">
+        <img class="service-img-bg" src="/img/services/kl.jpg" alt="Прокладка кабельных линий КЛ в земле и ГНБ" loading="lazy" data-image-fallback="hide">
         <div class="service-num">02</div>
         <div class="service-name">Кабельные линии</div>
-        <div class="service-desc">Прокладка КЛ в земле, лотках, ГНБ под дорогами</div>
+        <div class="service-desc">Прокладка Кабельных Линий в земле, лотках, ГНБ под дорогами</div>
         <div class="service-arrow">→</div>
       </div>
       <div class="service-card-clickable" data-svc="3" data-aos="fade-up" data-aos-delay="120">
-        <img class="service-img-bg" src="/img/services/tp.jpg" alt="" data-image-fallback="hide">
+        <img class="service-img-bg" src="/img/services/tp.jpg" alt="Монтаж трансформаторных подстанций КТП ЗТП РТП" loading="lazy" data-image-fallback="hide">
         <div class="service-num">03</div>
         <div class="service-name">Трансформаторные подстанции</div>
-        <div class="service-desc">Монтаж КТП, ЗТП, РТП. Подключение трансформаторов</div>
+        <div class="service-desc">Монтаж Комплектных Трансформаторных Подстанций, Закрытых Трансформаторных Подстанций, Распределительных Трансформаторных Подстанций. Подключение трансформаторов</div>
         <div class="service-arrow">→</div>
       </div>
       <div class="service-card-clickable" data-svc="4" data-aos="fade-up" data-aos-delay="0">
-        <img class="service-img-bg" src="/img/services/pnr.jpg" alt="" data-image-fallback="hide">
+        <img class="service-img-bg" src="/img/services/pnr.jpg" alt="Электроснабжение объектов — монтаж щитов и кабельных трасс" loading="lazy" data-image-fallback="hide">
         <div class="service-num">04</div>
         <div class="service-name">Электроснабжение объектов</div>
         <div class="service-desc">Монтаж щитов, прокладка трасс, подключение оборудования</div>
         <div class="service-arrow">→</div>
       </div>
       <div class="service-card-clickable" data-svc="5" data-aos="fade-up" data-aos-delay="60">
-        <img class="service-img-bg" src="/img/services/docs.jpg" alt="" data-image-fallback="hide">
+        <img class="service-img-bg" src="/img/services/docs.jpg" alt="Исполнительная документация — акты скрытых работ и протоколы" loading="lazy" data-image-fallback="hide">
         <div class="service-num">05</div>
         <div class="service-name">Исполнительная документация</div>
-        <div class="service-desc">Полный комплект ИД: АСР, схемы, протоколы испытаний</div>
+        <div class="service-desc">Полный комплект Исполнительной документации: Актов Скрытых Работ, схемы, протоколы испытаний</div>
         <div class="service-arrow">→</div>
       </div>
       <div class="service-card-clickable" data-svc="6" data-aos="fade-up" data-aos-delay="120">
-        <img class="service-img-bg" src="/img/services/project.jpg" alt="" data-image-fallback="hide">
+        <img class="service-img-bg" src="/img/services/project.jpg" alt="Проектирование объектов электроснабжения — разработка РД и ТУ" loading="lazy" data-image-fallback="hide">
         <div class="service-num">06</div>
         <div class="service-name">Проектирование</div>
-        <div class="service-desc">Разработка РД, получение ТУ, согласование с Россети</div>
+        <div class="service-desc">Разработка Рабочей Документации, получение Технических Условий, согласование с территориальной снабжающей организацией</div>
         <div class="service-arrow">→</div>
       </div>
     </div>
@@ -195,7 +279,7 @@
   <div class="container">
     <div class="section-header" data-aos="fade-up">
       <p class="section-label">Процесс работы</p>
-      <h2 class="section-title">Как мы работаем</h2>
+      <h2 class="section-title">Как мы ведём проекты</h2>
     </div>
 
     <div class="how-grid">
@@ -207,7 +291,7 @@
         </div>
         <div class="how-step-num">Шаг 01</div>
         <div class="how-step-title">Заявка</div>
-        <div class="how-step-desc">Оставляете заявку или звоните. В течение 2 часов перезваниваем и уточняем детали объекта.</div>
+        <div class="how-step-desc">Оставляете заявку или звоните. Наш технический специалист перезванивает Вам и уточняет детали объекта.</div>
       </div>
       <div class="how-step" data-aos="fade-up" data-aos-delay="100">
         <div class="how-step-icon">
@@ -217,7 +301,7 @@
         </div>
         <div class="how-step-num">Шаг 02</div>
         <div class="how-step-title">Выезд на объект</div>
-        <div class="how-step-desc">Инженер приезжает на объект, оценивает объём работ и готовит коммерческое предложение.</div>
+        <div class="how-step-desc">Инженер выезжает на объект, оценивает объём работ и подготавливает коммерческое предложение.</div>
       </div>
       <div class="how-step" data-aos="fade-up" data-aos-delay="200">
         <div class="how-step-icon">
@@ -243,6 +327,54 @@
   </div>
 </section>
 
+<!-- ══ ГАРАНТИИ ════════════════════════════════════════════ -->
+<section class="section" id="guarantees">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <p class="section-label">Наши гарантии</p>
+      <h2 class="section-title">Мы гарантируем</h2>
+    </div>
+    <div class="how-grid" data-aos="fade-up">
+      <div class="how-step">
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/>
+          </svg>
+        </div>
+        <div class="how-step-title">Неизменность цены</div>
+        <div class="how-step-desc">После подписания договора цена зафиксирована. Превысим по своей вине — разницу платим сами.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div class="how-step-title">Неизменность сроков</div>
+        <div class="how-step-desc">Фиксируем дату сдачи. Сорвём по своей вине — компенсируем по договору.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <div class="how-step-title">Контроль — онлайн</div>
+        <div class="how-step-desc">Ход работ, фото и документы — в личном кабинете. Без звонков и поездок на стройку.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
+          </svg>
+        </div>
+        <div class="how-step-title">Гарантия — 2 года</div>
+        <div class="how-step-desc">Устраняем дефекты по нашим работам в течение гарантийного срока. Бесплатно.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ══ МОКАП ЛИЧНОГО КАБИНЕТА ═════════════════════════════ -->
 <section class="section u-index-03">
   <div class="container">
@@ -256,6 +388,8 @@
           <li>Статусы этапов строительства</li>
           <li>Исполнительная документация онлайн</li>
           <li>Чат с менеджером проекта</li>
+          <li>Календарный план работ </li>
+          
         </ul>
         <a href="/login.html" class="btn btn-primary">Войти в кабинет</a>
       </div>
@@ -287,7 +421,7 @@
               </div>
             </div>
             <div class="mock-status-row">
-              <span>Прораб: Д. Иванов</span>
+              <span>Менеджер: Дмитрий Иванов</span>
               <span class="u-index-07">● Онлайн</span>
             </div>
           </div>
@@ -297,11 +431,12 @@
   </div>
 </section>
 
-<!-- ══ ПАРТНЁРЫ ═══════════════════════════════════════════ -->
+<!-- ══ СТАНДАРТЫ РАБОТЫ ════════════════════════════════════ -->
 <div class="partners-section" data-aos="fade-up">
   <div class="partners-header">
-    <p class="section-label">Нам доверяют</p>
-    <h2>Партнёры и заказчики</h2>
+    <p class="section-label">Стандарты работы</p>
+    <h2>Работаем под требования сетевых организаций</h2>
+    <p style="color:var(--muted);font-size:.9rem;margin-top:.5rem;">Сдаём объекты под требования Россети и Мосэнерго — с полным комплектом исполнительной документации.</p>
   </div>
   <div class="partners-wrap">
     <div class="partners-track">
@@ -309,34 +444,34 @@
       <span class="partner-dot">·</span>
       <span class="partner-item">МОСЭНЕРГО</span>
       <span class="partner-dot">·</span>
-      <span class="partner-item">ПИК ГРУППА</span>
-      <span class="partner-dot">·</span>
-      <span class="partner-item">ЛСР ГРУПП</span>
-      <span class="partner-dot">·</span>
-      <span class="partner-item">СЕТЕВАЯ КОМПАНИЯ</span>
-      <span class="partner-dot">·</span>
       <span class="partner-item">МОСОБЛЭНЕРГО</span>
       <span class="partner-dot">·</span>
-      <span class="partner-item">ИНТЕР РАО</span>
-      <span class="partner-dot">·</span>
       <span class="partner-item">ФСК ЕЭС</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ПУЭ 7-Е ИЗДАНИЕ</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ГОСТ Р 58669</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">РД 34.20.185</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">СТО 56947007</span>
       <span class="partner-dot">·</span>
       <!-- дубль для бесшовности -->
       <span class="partner-item">РОССЕТИ МОСКОВСКИЙ РЕГИОН</span>
       <span class="partner-dot">·</span>
       <span class="partner-item">МОСЭНЕРГО</span>
       <span class="partner-dot">·</span>
-      <span class="partner-item">ПИК ГРУППА</span>
-      <span class="partner-dot">·</span>
-      <span class="partner-item">ЛСР ГРУПП</span>
-      <span class="partner-dot">·</span>
-      <span class="partner-item">СЕТЕВАЯ КОМПАНИЯ</span>
-      <span class="partner-dot">·</span>
       <span class="partner-item">МОСОБЛЭНЕРГО</span>
       <span class="partner-dot">·</span>
-      <span class="partner-item">ИНТЕР РАО</span>
-      <span class="partner-dot">·</span>
       <span class="partner-item">ФСК ЕЭС</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ПУЭ 7-Е ИЗДАНИЕ</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">ГОСТ Р 58669</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">РД 34.20.185</span>
+      <span class="partner-dot">·</span>
+      <span class="partner-item">СТО 56947007</span>
       <span class="partner-dot">·</span>
     </div>
   </div>
@@ -375,7 +510,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
           </svg>
-          <span>г. Москва, ул. Новоорловская, д. 10</span>
+          <span>Московская обл., г.о. Истра, д. Трусово, д. 49А</span>
         </div>
         <div class="u-index-08">
           Работаем по всей Московской области и регионам.<br>
@@ -407,7 +542,7 @@
               <input type="checkbox" id="consent" name="consent" required>
               <label for="consent">Даю согласие на обработку персональных данных в соответствии с <a href="/privacy.html" target="_blank">Политикой конфиденциальности</a></label>
             </div>
-            <button type="submit" class="btn btn-primary w-full">Получить расчёт бесплатно</button>
+            <button type="submit" class="btn btn-primary">Оставить заявку</button>
           </form>
         </div>
       </div>
@@ -425,18 +560,19 @@
     <div>
       <div class="footer-col-title">Услуги</div>
       <ul class="footer-links">
-        <li><a href="/services.html">ВЛ и КЛ</a></li>
-        <li><a href="/services.html">Подстанции</a></li>
-        <li><a href="/services.html">Электроснабжение</a></li>
-        <li><a href="/services.html">ИД</a></li>
+        <li><a href="/services.html#svc-1">ВЛ и КЛ</a></li>
+        <li><a href="/services.html#svc-3">Подстанции</a></li>
+        <li><a href="/services.html#svc-4">Электроснабжение</a></li>
+        <li><a href="/services.html#svc-5">ИД</a></li>
       </ul>
     </div>
     <div>
       <div class="footer-col-title">Компания</div>
       <ul class="footer-links">
         <li><a href="/portfolio.html">Объекты</a></li>
+        <li><a href="/about.html">О компании</a></li>
         <li><a href="/partners.html">Партнёрам</a></li>
-        <li><a href="/contact.html">Контакты</a></li>
+    <li><a href="/contact.html">Контакты</a></li>
       </ul>
     </div>
     <div>
@@ -444,14 +580,14 @@
       <ul class="footer-links">
         <li><a href="tel:+79939074577">+7 (993) 907-45-77</a></li>
         <li><a href="mailto:energoatlant@yandex.ru">energoatlant@yandex.ru</a></li>
-        <li class="u-index-11">г. Москва, ул. Новоорловская, д. 10</li>
+        <li class="u-index-11">Московская обл., г.о. Истра, д. Трусово, д. 49А</li>
       </ul>
     </div>
   </div>
   <div class="footer-bottom">
+    <span>ООО «ЭнергоАтлант», ИНН 5017144698, КПП 501701001, ОГРН 1265000042152</span>
     <span>© 2026 ЭнергоАтлант. Все права защищены.</span>
     <a href="/privacy.html">Политика конфиденциальности</a>
-    <span class="u-index-12">Личный кабинет</span>
   </div>
 </footer>
 

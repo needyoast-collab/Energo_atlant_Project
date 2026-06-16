@@ -3,6 +3,48 @@ let projectsList = [];
 let activeProjectId = null;
 let activeModalProjectId = null;
 let docTypes = {};
+let loadedPtoTabs = new Set();
+let ptoTabLoadPromises = new Map();
+const PTO_TABS = ['stages', 'docs'];
+
+function resetPtoTabCache() {
+  loadedPtoTabs = new Set();
+  ptoTabLoadPromises = new Map();
+}
+
+function loadPtoTabData(tab, { force = false } = {}) {
+  if (!activeModalProjectId || (!force && loadedPtoTabs.has(tab))) return Promise.resolve();
+  if (!force && ptoTabLoadPromises.has(tab)) return ptoTabLoadPromises.get(tab);
+
+  const loaders = {
+    stages: () => loadStages(activeModalProjectId),
+    docs: () => loadModalDocs(activeModalProjectId),
+  };
+  const loader = loaders[tab];
+  if (!loader) return Promise.resolve();
+
+  const promise = Promise.resolve(loader())
+    .then(() => loadedPtoTabs.add(tab))
+    .catch((err) => {
+      loadedPtoTabs.delete(tab);
+      throw err;
+    })
+    .finally(() => ptoTabLoadPromises.delete(tab));
+  ptoTabLoadPromises.set(tab, promise);
+  return promise;
+}
+
+function invalidatePtoTabs(...tabs) {
+  tabs.forEach((tab) => loadedPtoTabs.delete(tab));
+}
+
+function preloadPtoTabs(priorityTab) {
+  const tabs = [
+    priorityTab,
+    ...PTO_TABS.filter((tab) => tab !== priorityTab),
+  ];
+  return Promise.allSettled(tabs.map((tab) => loadPtoTabData(tab)));
+}
 
 // ─── Инициализация ────────────────────────────────────────────
 async function init() {
@@ -69,22 +111,23 @@ document.getElementById('projects-list').addEventListener('click', async (e) => 
   if (!project) return;
 
   activeModalProjectId = id;
+  resetPtoTabCache();
   document.getElementById('modal-project-title').textContent = project.name;
   document.getElementById('modal-project-meta').innerHTML =
     `${badge(project.status)} <span class="pto-code-offset">${escHtml(project.code)}</span>
      ${project.address ? ` · 📍 ${escHtml(project.address)}` : ''}`;
 
-  switchPtoTab('stages');
   openModal('modal-project');
-  await loadStages(id);
+  await switchPtoTab('stages', { force: true }).catch(() => {});
+  await preloadPtoTabs('stages');
 });
 
-function switchPtoTab(tab) {
+function switchPtoTab(tab, options = {}) {
   document.getElementById('pto-tab-stages').classList.toggle('is-hidden', tab !== 'stages');
   document.getElementById('pto-tab-docs').classList.toggle('is-hidden', tab !== 'docs');
   document.getElementById('pto-tab-btn-stages').className = tab === 'stages' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
   document.getElementById('pto-tab-btn-docs').className   = tab === 'docs'   ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
-  if (tab === 'docs') loadModalDocs(activeModalProjectId);
+  return loadPtoTabData(tab, options);
 }
 
 document.querySelectorAll('[data-ptotab]').forEach(btn => {
@@ -171,7 +214,7 @@ async function loadDocs(id) {
             </div>
           </div>
           <div class="pto-doc-actions">
-            <a href="${doc.url}" target="_blank" class="btn btn-outline btn-sm pto-doc-btn">Скачать</a>
+            <a href="${safeAttrUrl(doc.url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm pto-doc-btn">Скачать</a>
             ${doc.uploaded_by_id === currentUser.id ? `
               <button class="btn btn-sm pto-delete-doc-btn"
                 data-action="delete-doc" data-id="${doc.id}">✕</button>` : ''}
@@ -187,7 +230,13 @@ document.getElementById('docs-list').addEventListener('click', async (e) => {
   if (!btn) return;
   if (!confirm('Удалить документ?')) return;
   const { ok, data } = await apiRequest('DELETE', `/api/pto/documents/${btn.dataset.id}`);
-  if (ok) { showToast('Документ удалён', 'success'); loadDocs(activeProjectId); }
+  if (ok) {
+    showToast('Документ удалён', 'success');
+    loadDocs(activeProjectId);
+    if (String(activeModalProjectId || '') === String(activeProjectId || '')) {
+      invalidatePtoTabs('docs');
+    }
+  }
   else showToast(data.error, 'error');
 });
 
@@ -205,6 +254,9 @@ document.getElementById('upload-doc-form').addEventListener('submit', async (e) 
     showToast('Документ загружен', 'success');
     e.target.reset();
     loadDocs(activeProjectId);
+    if (String(activeModalProjectId || '') === String(activeProjectId || '')) {
+      invalidatePtoTabs('docs');
+    }
   } else showToast(data.error, 'error');
 });
 
